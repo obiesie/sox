@@ -13,7 +13,3 @@ chrono = "0.4.31"
 
 [dev-dependencies]
 criterion = "0.5.1"
-
-[[bench]]
-name = "scanner_benchmark"
-harness = false

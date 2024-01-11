@@ -8,7 +8,6 @@ use std::io::Write;
 use log::LevelFilter;
 
 use sox::lexer::Lexer;
-use sox::parser::Parser;
 use sox::token::Token;
 
 fn main() {
