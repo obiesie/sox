@@ -8,6 +8,7 @@ use std::io::Write;
 use log::LevelFilter;
 
 use sox::lexer::Lexer;
+use sox::parser::Parser;
 use sox::token::Token;
 
 fn main() {
@@ -61,8 +62,18 @@ fn run_prompt() {
 
 fn run(source: String) {
     let tokens = Lexer::lex(source.as_str()).collect::<Vec<Token>>();
-    for token in tokens{
-        println!("{:?}", token);
+
+    let mut parser = Parser::new(tokens.clone().into_iter());
+    let tree = parser.parse();
+    if let Ok(tree_val) = tree {
+        for leaf in tree_val {
+            println!("{:?}", leaf);
+        }
+    } else {
+        info!("*****************Errors found while parsing*****************");
+        for error in tree.err().unwrap() {
+            error!("{:?}", error);
+        }
     }
 
 }
