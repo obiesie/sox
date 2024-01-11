@@ -1,0 +1,2 @@
+[alias]
+run_sox = "run resources/main.sox"

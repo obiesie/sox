@@ -1,0 +1,19 @@
+[package]
+name = "sox"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+slotmap = "1.0.6"
+log = "0.4.20"
+env_logger = { version = "0.10.0", features = [] }
+chrono = "0.4.31"
+
+[dev-dependencies]
+criterion = "0.5.1"
+
+[[bench]]
+name = "scanner_benchmark"
+harness = false
