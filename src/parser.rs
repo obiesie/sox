@@ -22,7 +22,7 @@ pub struct Parser<I: Iterator<Item=Token>> {
 }
 
 #[derive(Clone, Debug)]
-pub struct ParseError {
+pub struct SyntaxError {
     msg: String,
     line: usize
 }
@@ -37,7 +37,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return prev;
     }
 
-    pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<ParseError>> {
+    pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<SyntaxError>> {
         let mut statements = vec![];
         let mut errors = vec![];
         while !self.at_end() {
@@ -74,7 +74,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         }
     }
 
-    fn declaration(&mut self) -> Result<Stmt, ParseError> {
+    fn declaration(&mut self) -> Result<Stmt, SyntaxError> {
         let val = if self.match_token(vec![Class]) {
             self.class_declaration()
         } else if self.match_token(vec![Def]) {
@@ -91,7 +91,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
     }
 
 
-    fn class_declaration(&mut self) -> Result<Stmt, ParseError> {
+    fn class_declaration(&mut self) -> Result<Stmt, SyntaxError> {
         let name = self.consume(Identifier, "Expect a class name".into())?;
 
         let mut super_class = None;
@@ -116,14 +116,14 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(class);
     }
 
-    fn function(&mut self, _kind: String) -> Result<Stmt, ParseError> {
+    fn function(&mut self, _kind: String) -> Result<Stmt, SyntaxError> {
         let name = self.consume(Identifier, "Expect function name.".into())?;
         let _ = self.consume(LeftParen, "Expect '(' after function name.".into())?;
         let mut params = vec![];
         if !self.check(RightParen) {
             loop {
                 if params.len() >= 255 {
-                    return Err(ParseError {
+                    return Err(SyntaxError {
                         msg: "Cannot have more than 255 parameters.".into(),
                         line: name.line
                     });
@@ -143,7 +143,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(stmt);
     }
 
-    fn var_declaration(&mut self) -> Result<Stmt, ParseError> {
+    fn var_declaration(&mut self) -> Result<Stmt, SyntaxError> {
         let name = self.consume(Identifier, "Expect variable name.".into())?;
         let mut initializer = None;
         if self.match_token(vec![Equal]) {
@@ -153,7 +153,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(Stmt::Var { name, initializer });
     }
 
-    fn statement(&mut self) -> Result<Stmt, ParseError> {
+    fn statement(&mut self) -> Result<Stmt, SyntaxError> {
         if self.match_token(vec![For]) {
             return self.for_statement();
         }
@@ -176,7 +176,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return self.expression_statement();
     }
 
-    fn return_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn return_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let keyword = self.previous();
         let mut value = Expr::Literal {
             value: Literal::None,
@@ -189,7 +189,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(return_stmt);
     }
 
-    fn for_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn for_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let _ = self.consume(LeftParen, "Expect '(' after 'for'.".to_string())?;
         let mut initializer = None;
         if self.match_token(vec![Semi]) {
@@ -229,7 +229,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(body);
     }
 
-    fn while_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn while_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let _ = self.consume(LeftParen, "Expect '(' after 'while'.".into())?;
         let condition = self.expression()?;
         let _ = self.consume(RightParen, "Expect ')' after 'while' condition.".into())?;
@@ -240,7 +240,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         });
     }
 
-    fn if_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn if_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let _ = self.consume(LeftParen, "Expect '(' after 'if'.".into())?;
         let condition = self.expression()?;
         let _ = self.consume(RightParen, "Expect ')' after 'if' condition.".into())?;
@@ -257,7 +257,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         });
     }
 
-    fn expression_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn expression_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let expr = self.expression();
         if let Ok(e) = expr {
             let _ = self.consume(Semi, "Expect ';' after expression.".into())?;
@@ -267,7 +267,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         }
     }
 
-    fn block(&mut self) -> Result<Vec<Stmt>, ParseError> {
+    fn block(&mut self) -> Result<Vec<Stmt>, SyntaxError> {
         let mut statements = vec![];
         while !self.check(RightBrace) && !self.at_end() {
             let stmt = self.declaration()?;
@@ -277,7 +277,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(statements);
     }
 
-    fn print_statement(&mut self) -> Result<Stmt, ParseError> {
+    fn print_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let value = self.expression();
         if let Ok(v) = value {
             let _ = self.consume(Semi, "Expect ';' after value.".into())?;
@@ -287,7 +287,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         }
     }
 
-    fn expression(&mut self) -> Result<Expr, ParseError> {
+    fn expression(&mut self) -> Result<Expr, SyntaxError> {
         let expr = self.or()?;
         if self.match_token(vec![Equal]) {
             let value = self.expression()?;
@@ -307,7 +307,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn or(&mut self) -> Result<Expr, ParseError> {
+    fn or(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.and()?;
         while self.match_token(vec![Or]) {
             let operator = self.previous();
@@ -321,7 +321,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn and(&mut self) -> Result<Expr, ParseError> {
+    fn and(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.equality()?;
         while self.match_token(vec![And]) {
             let operator = self.previous();
@@ -334,7 +334,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         }
         return Ok(expr);
     }
-    fn comparison(&mut self) -> Result<Expr, ParseError> {
+    fn comparison(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.term()?;
 
         while self.match_token(vec![Greater, GreaterEqual, Less, LessEqual]) {
@@ -349,7 +349,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn term(&mut self) -> Result<Expr, ParseError> {
+    fn term(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.factor()?;
 
         while self.match_token(vec![Minus, Plus]) {
@@ -364,7 +364,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn factor(&mut self) -> Result<Expr, ParseError> {
+    fn factor(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.unary()?;
 
         while self.match_token(vec![Slash, Star, Mod]) {
@@ -379,7 +379,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn unary(&mut self) -> Result<Expr, ParseError> {
+    fn unary(&mut self) -> Result<Expr, SyntaxError> {
         if self.match_token(vec![Bang, Minus]) {
             let operator = self.previous();
             let right = self.unary()?;
@@ -391,7 +391,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return self.call();
     }
 
-    fn call(&mut self) -> Result<Expr, ParseError> {
+    fn call(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.primary()?;
         loop {
             if self.match_token(vec![LeftParen]) {
@@ -409,12 +409,12 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn finish_call(&mut self, callee: Expr) -> Result<Expr, ParseError> {
+    fn finish_call(&mut self, callee: Expr) -> Result<Expr, SyntaxError> {
         let mut arguments = vec![];
         if !self.check(RightParen) {
             loop {
                 if arguments.len() > 255 {
-                    return Err(ParseError {
+                    return Err(SyntaxError {
                         msg: "Function cannot have more than 255 arguments".to_string(),
                         line: self.previous().line
                     });
@@ -433,7 +433,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         });
     }
 
-    fn primary(&mut self) -> Result<Expr, ParseError> {
+    fn primary(&mut self) -> Result<Expr, SyntaxError> {
         if self.match_token(vec![TokenType::None]) {
             return Ok(Expr::Literal {
                 value: Literal::None,
@@ -473,14 +473,14 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         }
         let token = self.tokens.peek();
 
-        return Err(ParseError {
+        return Err(SyntaxError {
             msg: format!("Failed to parse primary token - {:?}", token),
             line: token.unwrap().line
         });
     }
 
 
-    fn equality(&mut self) -> Result<Expr, ParseError> {
+    fn equality(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.comparison()?;
         while self.match_token(vec![BangEqual, EqualEqual]) {
             let operator = self.previous();
@@ -494,14 +494,14 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return Ok(expr);
     }
 
-    fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, ParseError> {
+    fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, SyntaxError> {
         if self.check(token_type) {
             let token = self.advance();
             return Ok(token.unwrap());
         }
         let prev = self.previous();
         info!("{:?}", prev);
-        return Err(ParseError {
+        return Err(SyntaxError {
             msg: format!(
                 "{:?}", message
             ),
