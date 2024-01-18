@@ -1,6 +1,6 @@
 use std::any::Any;
 use std::rc::Rc;
-use crate::core::{SoxObject, SoxObjectPayload, SoxObjectRef, SoxType};
+use crate::core::{SoxObject, SoxObjectPayload, SoxObjectRef};
 
 #[derive(Debug)]
 pub struct SoxFloat {
