@@ -1,20 +1,14 @@
+
 use std::{env, fs, process};
 use std::io;
 use std::io::Write;
 
-use log::LevelFilter;
+use log::{info, LevelFilter};
+use sox::core::SoxObj;
 
-use sox::core::{SoxObj};
 use sox::int::SoxInt;
+use sox::payload;
 
-macro_rules! payload {
-    ($e:expr, $p:path) => {
-        match $e {
-            $p(v) => Some(v),
-            _ => None
-        }
-    };
-}
 fn main() {
     env_logger::Builder::new()
         .format(|buf, record| {
@@ -64,8 +58,8 @@ fn run_prompt() {
 }
 
 fn run(source: String) {
+    info!("Running interpreter...");
     let v = SoxInt::new(10).into_sox_obj();
     let val = payload!(v, SoxObj::Int).unwrap();
-
-
+    info!("value is {:?}", val);
 }
