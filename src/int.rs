@@ -1,6 +1,7 @@
-use std::any::Any;
 use std::rc::Rc;
-use crate::core::{SoxObject, SoxObjectPayload, SoxObjectRef};
+use crate::core::SoxObj;
+
+pub type SoxIntRef = Rc<SoxInt>;
 
 #[derive(Debug)]
 pub struct SoxInt {
@@ -13,17 +14,13 @@ impl SoxInt {
             value: val,
         }
     }
-}
 
-impl SoxObjectPayload for SoxInt {
-    fn as_any(&self) -> &dyn Any {
-        self
+    pub fn into_ref(self) -> SoxIntRef {
+        return Rc::new(self);
     }
 
-    fn into_sox_object(self) -> SoxObjectRef {
-        let sox_object = SoxObject::new(self);
-        let sox_object_ref = Rc::new(sox_object);
-        return sox_object_ref
+    pub fn into_sox_obj(self) -> SoxObj {
+        return SoxObj::Int(self.into_ref());
     }
 }
 

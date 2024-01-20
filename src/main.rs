@@ -1,18 +1,21 @@
-#[macro_use]
-extern crate log;
-
 use std::{env, fs, process};
 use std::io;
 use std::io::Write;
 
 use log::LevelFilter;
 
-use sox::lexer::Lexer;
-use sox::parser::Parser;
-use sox::token::Token;
+use sox::core::{SoxObj};
+use sox::int::SoxInt;
 
+macro_rules! payload {
+    ($e:expr, $p:path) => {
+        match $e {
+            $p(v) => Some(v),
+            _ => None
+        }
+    };
+}
 fn main() {
-
     env_logger::Builder::new()
         .format(|buf, record| {
             writeln!(
@@ -61,19 +64,8 @@ fn run_prompt() {
 }
 
 fn run(source: String) {
-    let tokens = Lexer::lex(source.as_str()).collect::<Vec<Token>>();
+    let v = SoxInt::new(10).into_sox_obj();
+    let val = payload!(v, SoxObj::Int).unwrap();
 
-    let mut parser = Parser::new(tokens.clone().into_iter());
-    let tree = parser.parse();
-    if let Ok(tree_val) = tree {
-        for leaf in tree_val {
-            println!("{:?}", leaf);
-        }
-    } else {
-        info!("*****************Errors found while parsing*****************");
-        for error in tree.err().unwrap() {
-            error!("{:?}", error);
-        }
-    }
 
 }
