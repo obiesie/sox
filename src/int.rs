@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::core::SoxObj;
+use crate::core::SoxObject;
 
 pub type SoxIntRef = Rc<SoxInt>;
 
@@ -19,8 +19,8 @@ impl SoxInt {
         return Rc::new(self);
     }
 
-    pub fn into_sox_obj(self) -> SoxObj {
-        return SoxObj::Int(self.into_ref());
+    pub fn into_sox_obj(self) -> SoxObject {
+        return SoxObject::Int(self.into_ref());
     }
 }
 

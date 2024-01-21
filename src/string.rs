@@ -1,5 +1,5 @@
 use std::rc::Rc;
-use crate::core::SoxObj;
+use crate::core::SoxObject;
 
 pub type SoxStringRef = Rc<SoxString>;
 
@@ -19,7 +19,7 @@ impl SoxString {
         return Rc::new(self);
     }
 
-    pub fn into_sox_obj(self) -> SoxObj {
-        return SoxObj::String(self.into_ref());
+    pub fn into_sox_obj(self) -> SoxObject {
+        return SoxObject::String(self.into_ref());
     }
 }

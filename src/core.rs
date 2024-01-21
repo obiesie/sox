@@ -13,7 +13,7 @@ macro_rules! payload {
 }
 
 #[derive(Clone, Debug)]
-pub enum SoxObj {
+pub enum SoxObject {
     Int(SoxIntRef),
     String(SoxStringRef),
 }
