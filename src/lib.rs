@@ -8,3 +8,5 @@ pub mod parser;
 pub mod core;
 pub mod int;
 pub mod string;
+pub mod environment;
+pub mod exceptions;
