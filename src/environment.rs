@@ -7,7 +7,7 @@ use crate::core::SoxObject;
 use crate::exceptions::RuntimeException;
 
 #[derive(Clone, Debug)]
-pub struct Namespace {
+struct Namespace {
     pub bindings: HashMap<String, SoxObject>,
 }
 
@@ -52,7 +52,7 @@ impl Namespace {
 
 #[derive(Clone, Debug)]
 pub struct Env {
-    pub namespaces: Vec<Namespace>,
+    namespaces: Vec<Namespace>,
 }
 
 
@@ -66,7 +66,7 @@ impl Default for Env {
 
 impl Env {
     pub fn define<T: Into<String>>(&mut self, name: T, value: SoxObject) {
-        let _ = self.namespaces.last_mut().unwrap().assign(name, value);
+        let _ = self.namespaces.last_mut().unwrap().define(name, value);
     }
 
     pub fn get<T: Into<String> + Display>(&mut self, name: T) -> Result<SoxObject, RuntimeException> {
@@ -98,13 +98,8 @@ impl Env {
 
     pub fn new_namespace(&mut self) -> Result<(), RuntimeException> {
         let namespace = Namespace::default();
-        let _ = self.push(namespace)?;
+        let _ = self.namespaces.push(namespace);
 
-        Ok(())
-    }
-
-    pub fn push(&mut self, namespace: Namespace) -> Result<(), RuntimeException> {
-        self.namespaces.push(namespace);
         Ok(())
     }
 
@@ -143,13 +138,14 @@ mod tests {
     }
 
     #[test]
-    fn test_assign_without_def(){
+    fn test_assign_without_def() {
         let mut env = Env::default();
         let obj = SoxInt::new(10).into_sox_obj();
         let r = env.assign("undefined", obj);
 
         assert!(r.is_err());
     }
+
     #[test]
     fn test_assignment_to_namespace() {
         let mut env = Env::default();
