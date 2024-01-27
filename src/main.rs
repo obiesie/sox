@@ -5,6 +5,7 @@ use std::io::Write;
 
 use log::{info, LevelFilter};
 use sox::core::SoxObject;
+use sox::environment::Env;
 
 use sox::int::SoxInt;
 use sox::payload;
@@ -58,9 +59,14 @@ fn run_prompt() {
 }
 
 fn run(source: String) {
-    info!("Running interpreter...");
-    let v = SoxInt::new(10).into_sox_obj();
-    let val = payload!(v, SoxObject::Int).unwrap();
-    info!("value is {:?}", val);
+    let val = SoxInt::new(10).into_sox_obj();
+    let mut env = Env::default();
+    env.define("v", val);
+
+    let ref_val = env.get("v");
+
+    info!("referenced val is {:?}", ref_val);
+
+
 }
 
