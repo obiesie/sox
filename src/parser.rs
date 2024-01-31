@@ -191,7 +191,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
 
     fn for_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let _ = self.consume(LeftParen, "Expect '(' after 'for'.".to_string())?;
-        let mut initializer = None;
+        let initializer;
         if self.match_token(vec![Semi]) {
             initializer = None;
         } else if self.match_token(vec![Let]) {
