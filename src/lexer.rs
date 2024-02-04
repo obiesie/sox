@@ -122,9 +122,15 @@ impl<'source> Lexer<'source> {
                     }
                 }
             }
-            let value = &self.source[start..end];
-            let parsed_value = value.parse::<f64>().unwrap();
-            Ok(self.yield_literal_token(Number, Literal::Float(parsed_value)))
+            let value: &str = &self.source[start..end];
+            if value.contains("."){
+                let parsed_value = value.parse::<f64>().unwrap();
+                Ok(self.yield_literal_token(Number, Literal::Float(parsed_value)))
+            } else {
+                let parsed_value = value.parse::<i64>().unwrap();
+                Ok(self.yield_literal_token(Number, Literal::Integer(parsed_value)))
+            }
+
         } else {
             Err(LexError::new("".into()))
         }
