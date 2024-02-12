@@ -36,7 +36,7 @@ pub enum Stmt {
 }
 
 impl Stmt {
-    pub(crate) fn accept<T: Visitor>(&self, mut visitor: T) -> T::T {
+    pub(crate) fn accept<T: StmtVisitor>(&self, mut visitor: T) -> T::T {
         match self {
             Stmt::Expression(_v) => visitor.visit_expression_stmt(self),
             Stmt::Print(_) => visitor.visit_print_stmt(self),
@@ -54,7 +54,7 @@ impl Stmt {
     }
 }
 
-pub trait Visitor {
+pub trait StmtVisitor {
     type T;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T;
