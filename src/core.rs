@@ -1,6 +1,6 @@
 use std::fmt::Debug;
-use crate::int::SoxIntRef;
-use crate::string::SoxStringRef;
+
+use crate::token::Literal;
 
 #[macro_export]
 macro_rules! payload {
@@ -14,7 +14,21 @@ macro_rules! payload {
 
 #[derive(Clone, Debug)]
 pub enum SoxObject {
-    Int(SoxIntRef),
-    String(SoxStringRef),
+    Int(i64),
+    String(String),
+    Float(f64),
+    Boolean(bool),
+    None
 }
 
+impl From<&Literal> for SoxObject{
+    fn from(value: &Literal) -> Self {
+        match value {
+            Literal::String(s) => {SoxObject::String(s.to_string())}
+            Literal::Integer(i) => {SoxObject::Int(*i)}
+            Literal::Float(f) => {SoxObject::Float(*f)}
+            Literal::Boolean(b) => {SoxObject::Boolean(*b)}
+            Literal::None => {SoxObject::None}
+        }
+    }
+}
