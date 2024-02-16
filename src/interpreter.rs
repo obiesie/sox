@@ -9,7 +9,7 @@ use crate::exceptions::{Exception, RuntimeError};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
 use crate::payload;
-use crate::stmt::{Stmt, Visitor};
+use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
@@ -18,8 +18,6 @@ macro_rules! env {
         $a.envs.get_mut($a.active_env_ref).unwrap()
     };
 }
-
-
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
@@ -52,10 +50,7 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(
-        &mut self,
-        statements: Vec<&Stmt>,
-    ) -> Result<(), Exception> {
+    pub fn execute_block(&mut self, statements: Vec<&Stmt>) -> Result<(), Exception> {
         {
             let active_env = env!(self);
             active_env.new_namespace()?;
@@ -79,7 +74,7 @@ impl Interpreter {
     fn is_truthy(&self, obj: &SoxObject) -> bool {
         let truth_value = match obj {
             SoxObject::Boolean(v) => v.clone(),
-            _ => true
+            _ => true,
         };
         truth_value
     }
@@ -91,7 +86,7 @@ impl Interpreter {
     }
 }
 
-impl Visitor for &mut Interpreter {
+impl StmtVisitor for &mut Interpreter {
     type T = Result<(), Exception>;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -104,9 +99,7 @@ impl Visitor for &mut Interpreter {
                     println!("{:?}", v);
                     Ok(())
                 }
-                Err(v) => {
-                    Err(v.into())
-                }
+                Err(v) => Err(v.into()),
             };
         }
         return_value
@@ -120,14 +113,13 @@ impl Visitor for &mut Interpreter {
                     println!(">> {:?}", v);
                     Ok(())
                 }
-                Err(v) => {
-                    Err(v.into())
-                }
+                Err(v) => Err(v.into()),
             }
         } else {
             Err(RuntimeError {
-                msg: "Visiting non print statement with visit_print_stmt.".to_string(),
-            }.into())
+                msg: "Evaluation failed - visited non print statement with visit_print_stmt.".to_string(),
+            }
+            .into())
         };
         return_value
     }
@@ -144,17 +136,15 @@ impl Visitor for &mut Interpreter {
             active_env.define(name_ident, value)
         } else {
             return Err(RuntimeError {
-                msg: "".to_string(),
-            }.into());
+                msg: "Evaluation failed - visiting a non declaration statement with visit_decl_stmt".to_string(),
+            }
+            .into());
         }
         Ok(())
     }
 
     fn visit_block_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if let Stmt::Block(statements) = stmt {
-            //let namespace = Namespace::default();
-            //let env = Environment::new(&self.environment);
-
             let stmts = statements.iter().map(|v| v).collect::<Vec<&Stmt>>();
 
             debug!("statements are {:?}", stmts);
@@ -163,8 +153,9 @@ impl Visitor for &mut Interpreter {
             return Ok(());
         } else {
             return Err(RuntimeError {
-                msg: "".to_string(),
-            }.into());
+                msg: "Evaluation failed - visited non block statement with visit_block_stmt".to_string(),
+            }
+            .into());
         }
     }
 
@@ -184,8 +175,9 @@ impl Visitor for &mut Interpreter {
             }
         } else {
             return Err(RuntimeError {
-                msg: "Called if handler for non if statement.".into(),
-            }.into());
+                msg: "Evaluation failed - visited non if statement with visit_if_stmt".into(),
+            }
+            .into());
         }
         Ok(())
     }
@@ -197,20 +189,14 @@ impl Visitor for &mut Interpreter {
                 self.execute(body)?;
                 cond = self.evaluate(&condition)?;
             }
-            // loop {
-            //     let condition = self.evaluate(condition)?;
-            //     if self.is_truthy(&condition) {
-            //         self.execute(body)?;
-            //     } else {
-            //         break;
-            //     }
-            // }
+
             Ok(())
         } else {
             Err(RuntimeError {
-                msg: "Called message for processing while statement on other type of statement."
+                msg: "Evaluation failed - visited non while statement with visit_while_stmt."
                     .into(),
-            }.into())
+            }
+            .into())
         }
     }
 
@@ -242,10 +228,23 @@ impl ExprVisitor for &mut Interpreter {
             Ok(eval_val)
         } else {
             Err(RuntimeError {
-                msg: "Calling visit_assign_expr to process non assignment statement".into(),
+                msg: "Evaluation failed - called visit_assign_expr to process non assignment statement".into(),
             })
         };
         ret_val
+    }
+
+    fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
+        let value = if let Expr::Literal { value } = expr {
+            let obj = SoxObject::from(value);
+            Ok(obj)
+        } else {
+            Err(RuntimeError {
+                msg: "Evaluation failed - called visit_literal_expr on a non literal expression"
+                    .into(),
+            })
+        };
+        value
     }
 
     fn visit_binary_expr(&mut self, expr: &Expr) -> Self::T {
@@ -255,13 +254,15 @@ impl ExprVisitor for &mut Interpreter {
             right,
         } = expr
         {
-            let evaluated_right_val = self.evaluate(right.deref())?;
-            let evaluated_left_val = self.evaluate(left.deref())?;
+            let right_val = self.evaluate(right)?;
+            let left_val = self.evaluate(left)?;
+
             match operator.token_type {
                 TokenType::Minus => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (payload!(evaluated_left_val, SoxObject::Int), payload!(evaluated_right_val, SoxObject::Int))
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Int(v1 - v2))
                     } else {
                         Err(RuntimeError {
@@ -270,11 +271,12 @@ impl ExprVisitor for &mut Interpreter {
                     };
                     value
                 }
-                TokenType::Mod => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
-                        Ok(SoxObject::Float(v1 % v2))
+                TokenType::Rem => {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
+                        Ok(SoxObject::Int(v1 % v2))
                     } else {
                         Err(RuntimeError {
                             msg: "Arguments to the min operator must both be numbers".into(),
@@ -283,13 +285,15 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Plus => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
-                        Ok(SoxObject::Float(v1 + v2))
-                    } else if let (SoxObject::String(v1), SoxObject::String(v2)) =
-                        (evaluated_left_val, evaluated_right_val)
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
+                        Ok(SoxObject::Int(v1 + v2))
+                    } else if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::String),
+                        payload!(right_val, SoxObject::String),
+                    ) {
                         Ok(SoxObject::String(v1 + v2.as_str()))
                     } else {
                         Err(RuntimeError {
@@ -301,10 +305,11 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Star => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
-                        Ok(SoxObject::Float(v1 * v2))
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
+                        Ok(SoxObject::Int(v1 * v2))
                     } else {
                         Err(RuntimeError {
                             msg: "Arguments to the min operator must both be numbers".into(),
@@ -313,10 +318,11 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Slash => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
-                        Ok(SoxObject::Float(v1 / v2))
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
+                        Ok(SoxObject::Float((v1 as f64) / (v2 as f64)))
                     } else {
                         Err(RuntimeError {
                             msg: "Arguments to the min operator must both be numbers".into(),
@@ -325,9 +331,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Less => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 < v2))
                     } else {
                         Err(RuntimeError {
@@ -337,9 +344,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Greater => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 > v2))
                     } else {
                         Err(RuntimeError {
@@ -349,9 +357,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::EqualEqual => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 == v2))
                     } else {
                         Err(RuntimeError {
@@ -361,9 +370,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::BangEqual => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 != v2))
                     } else {
                         Err(RuntimeError {
@@ -373,9 +383,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::LessEqual => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 <= v2))
                     } else {
                         Err(RuntimeError {
@@ -385,9 +396,10 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (SoxObject::Float(v1), SoxObject::Float(v2)) =
-                        (evaluated_left_val.clone(), evaluated_right_val.clone())
-                    {
+                    let value = if let (Some(v1), Some(v2)) = (
+                        payload!(left_val, SoxObject::Int),
+                        payload!(right_val, SoxObject::Int),
+                    ) {
                         Ok(SoxObject::Boolean(v1 >= v2))
                     } else {
                         Err(RuntimeError {
@@ -397,7 +409,7 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Bang => {
-                    let value = self.is_truthy(&evaluated_right_val);
+                    let value = self.is_truthy(&right_val);
                     Ok(SoxObject::Boolean(value))
                 }
                 _ => Err(RuntimeError {
@@ -406,7 +418,7 @@ impl ExprVisitor for &mut Interpreter {
             }
         } else {
             Err(RuntimeError {
-                msg: "".into(),
+                msg: "Evaluation failed - called visit_binary_expr on non binary expression".into(),
             })
         };
         value
@@ -414,41 +426,28 @@ impl ExprVisitor for &mut Interpreter {
 
     fn visit_grouping_expr(&mut self, expr: &Expr) -> Self::T {
         let value = if let Expr::Grouping { expr } = expr {
-            Ok(self.evaluate(expr.deref())?)
+            Ok(self.evaluate(expr)?)
         } else {
             Err(RuntimeError {
-                msg: "".into(),
+                msg: "Evaluation failed - called visit_grouping_expr on on group expr.".into(),
             })
         };
         return value;
     }
 
-    fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
-        let value = if let Expr::Literal { value } = expr {
-            Ok(value)
-        } else {
-            Err(RuntimeError {
-                msg: "".into(),
-            })
-        };
-        if value.is_ok() {
-            let obj = SoxObject::from(value.unwrap());
-            return Ok(obj);
-        } else {
-            return Err(value.err().unwrap().into());
-        }
-    }
-
     fn visit_unary_expr(&mut self, expr: &Expr) -> Self::T {
         let value = if let Expr::Unary { operator, right } = expr {
-            let right = self.evaluate(right.deref())?;
+            let right = self.evaluate(right)?;
             match operator.token_type {
                 TokenType::Minus => {
                     let value = if let SoxObject::Float(v) = right {
                         Ok(SoxObject::Float(-v))
+                    } else if let SoxObject::Int(v) = right {
+                        Ok(SoxObject::Int(-v))
                     } else {
                         Err(RuntimeError {
-                            msg: "".into(),
+                            msg: "The unary operator (-) can only be applied to a numeric value."
+                                .into(),
                         })
                     };
                     value
@@ -459,12 +458,12 @@ impl ExprVisitor for &mut Interpreter {
                     Ok(SoxObject::Boolean(value))
                 }
                 _ => Err(RuntimeError {
-                    msg: "".into(),
+                    msg: "Unknown unary operator.".into(),
                 }),
             }
         } else {
             Err(RuntimeError {
-                msg: "".into(),
+                msg: "Evaluation failed - called visit_unary_expr on non unary expression".into(),
             })
         };
         return value;
@@ -490,7 +489,8 @@ impl ExprVisitor for &mut Interpreter {
             return self.evaluate(&right);
         } else {
             Err(RuntimeError {
-                msg: "".into(),
+                msg: "Evaluation failed - called visit_logical_expr on non logical expression."
+                    .into(),
             })
         }
     }
@@ -500,7 +500,7 @@ impl ExprVisitor for &mut Interpreter {
             self.lookup_variable(name.clone(), expr.clone())
         } else {
             Err(RuntimeError {
-                msg: "Visiting non variable expression with variable function".into(),
+                msg: "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
             })
         };
     }
@@ -508,19 +508,15 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_call_expr(&mut self, _expr: &Expr) -> Self::T {
         unimplemented!()
     }
-    //
     fn visit_get_expr(&mut self, _expr: &Expr) -> Self::T {
         unimplemented!()
     }
-    //
     fn visit_set_expr(&mut self, _expr: &Expr) -> Self::T {
         unimplemented!()
     }
-    //
     fn visit_this_expr(&mut self, _expr: &Expr) -> Self::T {
         unimplemented!()
     }
-    //
     fn visit_super_expr(&mut self, _expr: &Expr) -> Self::T {
         unimplemented!()
     }
