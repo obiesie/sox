@@ -1,4 +1,4 @@
-use std::ops::Deref;
+
 
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
@@ -13,11 +13,11 @@ use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::Token;
 use crate::token_type::TokenType;
 
-macro_rules! env {
-    ($a:expr) => {
-        $a.envs.get_mut($a.active_env_ref).unwrap()
-    };
-}
+// macro_rules! env {
+//     ($a:expr) => {
+//         $a.envs.get_mut($a.active_env_ref).unwrap()
+//     };
+// }
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
@@ -36,6 +36,10 @@ impl Interpreter {
         }
     }
 
+    fn active_env(&mut self) -> &mut Env {
+        return self.envs.get_mut(self.active_env_ref).unwrap();
+    }
+
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for stmt in statements {
             self.execute(stmt).expect("Runtime error");
@@ -52,7 +56,7 @@ impl Interpreter {
 
     pub fn execute_block(&mut self, statements: Vec<&Stmt>) -> Result<(), Exception> {
         {
-            let active_env = env!(self);
+            let active_env = self.active_env();
             active_env.new_namespace()?;
         }
 
@@ -60,13 +64,13 @@ impl Interpreter {
             debug!("Executing statement {:?}", statement);
             let res = self.execute(statement);
             if let Err(v) = res {
-                let active_env = env!(self);
+                let active_env = self.active_env();
 
                 active_env.pop()?;
                 return Err(v);
             }
         }
-        let active_env = env!(self);
+        let active_env = self.active_env();
         active_env.pop()?;
         Ok(())
     }
@@ -80,7 +84,7 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: Token, _expr: Expr) -> Result<SoxObject, RuntimeError> {
-        let active_env = env!(self);
+        let active_env = self.active_env();
         let val = active_env.get(name.lexeme.to_string());
         return val;
     }
@@ -131,7 +135,7 @@ impl StmtVisitor for &mut Interpreter {
                 let v = initializer.clone().unwrap();
                 value = self.evaluate(&v)?;
             }
-            let active_env = env!(self);
+            let active_env = self.active_env();
             let name_ident = name.lexeme.to_string();
             active_env.define(name_ident, value)
         } else {
@@ -223,7 +227,7 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
-            let env = env!(self);
+            let env = self.active_env();
             env.assign(name.lexeme.to_string(), eval_val.clone())?;
             Ok(eval_val)
         } else {
