@@ -1,5 +1,4 @@
-
-
+use std::ops::Deref;
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
 
@@ -29,7 +28,7 @@ impl Interpreter {
     pub fn new() -> Self {
         let environment = Env::default();
         let mut envs = SlotMap::new();
-        let active_env_ref = envs.insert(environment.clone());
+        let active_env_ref = envs.insert(environment);
         Interpreter {
             envs,
             active_env_ref,
@@ -55,13 +54,12 @@ impl Interpreter {
     }
 
     pub fn execute_block(&mut self, statements: Vec<&Stmt>) -> Result<(), Exception> {
-        {
-            let active_env = self.active_env();
-            active_env.new_namespace()?;
-        }
+
+        let active_env = self.active_env();
+        active_env.new_namespace()?;
+
 
         for statement in statements {
-            debug!("Executing statement {:?}", statement);
             let res = self.execute(statement);
             if let Err(v) = res {
                 let active_env = self.active_env();
@@ -83,9 +81,9 @@ impl Interpreter {
         truth_value
     }
 
-    fn lookup_variable(&mut self, name: Token, _expr: Expr) -> Result<SoxObject, RuntimeError> {
+    fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> Result<SoxObject, RuntimeError> {
         let active_env = self.active_env();
-        let val = active_env.get(name.lexeme.to_string());
+        let val = active_env.get(name.lexeme.as_str());
         return val;
     }
 }
@@ -96,11 +94,9 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let mut return_value = Ok(());
         if let Stmt::Expression(expr) = stmt {
-            info!("The expression is {:?}", expr);
             let value = self.evaluate(expr);
             return_value = match value {
-                Ok(v) => {
-                    println!("{:?}", v);
+                Ok(_) => {
                     Ok(())
                 }
                 Err(v) => Err(v.into()),
@@ -131,9 +127,8 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_decl_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let mut value = SoxObject::None;
         if let Stmt::Var { name, initializer } = stmt {
-            if initializer.is_some() {
-                let v = initializer.clone().unwrap();
-                value = self.evaluate(&v)?;
+            if let Some(initializer_stmt) = initializer {
+                value = self.evaluate(initializer_stmt)?;
             }
             let active_env = self.active_env();
             let name_ident = name.lexeme.to_string();
@@ -173,9 +168,8 @@ impl StmtVisitor for &mut Interpreter {
             let cond_val = self.evaluate(condition)?;
             if self.is_truthy(&cond_val) {
                 self.execute(then_branch)?;
-            } else if else_branch.is_some() {
-                let else_branch_stmt = else_branch.clone().unwrap();
-                self.execute(&else_branch_stmt)?;
+            } else if let Some(else_branch_stmt) = else_branch.as_ref() {
+                self.execute(else_branch_stmt)?;
             }
         } else {
             return Err(RuntimeError {
@@ -205,19 +199,15 @@ impl StmtVisitor for &mut Interpreter {
     }
 
     fn visit_function_stmt(&mut self, _stmt: &Stmt) -> Self::T {
-        unimplemented!()
+        todo!()
     }
 
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut return_value = SoxObject::None;
-        if let Stmt::Return { keyword: _, value } = stmt {
-            return_value = self.evaluate(value)?;
-        }
-        Err(Exception::Return(return_value))
+      todo!()
     }
 
     fn visit_class_stmt(&mut self, _stmt: &Stmt) -> Self::T {
-        unimplemented!()
+        todo!()
     }
 }
 
@@ -228,7 +218,8 @@ impl ExprVisitor for &mut Interpreter {
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
             let env = self.active_env();
-            env.assign(name.lexeme.to_string(), eval_val.clone())?;
+            env.assign(name.lexeme.as_str(), eval_val.clone())?;
+            // TODO should returned value be what is looked up?
             Ok(eval_val)
         } else {
             Err(RuntimeError {
@@ -501,7 +492,7 @@ impl ExprVisitor for &mut Interpreter {
 
     fn visit_variable_expr(&mut self, expr: &Expr) -> Self::T {
         return if let Expr::Variable { name } = expr {
-            self.lookup_variable(name.clone(), expr.clone())
+            self.lookup_variable(name, expr)
         } else {
             Err(RuntimeError {
                 msg: "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
@@ -510,18 +501,18 @@ impl ExprVisitor for &mut Interpreter {
     }
 
     fn visit_call_expr(&mut self, _expr: &Expr) -> Self::T {
-        unimplemented!()
+        todo!()
     }
     fn visit_get_expr(&mut self, _expr: &Expr) -> Self::T {
-        unimplemented!()
+        todo!()
     }
     fn visit_set_expr(&mut self, _expr: &Expr) -> Self::T {
-        unimplemented!()
+        todo!()
     }
     fn visit_this_expr(&mut self, _expr: &Expr) -> Self::T {
-        unimplemented!()
+        todo!()
     }
     fn visit_super_expr(&mut self, _expr: &Expr) -> Self::T {
-        unimplemented!()
+        todo!()
     }
 }
