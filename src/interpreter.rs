@@ -1,4 +1,5 @@
 use std::ops::Deref;
+
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
 
@@ -11,12 +12,6 @@ use crate::payload;
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::Token;
 use crate::token_type::TokenType;
-
-// macro_rules! env {
-//     ($a:expr) => {
-//         $a.envs.get_mut($a.active_env_ref).unwrap()
-//     };
-// }
 
 #[derive(Debug, Default)]
 pub struct Interpreter {
