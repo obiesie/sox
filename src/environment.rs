@@ -4,7 +4,7 @@ use std::fmt::Display;
 use log::debug;
 
 use crate::core::SoxObject;
-use crate::exceptions::RuntimeException;
+use crate::exceptions::RuntimeError;
 
 #[derive(Clone, Debug)]
 struct Namespace {
@@ -24,7 +24,7 @@ impl Namespace {
         &mut self,
         name: T,
         value: SoxObject,
-    ) -> Result<(), RuntimeException> {
+    ) -> Result<(), RuntimeError> {
         self.bindings.insert(name.into(), value);
         Ok(())
     }
@@ -33,18 +33,16 @@ impl Namespace {
         &mut self,
         name: T,
         value: SoxObject,
-    ) -> Result<(), RuntimeException> {
+    ) -> Result<(), RuntimeError> {
         self.bindings.insert(name.into(), value);
         Ok(())
     }
 
-    pub fn get<T: AsRef<str>>(&mut self, name: T) -> Result<SoxObject, RuntimeException> {
+    pub fn get<T: AsRef<str> + Display>(&mut self, name: T) -> Result<SoxObject, RuntimeError> {
         let ret_val = if let Some(v) = self.bindings.get(name.as_ref()) {
             Ok(v.clone())
         } else {
-            Err(RuntimeException {
-                msg: "".into(),
-            })
+            Err(RuntimeError { msg: format!("NameError: name '{name}' is not defined") })
         };
         ret_val
     }
@@ -54,7 +52,6 @@ impl Namespace {
 pub struct Env {
     namespaces: Vec<Namespace>,
 }
-
 
 impl Default for Env {
     fn default() -> Self {
@@ -69,7 +66,7 @@ impl Env {
         let _ = self.namespaces.last_mut().unwrap().define(name, value);
     }
 
-    pub fn get<T: Into<String> + Display>(&mut self, name: T) -> Result<SoxObject, RuntimeException> {
+    pub fn get<T: Into<String> + Display>(&mut self, name: T) -> Result<SoxObject, RuntimeError> {
         let name_literal = name.into();
         for namespace in self.namespaces.iter_mut().rev() {
             if let Ok(value) = namespace.get(name_literal.as_str()) {
@@ -77,12 +74,16 @@ impl Env {
             }
         }
 
-        return Err(RuntimeException {
-            msg: format!("Undefined variable {}.", name_literal),
+        return Err(RuntimeError {
+            msg:format!("NameError: name '{name_literal}' is not defined"),
         });
     }
 
-    pub fn assign<T: Into<String> + Display>(&mut self, name: T, value: SoxObject) -> Result<(), RuntimeException> {
+    pub fn assign<T: Into<String> + Display>(
+        &mut self,
+        name: T,
+        value: SoxObject,
+    ) -> Result<(), RuntimeError> {
         let name_literal = name.into();
         for namespace in self.namespaces.iter_mut().rev() {
             if let Ok(_) = namespace.get(name_literal.as_str()) {
@@ -91,19 +92,19 @@ impl Env {
             }
         }
 
-        return Err(RuntimeException {
-            msg: format!("Variable {} not defined in curr env.", name_literal),
+        return Err(RuntimeError {
+            msg: format!("NameError: Name '{name_literal}' is not defined."),
         });
     }
 
-    pub fn new_namespace(&mut self) -> Result<(), RuntimeException> {
+    pub fn new_namespace(&mut self) -> Result<(), RuntimeError> {
         let namespace = Namespace::default();
         let _ = self.namespaces.push(namespace);
 
         Ok(())
     }
 
-    pub fn pop(&mut self) -> Result<(), RuntimeException> {
+    pub fn pop(&mut self) -> Result<(), RuntimeError> {
         self.namespaces.pop();
         Ok(())
     }
@@ -115,13 +116,9 @@ impl Env {
 
 #[cfg(test)]
 mod tests {
-    use std::rc::Rc;
-
     use crate::core::SoxObject;
     use crate::environment::Env;
-    use crate::int::SoxInt;
     use crate::payload;
-    use crate::string::SoxString;
 
     #[test]
     fn test_empty_env() {
@@ -140,59 +137,54 @@ mod tests {
     #[test]
     fn test_assign_without_def() {
         let mut env = Env::default();
-        let obj = SoxInt::new(10).into_sox_obj();
+        let obj = SoxObject::Int(1);
         let r = env.assign("undefined", obj);
-
+    
         assert!(r.is_err());
     }
-
+    
     #[test]
     fn test_assignment_to_namespace() {
         let mut env = Env::default();
-        let obj = SoxInt::new(10).into_sox_obj();
-
+        let obj = SoxObject::Int(10);
+    
         env.define("test_obj", obj);
-
+    
         let obj_ref = env.get("test_obj");
         assert!(obj_ref.is_ok());
-
+    
         let obj = obj_ref.unwrap();
-        let sox_type = payload!(obj, SoxObject::Int).unwrap();
-        assert_eq!(sox_type.value, 10);
-
-        assert_eq!(Rc::strong_count(&sox_type), 2);
+        let sox_obj = payload!(obj, SoxObject::Int).unwrap();
+        assert_eq!(sox_obj, 10);
+    
     }
-
+    
     #[test]
     fn test_multi_namespace_assignment() {
         let mut env = Env::default();
-        let obj = SoxInt::new(10).into_sox_obj();
-        let another_obj = SoxString::new("hello world").into_sox_obj();
-
+        let obj = SoxObject::Int(10);
+        let another_obj = SoxObject::String("hello world".into());
+    
         env.define("test_obj", obj);
-
+    
         let _ = env.new_namespace();
         env.define("test_obj", another_obj);
-
+    
         let obj_ref = env.get("test_obj");
         assert!(obj_ref.is_ok());
-
+    
         let obj = obj_ref.unwrap();
-        let sox_type = payload!(obj, SoxObject::String).unwrap();
-        assert_eq!(sox_type.value, String::from("hello world"));
-
-        assert_eq!(Rc::strong_count(&sox_type), 2);
-
+        let sox_obj = payload!(obj, SoxObject::String).unwrap();
+        assert_eq!(sox_obj, String::from("hello world"));
+    
         let _ = env.pop();
-
+    
         let obj_ref = env.get("test_obj");
         assert!(obj_ref.is_ok());
-
+    
         let obj = obj_ref.unwrap();
-        let sox_type = payload!(obj, SoxObject::Int).unwrap();
-        assert_eq!(sox_type.value, 10);
-
-        assert_eq!(Rc::strong_count(&sox_type), 2);
+        let sox_obj = payload!(obj, SoxObject::Int).unwrap();
+        assert_eq!(sox_obj, 10);
+    
     }
 }
-

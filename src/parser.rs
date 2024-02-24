@@ -8,15 +8,18 @@ use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 use crate::token_type::TokenType::{
     And, Bang, BangEqual, Class, Colon, Comma, Def, Dot, Else, Equal, EqualEqual, False, For,
-    Greater, GreaterEqual, Identifier, If, LeftBrace, LeftParen, Less, LessEqual, Let, Minus, Mod,
-    Number, Or, Plus, Print, Return, RightBrace, RightParen, Semi, Slash, SoxString, Star, Super,
-    This, True, While,
+    Greater, GreaterEqual, Identifier, If, LeftBrace, LeftParen, Less, LessEqual, Let, Minus,
+    Number, Or, Plus, Print, Rem, Return, RightBrace, RightParen, Semi, Slash, SoxString, Star,
+    Super, This, True, While,
 };
 
-pub static TO_IGNORE: &'static [TokenType] = &[TokenType::Comment, TokenType::Whitespace, TokenType::Newline];
+pub static TO_IGNORE: &'static [TokenType] = &[
+    TokenType::Comment,
+    TokenType::Whitespace,
+    TokenType::Newline,
+];
 
-
-pub struct Parser<I: Iterator<Item=Token>> {
+pub struct Parser<I: Iterator<Item = Token>> {
     tokens: Peekable<I>,
     processed_tokens: Vec<Token>,
 }
@@ -24,12 +27,15 @@ pub struct Parser<I: Iterator<Item=Token>> {
 #[derive(Clone, Debug)]
 pub struct SyntaxError {
     msg: String,
-    line: usize
+    line: usize,
 }
 
-impl<I: Iterator<Item=Token>> Parser<I> {
+impl<I: Iterator<Item = Token>> Parser<I> {
     pub fn new(tokens: I) -> Self {
-        return Parser { tokens: tokens.peekable(), processed_tokens: vec![] };
+        return Parser {
+            tokens: tokens.peekable(),
+            processed_tokens: vec![],
+        };
     }
 
     fn previous(&self) -> Token {
@@ -45,20 +51,18 @@ impl<I: Iterator<Item=Token>> Parser<I> {
             if let Ok(val) = stmt {
                 statements.push(val);
             } else {
-                if let Err(e) = stmt{
+                if let Err(e) = stmt {
                     let err_msg = e.msg.to_string();
                     errors.push(e);
                     info!("Error while building parse tree - {:?}", err_msg);
                 }
-
             }
         }
-        if errors.is_empty(){
-            return Ok(statements)
+        if errors.is_empty() {
+            return Ok(statements);
         }
         return Err(errors);
     }
-
 
     fn synchronize(&mut self) {
         self.advance();
@@ -67,7 +71,10 @@ impl<I: Iterator<Item=Token>> Parser<I> {
                 return;
             }
             let peek_val = self.tokens.peek();
-            if peek_val.is_some() && vec![Class, Def, Let, For, If, While, Print, Return].contains(&peek_val.unwrap().token_type) {
+            if peek_val.is_some()
+                && vec![Class, Def, Let, For, If, While, Print, Return]
+                    .contains(&peek_val.unwrap().token_type)
+            {
                 return;
             }
             self.advance();
@@ -90,7 +97,6 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         return val;
     }
 
-
     fn class_declaration(&mut self) -> Result<Stmt, SyntaxError> {
         let name = self.consume(Identifier, "Expect a class name".into())?;
 
@@ -98,9 +104,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         if self.match_token(vec![Colon]) {
             let _ = self.consume(Identifier, "Expect a superclass name".into())?;
             let prev = self.previous();
-            super_class = Some(Expr::Variable {
-                name: prev,
-            });
+            super_class = Some(Expr::Variable { name: prev });
         }
         let _ = self.consume(LeftBrace, "Expect '{' before class body".into())?;
         let mut methods = vec![];
@@ -125,7 +129,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
                 if params.len() >= 255 {
                     return Err(SyntaxError {
                         msg: "Cannot have more than 255 parameters.".into(),
-                        line: name.line
+                        line: name.line,
                     });
                 }
                 let param = self.consume(Identifier, "Expect parameter name.".into())?;
@@ -367,7 +371,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
     fn factor(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.unary()?;
 
-        while self.match_token(vec![Slash, Star, Mod]) {
+        while self.match_token(vec![Slash, Star, Rem]) {
             let operator = self.previous();
             let right = self.unary()?;
             expr = Expr::Binary {
@@ -416,7 +420,7 @@ impl<I: Iterator<Item=Token>> Parser<I> {
                 if arguments.len() > 255 {
                     return Err(SyntaxError {
                         msg: "Function cannot have more than 255 arguments".to_string(),
-                        line: self.previous().line
+                        line: self.previous().line,
                     });
                 }
                 arguments.push(self.expression()?);
@@ -475,10 +479,9 @@ impl<I: Iterator<Item=Token>> Parser<I> {
 
         return Err(SyntaxError {
             msg: format!("Failed to parse primary token - {:?}", token),
-            line: token.unwrap().line
+            line: token.unwrap().line,
         });
     }
-
 
     fn equality(&mut self) -> Result<Expr, SyntaxError> {
         let mut expr = self.comparison()?;
@@ -502,10 +505,8 @@ impl<I: Iterator<Item=Token>> Parser<I> {
         let prev = self.previous();
         info!("{:?}", prev);
         return Err(SyntaxError {
-            msg: format!(
-                "{:?}", message
-            ),
-            line: self.previous().line
+            msg: format!("{:?}", message),
+            line: self.previous().line,
         });
     }
 
@@ -547,19 +548,18 @@ impl<I: Iterator<Item=Token>> Parser<I> {
             self.processed_tokens.push(return_val.clone());
             return Some(return_val);
         }
-        return None
+        return None;
     }
 
     fn at_end(&mut self) -> bool {
         let mut token = self.tokens.peek();
-        while token.is_some() && TO_IGNORE.contains(&token.unwrap().token_type){
+        while token.is_some() && TO_IGNORE.contains(&token.unwrap().token_type) {
             let _ = self.tokens.next();
             token = self.tokens.peek();
         }
         token.map_or(true, |t| vec![TokenType::EOF].contains(&t.token_type))
     }
 }
-
 
 #[cfg(test)]
 mod tests {
@@ -583,10 +583,27 @@ print a;";
         assert_eq!(parse_tree.is_ok(), true);
 
         let expected_stmts = vec![
-            Var { name: Token { token_type: Identifier, lexeme: "a".into(), literal: Literal::None, line: 2 }, initializer: Some(Expr::Literal { value: Literal::Float(6.0) }) },
-            Print(Expr::Variable { name: Token { token_type: Identifier, lexeme: "a".into(), literal: Literal::None, line: 3 } })];
+            Var {
+                name: Token {
+                    token_type: Identifier,
+                    lexeme: "a".into(),
+                    literal: Literal::None,
+                    line: 2,
+                },
+                initializer: Some(Expr::Literal {
+                    value: Literal::Float(6.0),
+                }),
+            },
+            Print(Expr::Variable {
+                name: Token {
+                    token_type: Identifier,
+                    lexeme: "a".into(),
+                    literal: Literal::None,
+                    line: 3,
+                },
+            }),
+        ];
         assert_eq!(parse_tree.unwrap(), expected_stmts);
-
     }
 
     #[test]
@@ -602,14 +619,19 @@ def hello_world(){
 
         assert_eq!(parse_tree.is_ok(), true);
 
-        let expected_stmts = vec![
-            Function {
-                name: Token { token_type: Identifier, lexeme: "hello_world".into(), literal: Literal::None, line: 2 },
-                params: vec![],
-                body: vec![Print(Expr::Literal { value: Literal::String("hello world".into()) })]
-            }];
+        let expected_stmts = vec![Function {
+            name: Token {
+                token_type: Identifier,
+                lexeme: "hello_world".into(),
+                literal: Literal::None,
+                line: 2,
+            },
+            params: vec![],
+            body: vec![Print(Expr::Literal {
+                value: Literal::String("hello world".into()),
+            })],
+        }];
         assert_eq!(parse_tree.unwrap(), expected_stmts);
-
     }
 
     #[test]
@@ -642,7 +664,6 @@ class HelloWorld{
 
         let parse_tree = parser.parse();
         assert_eq!(parse_tree.is_err(), false);
-
     }
 
     #[test]
@@ -657,7 +678,6 @@ for (let i=0; i < 10; i=i+1){
 
         let parse_tree = parser.parse();
         assert_eq!(parse_tree.is_err(), false);
-
     }
 
     #[test]
@@ -670,6 +690,5 @@ for (let i=0; i < 10; i=i+1){
 
         let parse_tree = parser.parse();
         assert_eq!(parse_tree.is_err(), false);
-
     }
 }

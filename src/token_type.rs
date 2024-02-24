@@ -15,7 +15,7 @@ pub enum TokenType {
     Star,
     Slash,
     Dot,
-    Mod,
+    Rem,
 
     // One or two character token
     Less,
@@ -61,4 +61,3 @@ pub enum TokenType {
     Error,
     EOF,
 }
-

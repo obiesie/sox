@@ -4,11 +4,12 @@ use log::debug;
 
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
-use crate::token_type::TokenType::{And, Bang, BangEqual, Class, Colon, Comma, Def, Dot, Else, Equal,
-                                   EqualEqual, False, For, Greater, GreaterEqual, Identifier, If,
-                                   LeftBrace, LeftParen, Less, LessEqual, Let, Minus, Mod, Newline,
-                                   Number, Or, Plus, Print, Return, RightBrace, RightParen, Semi,
-                                   Slash, SoxString, Star, Super, This, True, While};
+use crate::token_type::TokenType::{
+    And, Bang, BangEqual, Class, Colon, Comma, Def, Dot, Else, Equal, EqualEqual, False, For,
+    Greater, GreaterEqual, Identifier, If, LeftBrace, LeftParen, Less, LessEqual, Let, Minus,
+    Newline, Number, Or, Plus, Print, Rem, Return, RightBrace, RightParen, Semi, Slash, SoxString,
+    Star, Super, This, True, While,
+};
 
 pub struct LexError {
     msg: String,
@@ -19,7 +20,6 @@ impl LexError {
         LexError { msg }
     }
 }
-
 
 pub struct Lexer<'source> {
     source: &'source str,
@@ -43,25 +43,21 @@ impl<'source> Lexer<'source> {
         lexer
     }
 
-
     fn is_at_end(&self) -> bool {
         let _source_len = self.source.len();
         return self.current >= self.source.len();
     }
 
-
-    fn take_while<P>(
-        &mut self,
-        mut predicate: P,
-    ) -> Option<(&'source str, Range<usize>)>
-        where
-            P: FnMut(char) -> bool,
+    fn take_while<P>(&mut self, mut predicate: P) -> Option<(&'source str, Range<usize>)>
+    where
+        P: FnMut(char) -> bool,
     {
         let start = self.start;
 
         while let Some(c) = self.peek() {
-
-            if !predicate(c) { break; }
+            if !predicate(c) {
+                break;
+            }
 
             self.advance();
         }
@@ -69,22 +65,20 @@ impl<'source> Lexer<'source> {
         let end = self.current;
 
         if start != end {
-            let text = &self.source[
-                start..end];
+            let text = &self.source[start..end];
             Some((text, start..end))
         } else {
             None
         }
     }
 
-
     fn yield_identifier(&mut self) -> Result<Token, LexError> {
         let value = self.take_while(|ch| ch.is_alphanumeric() || ch == '_');
 
         if let Some((ident, _)) = value {
             let token_type = match ident {
-                "and" => { And }
-                "class" => { Class }
+                "and" => And,
+                "class" => Class,
                 "else" => Else,
                 "false" => False,
                 "for" => For,
@@ -99,14 +93,13 @@ impl<'source> Lexer<'source> {
                 "def" => Def,
                 "print" => Print,
                 "None" => TokenType::None,
-                _ => Identifier
+                _ => Identifier,
             };
             Ok(self.yield_token(token_type.clone()))
         } else {
             Err(LexError::new("".into()))
         }
     }
-
 
     fn yield_number(&mut self) -> Result<Token, LexError> {
         let value = self.take_while(|ch| ch.is_digit(10));
@@ -123,36 +116,32 @@ impl<'source> Lexer<'source> {
                 }
             }
             let value: &str = &self.source[start..end];
-            if value.contains("."){
+            if value.contains(".") {
                 let parsed_value = value.parse::<f64>().unwrap();
                 Ok(self.yield_literal_token(Number, Literal::Float(parsed_value)))
             } else {
                 let parsed_value = value.parse::<i64>().unwrap();
                 Ok(self.yield_literal_token(Number, Literal::Integer(parsed_value)))
             }
-
         } else {
             Err(LexError::new("".into()))
         }
     }
 
-
     fn yield_string(&mut self) -> Result<Token, LexError> {
-        let value = self.take_while(
-            |ch| ch != '"'
-        );
+        let value = self.take_while(|ch| ch != '"');
         self.advance();
         if let Some((str_literal, _)) = value {
             if self.is_at_end() && self.source.chars().last().unwrap() != '"' {
                 panic!("Unterminated string");
             }
-            let token = self.yield_literal_token(SoxString, Literal::String(str_literal[1..].to_string()));
+            let token =
+                self.yield_literal_token(SoxString, Literal::String(str_literal[1..].to_string()));
             Ok(token)
         } else {
             Err(LexError::new("".into()))
         }
     }
-
 
     fn advance(&mut self) -> Option<char> {
         let curr_char = self.source.chars().nth(self.current);
@@ -169,7 +158,6 @@ impl<'source> Lexer<'source> {
         Token::new(token_type, text.to_string(), literal, self.line)
     }
 
-
     fn char_matches(&mut self, expected: char) -> bool {
         if self.peek().unwrap_or('\0') != expected {
             return false;
@@ -180,8 +168,13 @@ impl<'source> Lexer<'source> {
 
     fn token_from_result(&self, input: Result<Token, LexError>) -> Option<Token> {
         match input {
-            Ok(v) => { Some(v) }
-            Err(e) => { Some(Token::new(TokenType::Error, e.msg.into(), Literal::None, self.line)) }
+            Ok(v) => Some(v),
+            Err(e) => Some(Token::new(
+                TokenType::Error,
+                e.msg.into(),
+                Literal::None,
+                self.line,
+            )),
         }
     }
     fn peek(&self) -> Option<char> {
@@ -202,40 +195,18 @@ impl<'source> Iterator for Lexer<'source> {
             let character = self.advance();
             let token = if let Some(character) = character {
                 match character {
-                    '(' => {
-                        Some(self.yield_token(LeftParen))
-                    }
-                    ')' => {
-                        Some(self.yield_token(RightParen))
-                    }
-                    '{' => {
-                        Some(self.yield_token(LeftBrace))
-                    }
-                    '}' => {
-                        Some(self.yield_token(RightBrace))
-                    }
-                    ',' => {
-                        Some(self.yield_token(Comma))
-                    }
-                    '.' => {
-                        Some(self.yield_token(Dot))
-                    }
-                    '-' => {
-                        Some(self.yield_token(Minus))
-                    }
-                    '+' => {
-                        Some(self.yield_token(Plus))
-                    }
-                    ';' => {
-                        Some(self.yield_token(Semi))
-                    }
-                    ':' => {
-                        Some(self.yield_token(Colon))
-                    }
-                    '%' => Some(self.yield_token(Mod)),
-                    '*' => {
-                        Some(self.yield_token(Star))
-                    }
+                    '(' => Some(self.yield_token(LeftParen)),
+                    ')' => Some(self.yield_token(RightParen)),
+                    '{' => Some(self.yield_token(LeftBrace)),
+                    '}' => Some(self.yield_token(RightBrace)),
+                    ',' => Some(self.yield_token(Comma)),
+                    '.' => Some(self.yield_token(Dot)),
+                    '-' => Some(self.yield_token(Minus)),
+                    '+' => Some(self.yield_token(Plus)),
+                    ';' => Some(self.yield_token(Semi)),
+                    ':' => Some(self.yield_token(Colon)),
+                    '%' => Some(self.yield_token(Rem)),
+                    '*' => Some(self.yield_token(Star)),
                     '!' => {
                         let token = if self.char_matches('=') {
                             BangEqual
@@ -272,12 +243,18 @@ impl<'source> Iterator for Lexer<'source> {
                         if self.char_matches('/') {
                             let comment_value = self.take_while(|ch| ch != '\n');
                             match comment_value {
-                                Some((comment, _)) => {
-                                    Some(Token::new(TokenType::Comment, comment.to_string(), Literal::String(comment.to_string()), self.line))
-                                }
-                                None => {
-                                    Some(Token::new(TokenType::Error, "Error fetching comment tokens".into(), Literal::None, self.line))
-                                }
+                                Some((comment, _)) => Some(Token::new(
+                                    TokenType::Comment,
+                                    comment.to_string(),
+                                    Literal::String(comment.to_string()),
+                                    self.line,
+                                )),
+                                None => Some(Token::new(
+                                    TokenType::Error,
+                                    "Error fetching comment tokens".into(),
+                                    Literal::None,
+                                    self.line,
+                                )),
                             }
                         } else if self.char_matches('*') {
                             let mut found_closing_pair = false;
@@ -301,7 +278,12 @@ impl<'source> Iterator for Lexer<'source> {
                             }
                             self.advance();
                             self.advance();
-                            Some(Token::new(TokenType::Comment, comment_buffer.clone(), Literal::String(comment_buffer), self.line))
+                            Some(Token::new(
+                                TokenType::Comment,
+                                comment_buffer.clone(),
+                                Literal::String(comment_buffer),
+                                self.line,
+                            ))
                         } else {
                             Some(self.yield_token(Slash))
                         }
@@ -323,16 +305,24 @@ impl<'source> Iterator for Lexer<'source> {
                         let numer_val = self.yield_number();
                         self.token_from_result(numer_val)
                     }
-                    ' ' => {
-                        Some(self.yield_token(TokenType::Whitespace))
-                    }
+                    ' ' => Some(self.yield_token(TokenType::Whitespace)),
                     _ => {
                         debug!("Token -{character} - not in allowed set of valid tokens");
-                        Some(Token::new(TokenType::Error, "Token -{character} - not in allowed set of valid tokens".into(), Literal::None, self.line))
+                        Some(Token::new(
+                            TokenType::Error,
+                            "Token -{character} - not in allowed set of valid tokens".into(),
+                            Literal::None,
+                            self.line,
+                        ))
                     }
                 }
             } else {
-                Some(Token::new(TokenType::Error, "No more characters to lex".into(), Literal::None, self.line))
+                Some(Token::new(
+                    TokenType::Error,
+                    "No more characters to lex".into(),
+                    Literal::None,
+                    self.line,
+                ))
             };
             token
         } else {
@@ -359,11 +349,18 @@ class A {
         let mut lexer = Lexer::lex(source);
         let tokens = lexer.collect::<Vec<Token>>();
 
-        let non_whitespace_tokens = tokens.into_iter().filter(|token| !TO_IGNORE.contains(&token.token_type)).collect::<Vec<Token>>();
+        let non_whitespace_tokens = tokens
+            .into_iter()
+            .filter(|token| !TO_IGNORE.contains(&token.token_type))
+            .collect::<Vec<Token>>();
         assert_eq!(non_whitespace_tokens.len(), 12);
-        assert_eq!(vec![Token::new(TokenType::Class, "class".into(), Literal::None, 2),
-                        Token::new(TokenType::Identifier, "A".into(), Literal::None, 2)],
-                   non_whitespace_tokens[..2])
+        assert_eq!(
+            vec![
+                Token::new(TokenType::Class, "class".into(), Literal::None, 2),
+                Token::new(TokenType::Identifier, "A".into(), Literal::None, 2)
+            ],
+            non_whitespace_tokens[..2]
+        )
     }
 
     #[test]
@@ -372,7 +369,10 @@ class A {
         let lexer = Lexer::lex(source);
         let tokens = lexer.collect::<Vec<Token>>();
 
-        let non_whitespace_tokens = tokens.into_iter().filter(|token| !TO_IGNORE.contains(&token.token_type)).collect::<Vec<Token>>();
+        let non_whitespace_tokens = tokens
+            .into_iter()
+            .filter(|token| !TO_IGNORE.contains(&token.token_type))
+            .collect::<Vec<Token>>();
         assert_eq!(non_whitespace_tokens.len(), 5);
     }
 
@@ -388,14 +388,16 @@ def fib(n) {
         let lexer = Lexer::lex(source);
         let tokens = lexer.collect::<Vec<Token>>();
 
-        let non_whitespace_tokens = tokens.into_iter().filter(|token| !TO_IGNORE.contains(&token.token_type)).collect::<Vec<Token>>();
+        let non_whitespace_tokens = tokens
+            .into_iter()
+            .filter(|token| !TO_IGNORE.contains(&token.token_type))
+            .collect::<Vec<Token>>();
         assert_eq!(non_whitespace_tokens.len(), 37);
     }
 
     #[test]
     fn test_line_numbers() {
-        let source =
-            r#"/*
+        let source = r#"/*
 A very simple program to test our vm.
 
 def fib(n) {
@@ -416,11 +418,11 @@ for (let i=0; i < 10; i=i+1){
         let lexer = Lexer::lex(source);
         let tokens = lexer.collect::<Vec<Token>>();
 
-        for token in tokens{
-            if token.token_type == TokenType::For{
+        for token in tokens {
+            if token.token_type == TokenType::For {
                 assert_eq!(token.line, 15);
             }
-            if token.token_type == TokenType::Print{
+            if token.token_type == TokenType::Print {
                 assert_eq!(token.line, 16)
             }
         }

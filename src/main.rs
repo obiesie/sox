@@ -1,14 +1,12 @@
-
-use std::{env, fs, process};
 use std::io;
 use std::io::Write;
+use std::{env, fs, process};
 
-use log::{info, LevelFilter};
-use sox::core::SoxObject;
-use sox::environment::Env;
+use log::LevelFilter;
 
-use sox::int::SoxInt;
-use sox::payload;
+use sox::interpreter::Interpreter;
+use sox::lexer::Lexer;
+use sox::parser::Parser;
 
 fn main() {
     env_logger::Builder::new()
@@ -59,14 +57,12 @@ fn run_prompt() {
 }
 
 fn run(source: String) {
-    let val = SoxInt::new(10).into_sox_obj();
-    let mut env = Env::default();
-    env.define("v", val);
+    let tokens = Lexer::lex(source.as_str());
+    let mut parser = Parser::new(tokens);
+    let ast = parser.parse();
+    let mut interpreter = Interpreter::new();
 
-    let ref_val = env.get("v");
-
-    info!("referenced val is {:?}", ref_val);
-
-
+    if ast.is_ok() {
+        interpreter.interpret(&ast.unwrap())
+    }
 }
-

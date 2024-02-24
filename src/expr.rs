@@ -1,5 +1,3 @@
-
-
 // use crate::objects::Object;
 use crate::token::{Literal, Token};
 
@@ -78,9 +76,10 @@ pub trait ExprVisitor {
     type T;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T;
+    fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T;
+
     fn visit_binary_expr(&mut self, expr: &Expr) -> Self::T;
     fn visit_grouping_expr(&mut self, expr: &Expr) -> Self::T;
-    fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T;
     fn visit_unary_expr(&mut self, expr: &Expr) -> Self::T;
     fn visit_logical_expr(&mut self, expr: &Expr) -> Self::T;
     fn visit_variable_expr(&mut self, expr: &Expr) -> Self::T;

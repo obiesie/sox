@@ -9,7 +9,6 @@ pub enum Literal {
     None,
 }
 
-
 #[derive(Clone, Debug, PartialEq)]
 pub struct Token {
     pub token_type: TokenType,
@@ -28,4 +27,3 @@ impl Token {
         }
     }
 }
-

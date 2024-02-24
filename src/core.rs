@@ -7,7 +7,7 @@ macro_rules! payload {
     ($e:expr, $p:path) => {
         match $e {
             $p(v) => Some(v),
-            _ => None
+            _ => None,
         }
     };
 }
@@ -18,17 +18,17 @@ pub enum SoxObject {
     String(String),
     Float(f64),
     Boolean(bool),
-    None
+    None,
 }
 
-impl From<&Literal> for SoxObject{
+impl From<&Literal> for SoxObject {
     fn from(value: &Literal) -> Self {
         match value {
-            Literal::String(s) => {SoxObject::String(s.to_string())}
-            Literal::Integer(i) => {SoxObject::Int(*i)}
-            Literal::Float(f) => {SoxObject::Float(*f)}
-            Literal::Boolean(b) => {SoxObject::Boolean(*b)}
-            Literal::None => {SoxObject::None}
+            Literal::String(s) => SoxObject::String(s.to_string()),
+            Literal::Integer(i) => SoxObject::Int(*i),
+            Literal::Float(f) => SoxObject::Float(*f),
+            Literal::Boolean(b) => SoxObject::Boolean(*b),
+            Literal::None => SoxObject::None,
         }
     }
 }
