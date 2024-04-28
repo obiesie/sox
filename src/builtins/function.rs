@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::iter::zip;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -7,7 +6,7 @@ use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
 
 use macros::{soxmethod, soxtype};
-use crate::builtins::method::FuncArgs;
+use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::string::SoxString;
 
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType, ToSoxResult, TryFromSoxObject};

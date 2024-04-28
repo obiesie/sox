@@ -3,8 +3,8 @@ use once_cell::sync::OnceCell;
 use macros::soxtype;
 use crate::core::{SoxObjectPayload, SoxType, StaticType, SoxClassImpl, SoxObject, SoxResult, SoxRef, SoxTypeSlot};
 use crate::interpreter::Interpreter;
-use crate::string::SoxString;
-use crate::method::{SoxMethod, static_func};
+use crate::builtins::string::SoxString;
+use crate::builtins::method::{SoxMethod, static_func};
 
 
 #[soxtype]

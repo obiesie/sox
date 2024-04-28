@@ -1,17 +1,15 @@
-use std::any::{Any, TypeId};
+use std::any::Any;
 use std::ops::{Add, Deref};
-use std::ptr::NonNull;
 use std::rc::Rc;
 
 pub use once_cell::sync::{Lazy, OnceCell};
 
-use macros::{soxmethod, soxtype};
+use macros::soxtype;
 
-use crate::bool_::SoxBool;
-use crate::core::{SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::builtins::method::SoxMethod;
+use crate::core::{SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::core::SoxClassImpl;
 use crate::interpreter::Interpreter;
-use crate::method::{SoxMethod, static_func};
 
 pub type SoxStringRef = Rc<SoxString>;
 
