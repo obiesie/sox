@@ -6,7 +6,7 @@ use macros::soxtype;
 
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
 use crate::interpreter::Interpreter;
-use crate::method::SoxMethod;
+use crate::builtins::method::SoxMethod;
 
 #[soxtype]
 #[derive(Debug, Clone, Copy)]

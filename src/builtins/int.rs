@@ -7,7 +7,7 @@ use macros::soxtype;
 
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType};
 use crate::interpreter::Interpreter;
-use crate::method::SoxMethod;
+use crate::builtins::method::SoxMethod;
 
 pub type SoxIntRef = Rc<SoxInt>;
 

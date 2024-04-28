@@ -7,8 +7,8 @@ use macros::{soxmethod, soxtype};
 
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
-use crate::method::{SoxMethod, static_func};
-use crate::string::SoxString;
+use crate::builtins::method::{SoxMethod, static_func};
+use crate::builtins::string::SoxString;
 
 #[soxtype]
 #[derive(Debug, Clone, Copy)]
@@ -54,10 +54,7 @@ impl ToSoxResult for SoxBool {
 }
 
 impl SoxObjectPayload for SoxBool {
-    fn is_callable(&self) -> bool {
-        false
-    }
-
+    
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_bool().unwrap()
     }
