@@ -1,4 +1,3 @@
-// use crate::objects::Object;
 use crate::token::{Literal, Token};
 
 #[derive(Clone, Debug, PartialEq)]
