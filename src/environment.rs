@@ -21,20 +21,12 @@ impl Default for Namespace {
 }
 
 impl Namespace {
-    pub fn define<T: Into<String>>(
-        &mut self,
-        name: T,
-        value: SoxObject,
-    ) -> SoxResult<()> {
+    pub fn define<T: Into<String>>(&mut self, name: T, value: SoxObject) -> SoxResult<()> {
         self.bindings.insert(name.into(), value);
         Ok(())
     }
 
-    pub fn assign<T: Into<String>>(
-        &mut self,
-        name: T,
-        value: SoxObject,
-    ) -> SoxResult<()> {
+    pub fn assign<T: Into<String>>(&mut self, name: T, value: SoxObject) -> SoxResult<()> {
         self.bindings.insert(name.into(), value);
         Ok(())
     }
@@ -43,7 +35,10 @@ impl Namespace {
         let ret_val = if let Some(v) = self.bindings.get(name.as_ref()) {
             Ok(v.clone())
         } else {
-            Err(Exception::Err(RuntimeError { msg: format!("NameError: name '{name}' is not defined") }).into_ref())
+            Err(Exception::Err(RuntimeError {
+                msg: format!("NameError: name '{name}' is not defined"),
+            })
+            .into_ref())
         };
         ret_val
     }
@@ -63,13 +58,11 @@ impl Default for Env {
 }
 
 impl Env {
-    pub fn define<T: Into<String>>(&mut self, name: T, value: SoxObject,
-    ) {
+    pub fn define<T: Into<String>>(&mut self, name: T, value: SoxObject) {
         let _ = self.namespaces.last_mut().unwrap().define(name, value);
     }
 
-    pub fn get<T: Into<String> + Display>(&mut self, name: T,
-    ) -> SoxResult {
+    pub fn get<T: Into<String> + Display>(&mut self, name: T) -> SoxResult {
         let name_literal = name.into();
         for namespace in self.namespaces.iter_mut().rev() {
             if let Ok(value) = namespace.get(name_literal.as_str()) {
@@ -80,7 +73,8 @@ impl Env {
 
         return Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
-        }).into_ref());
+        })
+        .into_ref());
     }
 
     pub fn assign<T: Into<String> + Display>(
@@ -98,7 +92,8 @@ impl Env {
 
         return Err(Exception::Err(RuntimeError {
             msg: format!("NameError: Name '{name_literal}' is not defined."),
-        }).into_ref());
+        })
+        .into_ref());
     }
 
     pub fn new_namespace(&mut self) -> SoxResult<()> {
@@ -122,4 +117,3 @@ impl Env {
         self.namespaces.len()
     }
 }
-

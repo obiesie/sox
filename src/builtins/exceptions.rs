@@ -1,19 +1,18 @@
+use crate::builtins::method::SoxMethod;
+use crate::core::{
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
+};
+use crate::interpreter::Interpreter;
+use macros::soxtype;
+use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;
-use once_cell::sync::OnceCell;
-use macros::soxtype;
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
-use crate::interpreter::Interpreter;
-use crate::builtins::method::SoxMethod;
-
-
-
 
 #[derive(Clone, Debug)]
 pub enum Exception {
     //RuntimeErr{msg: String},
     // ArgumentErr{msg: String},
-    // 
+    //
     Err(RuntimeError),
     Return(SoxObject),
 }
@@ -39,7 +38,7 @@ impl From<Exception> for RuntimeError {
     }
 }
 
-impl SoxObjectPayload for Exception{
+impl SoxObjectPayload for Exception {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         todo!()
     }
@@ -52,15 +51,12 @@ impl SoxObjectPayload for Exception{
         todo!()
     }
 
-    
-
     fn class(&self, i: &Interpreter) -> &'static SoxType {
         i.types.exception_type
     }
 }
 
-
-impl StaticType for Exception{
+impl StaticType for Exception {
     const NAME: &'static str = "";
 
     fn static_cell() -> &'static OnceCell<SoxType> {
@@ -69,12 +65,10 @@ impl StaticType for Exception{
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot{
-            call: None
-        }
+        SoxTypeSlot { call: None }
     }
 }
 
-impl SoxClassImpl for Exception{
+impl SoxClassImpl for Exception {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }

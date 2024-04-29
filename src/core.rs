@@ -4,17 +4,16 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 
-pub use once_cell::sync::{Lazy, OnceCell};
+use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::Exception;
+use crate::builtins::float::SoxFloat;
 use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
-use crate::builtins::float::SoxFloat;
-use crate::builtins::bool_::SoxBool;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
-
+pub use once_cell::sync::{Lazy, OnceCell};
 
 pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
 
@@ -34,7 +33,10 @@ pub trait SoxClassImpl {
 pub trait StaticType {
     const NAME: &'static str;
     fn static_cell() -> &'static OnceCell<SoxType>;
-    fn init_builtin_type() -> &'static SoxType where Self: SoxClassImpl {
+    fn init_builtin_type() -> &'static SoxType
+    where
+        Self: SoxClassImpl,
+    {
         let typ = Self::create_static_type();
         let cell = Self::static_cell();
         cell.set(typ)
@@ -44,13 +46,20 @@ pub trait StaticType {
     }
 
     fn create_slots() -> SoxTypeSlot;
-    fn create_static_type() -> SoxType where Self: SoxClassImpl {
+    fn create_static_type() -> SoxType
+    where
+        Self: SoxClassImpl,
+    {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
-        SoxType::new(None,
-                     Default::default(),
-                     methods.iter().map(move |v| (v.0.to_string(), v.1.clone())).collect::<HashMap<String, SoxMethod>>(),
-                     slots,
+        SoxType::new(
+            None,
+            Default::default(),
+            methods
+                .iter()
+                .map(move |v| (v.0.to_string(), v.1.clone()))
+                .collect::<HashMap<String, SoxMethod>>(),
+            slots,
         )
     }
 
@@ -61,11 +70,9 @@ pub trait StaticType {
     }
 }
 
-
 unsafe impl Send for SoxType {}
 
 unsafe impl Sync for SoxType {}
-
 
 #[derive(Clone, Debug)]
 pub enum SoxObject {
@@ -77,7 +84,6 @@ pub enum SoxObject {
     Exception(SoxRef<Exception>),
     None,
 }
-
 
 impl ToSoxResult for SoxObject {
     fn to_sox_result(self, i: &Interpreter) -> SoxResult {
@@ -92,9 +98,7 @@ pub struct SoxRef<T> {
 
 impl<T: SoxObjectPayload> SoxRef<T> {
     pub fn new(obj: T) -> Self {
-        Self {
-            val: Rc::new(obj)
-        }
+        Self { val: Rc::new(obj) }
     }
 
     pub fn to_sox_object(self) -> SoxObject {
@@ -113,11 +117,10 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
 impl<T> Clone for SoxRef<T> {
     fn clone(&self) -> Self {
         Self {
-            val: Rc::clone(&self.val)
+            val: Rc::clone(&self.val),
         }
     }
 }
-
 
 impl<T: SoxObjectPayload> TryFromSoxObject for SoxRef<T> {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
@@ -134,13 +137,13 @@ impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
 impl SoxObject {
     pub fn sox_type(&self, i: &Interpreter) -> &'static SoxType {
         let typ = match &self {
-            SoxObject::Int(v) => { v.class(i) }
-            SoxObject::String(v) => { v.class(i) }
-            SoxObject::Float(v) => { v.class(i) }
-            SoxObject::Boolean(v) => { v.class(i) }
+            SoxObject::Int(v) => v.class(i),
+            SoxObject::String(v) => v.class(i),
+            SoxObject::Float(v) => v.class(i),
+            SoxObject::Boolean(v) => v.class(i),
             SoxObject::SoxFunction(v) => v.class(i),
             SoxObject::Exception(v) => v.class(i),
-            SoxObject::None => { i.types.none_type }
+            SoxObject::None => i.types.none_type,
         };
         return typ;
     }
@@ -150,7 +153,9 @@ impl SoxObject {
 
         let bool_method = typ.methods.get("bool_");
         let truth_val = if let Some(meth) = bool_method {
-            let call_args = FuncArgs { args: vec![self.clone()] };
+            let call_args = FuncArgs {
+                args: vec![self.clone()],
+            };
             let truth_val = (meth.func)(i, call_args).unwrap();
             truth_val.as_bool().unwrap().value
         } else {
@@ -161,19 +166,15 @@ impl SoxObject {
 
     pub fn as_int(&self) -> Option<SoxRef<SoxInt>> {
         match self {
-            SoxObject::Int(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::Int(v) => Some(v.clone()),
+            _ => None,
         }
     }
 
     pub fn as_float(&self) -> Option<SoxRef<SoxFloat>> {
         match self {
-            SoxObject::Float(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::Float(v) => Some(v.clone()),
+            _ => None,
         }
     }
 
@@ -181,46 +182,36 @@ impl SoxObject {
         // TODO implement bool implementation for other types here too
 
         match self {
-            SoxObject::Boolean(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::Boolean(v) => Some(v.clone()),
+            _ => None,
         }
     }
 
     pub fn as_string(&self) -> Option<SoxRef<SoxString>> {
         match self {
-            SoxObject::String(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::String(v) => Some(v.clone()),
+            _ => None,
         }
     }
 
     pub fn as_none(&self) -> Option<SoxRef<SoxNone>> {
         match self {
-            SoxObject::None => {
-                Some(SoxRef::new(SoxNone {}))
-            }
-            _ => None
+            SoxObject::None => Some(SoxRef::new(SoxNone {})),
+            _ => None,
         }
     }
 
     pub fn as_func(&self) -> Option<SoxRef<SoxFunction>> {
         match self {
-            SoxObject::SoxFunction(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::SoxFunction(v) => Some(v.clone()),
+            _ => None,
         }
     }
 
     pub fn as_exception(&self) -> Option<SoxRef<Exception>> {
         match self {
-            SoxObject::Exception(v) => {
-                Some(v.clone())
-            }
-            _ => None
+            SoxObject::Exception(v) => Some(v.clone()),
+            _ => None,
         }
     }
 }
@@ -230,11 +221,9 @@ pub trait TryFromSoxObject: Sized {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self>;
 }
 
-
 pub trait ToSoxResult: Sized {
     fn to_sox_result(self, i: &Interpreter) -> SoxResult;
 }
-
 
 impl ToSoxResult for SoxResult {
     fn to_sox_result(self, i: &Interpreter) -> SoxResult {
@@ -248,7 +237,6 @@ pub trait Callable {
 }
 
 pub trait SoxObjectPayload: Any + Sized + 'static {
-    
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self>;
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject;
@@ -260,7 +248,6 @@ pub trait SoxObjectPayload: Any + Sized + 'static {
 
     fn class(&self, i: &Interpreter) -> &'static SoxType;
 }
-
 
 pub type SoxAttributes = HashMap<String, SoxObject>;
 pub(crate) type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
@@ -274,8 +261,12 @@ pub struct SoxType {
 }
 
 impl SoxType {
-    pub fn new(base: Option<SoxTypeRef>, attributes: SoxAttributes,
-               methods: HashMap<String, SoxMethod>, slots: SoxTypeSlot) -> Self {
+    pub fn new(
+        base: Option<SoxTypeRef>,
+        attributes: SoxAttributes,
+        methods: HashMap<String, SoxMethod>,
+        slots: SoxTypeSlot,
+    ) -> Self {
         Self {
             base,
             attributes,
@@ -285,9 +276,7 @@ impl SoxType {
     }
 }
 
-
 pub type SoxTypeRef = Rc<SoxType>;
 
 #[cfg(test)]
 mod tests {}
-

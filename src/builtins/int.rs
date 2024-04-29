@@ -5,9 +5,11 @@ use once_cell::sync::OnceCell;
 
 use macros::soxtype;
 
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType};
-use crate::interpreter::Interpreter;
 use crate::builtins::method::SoxMethod;
+use crate::core::{
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
+};
+use crate::interpreter::Interpreter;
 
 pub type SoxIntRef = Rc<SoxInt>;
 
@@ -20,23 +22,17 @@ pub struct SoxInt {
 #[soxtype]
 impl SoxInt {
     pub fn new(val: i64) -> Self {
-        SoxInt {
-            value: val,
-        }
+        SoxInt { value: val }
     }
-
-   
 }
 
-impl SoxObjectPayload for SoxInt{
-   
+impl SoxObjectPayload for SoxInt {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-       obj.as_int().unwrap() 
+        obj.as_int().unwrap()
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
         SoxObject::Int(ref_type)
-        
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -47,14 +43,10 @@ impl SoxObjectPayload for SoxInt{
         SoxRef::new(self).to_sox_object()
     }
 
-   
-
-
     fn class(&self, i: &Interpreter) -> &'static SoxType {
         todo!()
     }
 }
-
 
 impl StaticType for SoxInt {
     const NAME: &'static str = "int";
@@ -65,17 +57,12 @@ impl StaticType for SoxInt {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot{
-            call: None
-        }
+        SoxTypeSlot { call: None }
     }
 }
 
-
 impl From<i64> for SoxInt {
     fn from(i: i64) -> Self {
-        Self {
-            value: i
-        }
+        Self { value: i }
     }
 }

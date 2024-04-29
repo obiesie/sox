@@ -66,4 +66,3 @@ fn run(source: String) {
         interpreter.interpret(&ast.unwrap())
     }
 }
-

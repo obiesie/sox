@@ -5,24 +5,23 @@ use once_cell::sync::OnceCell;
 use macros::soxtype;
 
 use crate::builtins::method::SoxMethod;
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
+use crate::core::{
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
+};
 use crate::interpreter::Interpreter;
 
 #[soxtype]
 #[derive(Debug, Clone)]
 pub struct SoxNone;
 
-
 #[soxtype]
-impl SoxNone{
-    pub fn bool(&self) -> bool{
+impl SoxNone {
+    pub fn bool(&self) -> bool {
         false
     }
 }
 
-
 impl SoxObjectPayload for SoxNone {
-
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_none().unwrap()
     }
@@ -38,7 +37,7 @@ impl SoxObjectPayload for SoxNone {
     fn into_ref(self) -> SoxObject {
         SoxObject::None
     }
-    
+
     fn class(&self, i: &Interpreter) -> &'static SoxType {
         i.types.none_type
     }
@@ -53,9 +52,6 @@ impl StaticType for SoxNone {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot{
-            call: None
-        }
+        SoxTypeSlot { call: None }
     }
 }
-

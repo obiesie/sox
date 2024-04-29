@@ -4,9 +4,11 @@ use once_cell::sync::OnceCell;
 
 use macros::soxtype;
 
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
-use crate::interpreter::Interpreter;
 use crate::builtins::method::SoxMethod;
+use crate::core::{
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
+};
+use crate::interpreter::Interpreter;
 
 #[soxtype]
 #[derive(Debug, Clone, Copy)]
@@ -17,17 +19,13 @@ pub struct SoxFloat {
 #[soxtype]
 impl SoxFloat {
     pub fn new(val: f64) -> Self {
-        SoxFloat {
-            value: val,
-        }
+        SoxFloat { value: val }
     }
 }
 
 impl SoxObjectPayload for SoxFloat {
-
-
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-       obj.as_float().unwrap() 
+        obj.as_float().unwrap()
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
@@ -42,13 +40,10 @@ impl SoxObjectPayload for SoxFloat {
         SoxRef::new(self).to_sox_object()
     }
 
-    
-
     fn class(&self, i: &Interpreter) -> &'static SoxType {
         i.types.float_type
     }
 }
-
 
 impl StaticType for SoxFloat {
     const NAME: &'static str = "float";
@@ -59,17 +54,12 @@ impl StaticType for SoxFloat {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot{
-            call: None
-        }
+        SoxTypeSlot { call: None }
     }
 }
 
-
 impl From<f64> for SoxFloat {
     fn from(f: f64) -> Self {
-        Self {
-            value: f
-        }
+        Self { value: f }
     }
 }

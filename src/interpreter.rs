@@ -2,21 +2,21 @@ use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
 
 use crate::builtins::bool_::SoxBool;
-use crate::catalog::TypeLibrary;
-use crate::core::{SoxObject, SoxResult};
-use crate::core::SoxObjectPayload;
-use crate::core::SoxRef;
-use crate::environment::{Env, Namespace};
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::expr::Expr;
-use crate::expr::ExprVisitor;
 use crate::builtins::float::SoxFloat;
 use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::FuncArgs;
 use crate::builtins::none::SoxNone;
-use crate::stmt::{Stmt, StmtVisitor};
 use crate::builtins::string::SoxString;
+use crate::catalog::TypeLibrary;
+use crate::core::SoxObjectPayload;
+use crate::core::SoxRef;
+use crate::core::{SoxObject, SoxResult};
+use crate::environment::{Env, Namespace};
+use crate::expr::Expr;
+use crate::expr::ExprVisitor;
+use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 
@@ -25,7 +25,6 @@ pub struct Interpreter {
     pub active_env_ref: DefaultKey,
     pub types: TypeLibrary,
 }
-
 
 impl Interpreter {
     pub fn new() -> Self {
@@ -40,7 +39,6 @@ impl Interpreter {
         };
         interpreter
     }
-
 
     pub fn new_string(&self, s: String) -> SoxObject {
         let str = SoxRef::new(SoxString::from(s));
@@ -63,19 +61,17 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-
     fn active_env_mut(&mut self) -> &mut Env {
         return self.envs.get_mut(self.active_env_ref).unwrap();
     }
-    
-    fn active_env(&self) -> &Env{
+
+    fn active_env(&self) -> &Env {
         return self.envs.get(self.active_env_ref).unwrap();
     }
 
     pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
         return self.envs.get_mut(key).unwrap();
     }
-
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for stmt in statements {
@@ -91,7 +87,11 @@ impl Interpreter {
         stmt.accept(self)
     }
 
-    pub fn execute_block(&mut self, statements: Vec<&Stmt>, namespace: Option<Namespace>) -> SoxResult<()> {
+    pub fn execute_block(
+        &mut self,
+        statements: Vec<&Stmt>,
+        namespace: Option<Namespace>,
+    ) -> SoxResult<()> {
         let active_env = self.active_env_mut();
         if let Some(ns) = namespace {
             active_env.push(ns)?;
@@ -113,17 +113,14 @@ impl Interpreter {
         Ok(())
     }
 
-
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
         let active_env = self.active_env_mut();
         let val = active_env.get(name.lexeme.as_str());
         return val;
     }
-    
-    pub fn runtime_error(msg: String) -> SoxObject{
-        let error = Exception::Err(RuntimeError {
-            msg
-        });
+
+    pub fn runtime_error(msg: String) -> SoxObject {
+        let error = Exception::Err(RuntimeError { msg });
         error.into_ref()
     }
 }
@@ -136,9 +133,7 @@ impl StmtVisitor for &mut Interpreter {
         if let Stmt::Expression(expr) = stmt {
             let value = self.evaluate(expr);
             return_value = match value {
-                Ok(_) => {
-                    Ok(())
-                }
+                Ok(_) => Ok(()),
                 Err(v) => Err(v.into()),
             };
         }
@@ -156,8 +151,10 @@ impl StmtVisitor for &mut Interpreter {
                 Err(v) => Err(v.into()),
             }
         } else {
-            
-            Err(Interpreter::runtime_error("Evaluation failed - visited non print statement with visit_print_stmt.".to_string()))
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - visited non print statement with visit_print_stmt."
+                    .to_string(),
+            ))
         };
         return_value
     }
@@ -172,8 +169,10 @@ impl StmtVisitor for &mut Interpreter {
             let name_ident = name.lexeme.to_string();
             active_env.define(name_ident, value)
         } else {
-            
-            return Err(Interpreter::runtime_error("Evaluation failed - visiting a non declaration statement with visit_decl_stmt.".to_string()));
+            return Err(Interpreter::runtime_error(
+                "Evaluation failed - visiting a non declaration statement with visit_decl_stmt."
+                    .to_string(),
+            ));
         };
         Ok(())
     }
@@ -187,8 +186,10 @@ impl StmtVisitor for &mut Interpreter {
 
             return Ok(());
         } else {
-            return Err(Interpreter::runtime_error("Evaluation failed - visited non block statement with visit_block_stmt.".to_string())); 
-            
+            return Err(Interpreter::runtime_error(
+                "Evaluation failed - visited non block statement with visit_block_stmt."
+                    .to_string(),
+            ));
         }
     }
 
@@ -206,7 +207,9 @@ impl StmtVisitor for &mut Interpreter {
                 self.execute(else_branch_stmt)?;
             }
         } else {
-            return Err(Interpreter::runtime_error("Evaluation failed - visited non if statement with visit_if_stmt".to_string()));
+            return Err(Interpreter::runtime_error(
+                "Evaluation failed - visited non if statement with visit_if_stmt".to_string(),
+            ));
         }
         Ok(())
     }
@@ -221,16 +224,23 @@ impl StmtVisitor for &mut Interpreter {
 
             Ok(())
         } else {
-            return Err(Interpreter::runtime_error("Evaluation failed -  visited non while statement with visit_while_stmt.".to_string()));
+            return Err(Interpreter::runtime_error(
+                "Evaluation failed -  visited non while statement with visit_while_stmt."
+                    .to_string(),
+            ));
         }
     }
 
     fn visit_function_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        if let Stmt::Function { name, params: _params, body: _body } = stmt {
-            
+        if let Stmt::Function {
+            name,
+            params: _params,
+            body: _body,
+        } = stmt
+        {
             let func_env = Env::default();
-            let env_id = self.envs.insert(func_env); 
-            
+            let env_id = self.envs.insert(func_env);
+
             let stmt_clone = stmt.clone();
             let fo = SoxFunction::new(stmt_clone, env_id);
             let ns = {
@@ -240,10 +250,13 @@ impl StmtVisitor for &mut Interpreter {
             };
             let func_env = self.envs.get_mut(env_id).unwrap();
             func_env.namespaces = ns;
-                
+
             Ok(())
         } else {
-            return Err(Interpreter::runtime_error("Evaluation failed -  Calling a visit_function_stmt on non function node.".to_string()));
+            return Err(Interpreter::runtime_error(
+                "Evaluation failed -  Calling a visit_function_stmt on non function node."
+                    .to_string(),
+            ));
         }
     }
 
@@ -279,16 +292,18 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
         let value = if let Expr::Literal { value } = expr {
             let obj = match value {
-                Literal::String(s) => { self.new_string(s.clone()) }
-                Literal::Integer(i) => { self.new_int(i.clone()) }
-                Literal::Float(f) => { self.new_float(f.clone()) }
-                Literal::Boolean(b) => { self.new_bool(b.clone()) }
-                Literal::None => { self.new_none() }
+                Literal::String(s) => self.new_string(s.clone()),
+                Literal::Integer(i) => self.new_int(i.clone()),
+                Literal::Float(f) => self.new_float(f.clone()),
+                Literal::Boolean(b) => self.new_bool(b.clone()),
+                Literal::None => self.new_none(),
             };
             Ok(obj)
         } else {
-
-            Err(Interpreter::runtime_error("Evaluation failed - called visit_literal_expr on a non literal expression".to_string()))
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - called visit_literal_expr on a non literal expression"
+                    .to_string(),
+            ))
         };
         value
     }
@@ -305,142 +320,135 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxInt::from(v1.value - v2.value).into_ref())
-                    } else {
-                        
-                        Err(
-                            Interpreter::runtime_error("Arguments to the minus operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxInt::from(v1.value - v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the minus operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::Rem => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxInt::from(v1.value % v2.value).into_ref())
-                    } else {
-                      
-                        Err(
-                            Interpreter::runtime_error("Arguments to the remainder operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxInt::from(v1.value % v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the remainder operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::Plus => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
                         Ok(SoxInt::from(v1.value + v2.value).into_ref())
-                    } else if let (Some(v1), Some(v2)) = (
-                        left_val.as_string(),
-                        right_val.as_string(),
-                    ) {
+                    } else if let (Some(v1), Some(v2)) =
+                        (left_val.as_string(), right_val.as_string())
+                    {
                         Ok(SoxString::from(v1.value.clone() + v2.value.as_str()).into_ref())
                     } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the plus operator must both be strings or numbers".into()))
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the plus operator must both be strings or numbers".into(),
+                        ))
                     };
 
                     value
                 }
                 TokenType::Star => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
                         Ok(SoxInt::from(v1.value * v2.value).into_ref())
                     } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the multiplication operator must both be numbers".into()))
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the multiplication operator must both be numbers".into(),
+                        ))
                     };
                     value
                 }
                 TokenType::Slash => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
-                    } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the division operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the division operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::Less => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxBool::from(v1.value < v2.value).into_ref())
-                    } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the less than operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value < v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the less than operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::Greater => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
                         Ok(SoxBool::from(v1.value > v2.value).into_ref())
                     } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the greater than operator must both be numbers".into()))
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the greater than operator must both be numbers".into(),
+                        ))
                     };
                     value
                 }
                 TokenType::EqualEqual => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                    } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the equals operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value == v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the equals operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::BangEqual => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
-                        Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                    } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the not equals operator must both be numbers".into()))
-                    };
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value != v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
+                                "Arguments to the not equals operator must both be numbers".into(),
+                            ))
+                        };
                     value
                 }
                 TokenType::LessEqual => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
                         Ok(SoxBool::from(v1.value <= v2.value).into_ref())
                     } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the less than or equals operator must both be numbers".into()))
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the less than or equals operator must both be numbers"
+                                .into(),
+                        ))
                     };
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (Some(v1), Some(v2)) = (
-                        left_val.as_int(),
-                        right_val.as_int(),
-                    ) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
                         Ok(SoxBool::from(v1.value >= v2.value).into_ref())
                     } else {
-                        Err(
-                            Interpreter::runtime_error("Arguments to the greater than or equals operator must both be numbers".into()))
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the greater than or equals operator must both be numbers"
+                                .into(),
+                        ))
                     };
                     value
                 }
@@ -448,11 +456,12 @@ impl ExprVisitor for &mut Interpreter {
                     let value = right_val.try_into_rust_bool(self);
                     Ok(SoxBool::from(value).into_ref())
                 }
-                _ => Err(
-                    Interpreter::runtime_error("Unsupported token type".into())),
+                _ => Err(Interpreter::runtime_error("Unsupported token type".into())),
             }
         } else {
-            Err(Interpreter::runtime_error("Evaluation failed - called visit_binary_expr on non binary expression".into()))
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - called visit_binary_expr on non binary expression".into(),
+            ))
         };
         value
     }
@@ -461,9 +470,9 @@ impl ExprVisitor for &mut Interpreter {
         let value = if let Expr::Grouping { expr } = expr {
             Ok(self.evaluate(expr)?)
         } else {
-            
-            Err(Interpreter::runtime_error("Evaluation failed - called visit_grouping_expr on a non-group node.".to_string())) 
-            
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - called visit_grouping_expr on a non-group node.".to_string(),
+            ))
         };
         return value;
     }
@@ -480,7 +489,10 @@ impl ExprVisitor for &mut Interpreter {
                         let new_val = SoxInt { value: -v.value };
                         Ok(new_val.into_ref())
                     } else {
-                        Err(Interpreter::runtime_error( "The unary operator (-) can only be applied to a numeric value.".to_string()))
+                        Err(Interpreter::runtime_error(
+                            "The unary operator (-) can only be applied to a numeric value."
+                                .to_string(),
+                        ))
                     };
                     value
                 }
@@ -492,8 +504,9 @@ impl ExprVisitor for &mut Interpreter {
                 _ => Err(Interpreter::runtime_error("Unknown unary operator.".into())),
             }
         } else {
-            
-            let error = Interpreter::runtime_error("Evaluation failed - called visit_unary_expr on a non unary expression".to_string());
+            let error = Interpreter::runtime_error(
+                "Evaluation failed - called visit_unary_expr on a non unary expression".to_string(),
+            );
             Err(error)
         };
         return value;
@@ -518,16 +531,20 @@ impl ExprVisitor for &mut Interpreter {
             }
             return self.evaluate(&right);
         } else {
-            Err(Interpreter::runtime_error("Evaluation failed - called visit_logical_expr on non logical expression.".to_string()))
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - called visit_logical_expr on non logical expression."
+                    .to_string(),
+            ))
         }
-    } 
+    }
 
     fn visit_variable_expr(&mut self, expr: &Expr) -> Self::T {
         return if let Expr::Variable { name } = expr {
             self.lookup_variable(name, expr)
         } else {
-            Err(
-                Interpreter::runtime_error("Evaluation failed - called visit_variable_expr on non variable expr.".into()))
+            Err(Interpreter::runtime_error(
+                "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
+            ))
         };
     }
 
@@ -551,13 +568,15 @@ impl ExprVisitor for &mut Interpreter {
                     let val = (fo)(callee_, call_args, self);
                     val
                 }
-                _ => {
-                    Err(Interpreter::runtime_error("Callee evaluated to an object that is not callable.".into()))
-                }
+                _ => Err(Interpreter::runtime_error(
+                    "Callee evaluated to an object that is not callable.".into(),
+                )),
             };
             ret_val
         } else {
-            Err(Interpreter::runtime_error("Can only call functions and classes".into()))
+            Err(Interpreter::runtime_error(
+                "Can only call functions and classes".into(),
+            ))
         }
     }
     fn visit_get_expr(&mut self, _expr: &Expr) -> Self::T {

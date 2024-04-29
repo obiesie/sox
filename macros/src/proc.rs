@@ -4,15 +4,13 @@ use syn::{ImplItem, Item};
 
 pub fn soxtypeimpl(item: Item) -> TokenStream {
     let mut methods = Vec::new();
-    
+
     let tokens = match item.clone() {
         Item::Impl(item_impl) => {
+            let ident = item_impl.self_ty.as_ref().into_token_stream();
 
-            let ident = item_impl.self_ty.as_ref().into_token_stream(); 
-            
             for i in item_impl.items.iter() {
                 match i {
-                    
                     ImplItem::Fn(v) => {
                         let fn_name = v.sig.ident.clone();
 
@@ -20,8 +18,7 @@ pub fn soxtypeimpl(item: Item) -> TokenStream {
                             methods.push((fn_name.to_string(), fn_name));
                         }
                     }
-                   
-                    
+
                     _ => {}
                 }
             }
@@ -30,11 +27,11 @@ pub fn soxtypeimpl(item: Item) -> TokenStream {
             for (method_name, method) in methods {
                 inner_tokens.extend(quote! [
                     (#method_name, SoxMethod{
-                        
+
                         func: static_func(#ident::#method)
                     }),
                 ]);
-            };
+            }
             let array: TokenTree = Group::new(Delimiter::Bracket, inner_tokens).into();
             tokens.extend([array]);
 
@@ -45,7 +42,7 @@ pub fn soxtypeimpl(item: Item) -> TokenStream {
                 }
             }
         }
-        _ => item.into_token_stream()
+        _ => item.into_token_stream(),
     };
     tokens.into_token_stream()
 }
