@@ -8,11 +8,12 @@ use crate::builtins::method::SoxMethod;
 
 
 
+
 #[derive(Clone, Debug)]
 pub enum Exception {
-    RuntimeErr{msg: String},
-    ArgumentErr{msg: String},
-    
+    //RuntimeErr{msg: String},
+    // ArgumentErr{msg: String},
+    // 
     Err(RuntimeError),
     Return(SoxObject),
 }
@@ -44,19 +45,17 @@ impl SoxObjectPayload for Exception{
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        todo!()
+        SoxObject::Exception(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
         todo!()
     }
 
-    fn into_ref(self) -> SoxObject {
-        todo!()
-    }
+    
 
     fn class(&self, i: &Interpreter) -> &'static SoxType {
-        todo!()
+        i.types.exception_type
     }
 }
 
@@ -65,11 +64,14 @@ impl StaticType for Exception{
     const NAME: &'static str = "";
 
     fn static_cell() -> &'static OnceCell<SoxType> {
-        todo!()
+        static CELL: OnceCell<SoxType> = OnceCell::new();
+        &CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
+        SoxTypeSlot{
+            call: None
+        }
     }
 }
 

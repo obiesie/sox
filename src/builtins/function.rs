@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::iter::zip;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -6,15 +7,17 @@ use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
 
 use macros::{soxmethod, soxtype};
+use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::string::SoxString;
+use crate::builtins::none::SoxNone;
 
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 
 
-pub type SoxFunctionRef = Rc<SoxFunction>;
 
 #[soxtype]
 #[derive(Clone, Debug, PartialEq)]
@@ -43,37 +46,44 @@ impl SoxFunction {
    
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter ) -> SoxResult {
-        todo!()
-        // if let Some(fo) = fo.as_func() {
-        // 
-        // 
-        //     let previous_env_ref = interpreter.active_env_ref;
-        // 
-        //     interpreter.active_env_ref = fo.environment_ref.clone();
-        //     
-        //     let mut namespace = Namespace::default();
-        //     let mut return_value = Ok(SoxRef::new(SoxNone{}));
-        //     if let Stmt::Function { name, params, body } = *fo.declaration.clone() {
-        //         for (param, arg) in zip(params, args.args.clone()) {
-        //             namespace.define(param.lexeme, arg, interpreter)?;
-        //         }
-        //         let ret = interpreter.execute_block(body.iter().collect(), Some(namespace));
-        //     
-        //         if ret.is_err() {
-        //             let exc = ret.err();
-        //             if let Some(Exception::Return(obj)) = exc {
-        //                 return_value = Ok(obj);
-        //             } else {
-        //                 return_value = Err(exc.unwrap());
-        //             }
-        //         }
-        //     }
-        //     interpreter.active_env_ref = previous_env_ref;
-        //     
-        //     return_value
-        // } else{
-        //     
-        // }
+        if let Some(fo) = fo.as_func() {
+            
+            let previous_env_ref = interpreter.active_env_ref;
+        
+            interpreter.active_env_ref = fo.environment_ref.clone();
+            
+            let mut namespace = Namespace::default();
+            let mut return_value = Ok(SoxNone{}.into_ref());
+            if let Stmt::Function { name, params, body } = *fo.declaration.clone() {
+                for (param, arg) in zip(params, args.args.clone()) {
+                    namespace.define(param.lexeme, arg)?;
+                }
+                let ret = interpreter.execute_block(body.iter().collect(), Some(namespace));
+            
+                if ret.is_err() {
+                    let exc = ret.err().unwrap().as_exception();
+                    if let Some(obj) = exc {
+                        match obj.deref(){
+                            Exception::Return(v) => {
+                                return_value = Ok(v.clone());
+                            }
+                            Exception::Err(v)  => {
+                                let rv = Exception::Err(v.clone());
+                                return_value = Err(rv.into_ref());
+                            }
+                        }
+                    } 
+                }
+            }
+            interpreter.active_env_ref = previous_env_ref;
+            
+            return_value
+        } else{
+            let error = Exception::Err(RuntimeError {
+                msg: "first argument to this call method should be a function object".to_string(),
+            });
+            return Err(error.into_ref());
+        }
     }
 }
 
@@ -81,11 +91,11 @@ impl SoxObjectPayload for SoxFunction {
     
 
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-        todo!()
+        obj.as_func().unwrap()
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        todo!()
+        SoxObject::SoxFunction(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -98,7 +108,7 @@ impl SoxObjectPayload for SoxFunction {
 
 
     fn class(&self, i: &Interpreter) -> &'static SoxType {
-        todo!()
+        i.types.func_type
     }
 }
 

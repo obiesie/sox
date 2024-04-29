@@ -1,11 +1,12 @@
 use std::any::Any;
-use once_cell::sync::OnceCell;
-use macros::soxtype;
-use crate::core::{SoxObjectPayload, SoxType, StaticType, SoxClassImpl, SoxObject, SoxResult, SoxRef, SoxTypeSlot};
-use crate::interpreter::Interpreter;
-use crate::builtins::string::SoxString;
-use crate::builtins::method::{SoxMethod, static_func};
 
+use once_cell::sync::OnceCell;
+
+use macros::soxtype;
+
+use crate::builtins::method::SoxMethod;
+use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
+use crate::interpreter::Interpreter;
 
 #[soxtype]
 #[derive(Debug, Clone)]
@@ -52,7 +53,9 @@ impl StaticType for SoxNone {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
+        SoxTypeSlot{
+            call: None
+        }
     }
 }
 

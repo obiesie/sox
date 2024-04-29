@@ -24,7 +24,7 @@ impl SoxFloat {
 }
 
 impl SoxObjectPayload for SoxFloat {
-   
+
 
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
        obj.as_float().unwrap() 
@@ -59,7 +59,9 @@ impl StaticType for SoxFloat {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
+        SoxTypeSlot{
+            call: None
+        }
     }
 }
 

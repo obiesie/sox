@@ -65,7 +65,9 @@ impl StaticType for SoxInt {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
+        SoxTypeSlot{
+            call: None
+        }
     }
 }
 

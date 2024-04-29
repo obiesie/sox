@@ -40,7 +40,9 @@ impl StaticType for SoxString {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
+        SoxTypeSlot{
+            call: None
+        }
     }
 }
 
