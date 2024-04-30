@@ -15,64 +15,6 @@ use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 pub use once_cell::sync::{Lazy, OnceCell};
 
-pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
-
-pub trait SoxNativeFunction {
-    fn call(&self, args: i64) -> SoxObject;
-}
-
-#[derive(Debug)]
-pub struct SoxTypeSlot {
-    pub call: Option<GenericMethod>,
-}
-
-pub trait SoxClassImpl {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)];
-}
-
-pub trait StaticType {
-    const NAME: &'static str;
-    fn static_cell() -> &'static OnceCell<SoxType>;
-    fn init_builtin_type() -> &'static SoxType
-    where
-        Self: SoxClassImpl,
-    {
-        let typ = Self::create_static_type();
-        let cell = Self::static_cell();
-        cell.set(typ)
-            .unwrap_or_else(|_| panic!("double initialization of {}", Self::NAME));
-        let v = cell.get().unwrap();
-        v
-    }
-
-    fn create_slots() -> SoxTypeSlot;
-    fn create_static_type() -> SoxType
-    where
-        Self: SoxClassImpl,
-    {
-        let methods = Self::METHOD_DEFS;
-        let slots = Self::create_slots();
-        SoxType::new(
-            None,
-            Default::default(),
-            methods
-                .iter()
-                .map(move |v| (v.0.to_string(), v.1.clone()))
-                .collect::<HashMap<String, SoxMethod>>(),
-            slots,
-        )
-    }
-
-    fn static_type() -> &'static SoxType {
-        Self::static_cell()
-            .get()
-            .expect("static type has not been initialized")
-    }
-}
-
-unsafe impl Send for SoxType {}
-
-unsafe impl Sync for SoxType {}
 
 #[derive(Clone, Debug)]
 pub enum SoxObject {
@@ -83,55 +25,6 @@ pub enum SoxObject {
     SoxFunction(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None,
-}
-
-impl ToSoxResult for SoxObject {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        Ok(self)
-    }
-}
-
-#[derive(Debug)]
-pub struct SoxRef<T> {
-    pub(crate) val: Rc<T>,
-}
-
-impl<T: SoxObjectPayload> SoxRef<T> {
-    pub fn new(obj: T) -> Self {
-        Self { val: Rc::new(obj) }
-    }
-
-    pub fn to_sox_object(self) -> SoxObject {
-        self.val.to_sox_object(self.clone())
-    }
-}
-
-impl<T: SoxObjectPayload> Deref for SoxRef<T> {
-    type Target = T;
-
-    fn deref(&self) -> &Self::Target {
-        return &self.val;
-    }
-}
-
-impl<T> Clone for SoxRef<T> {
-    fn clone(&self) -> Self {
-        Self {
-            val: Rc::clone(&self.val),
-        }
-    }
-}
-
-impl<T: SoxObjectPayload> TryFromSoxObject for SoxRef<T> {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
-        Ok(T::to_sox_type_value(obj))
-    }
-}
-
-impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        Ok(self.to_sox_object())
-    }
 }
 
 impl SoxObject {
@@ -216,41 +109,14 @@ impl SoxObject {
     }
 }
 
-pub trait TryFromSoxObject: Sized {
-    /// Attempt to convert a Sox object to a value of this type.
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self>;
-}
-
-pub trait ToSoxResult: Sized {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult;
-}
-
-impl ToSoxResult for SoxResult {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        self
-    }
-}
-
-pub trait Callable {
-    type T;
-    fn call(&self, interpreter: &mut Interpreter, args: Vec<SoxObject>) -> Self::T;
-}
-
-pub trait SoxObjectPayload: Any + Sized + 'static {
-    fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self>;
-
-    fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject;
-    fn as_any(&self) -> &dyn Any;
-
-    fn into_ref(self) -> SoxObject {
-        SoxRef::new(self).to_sox_object()
-    }
-
-    fn class(&self, i: &Interpreter) -> &'static SoxType;
-}
 
 pub type SoxAttributes = HashMap<String, SoxObject>;
 pub(crate) type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
+
+#[derive(Debug)]
+pub struct SoxTypeSlot {
+    pub call: Option<GenericMethod>,
+}
 
 #[derive(Debug)]
 pub struct SoxType {
@@ -277,6 +143,144 @@ impl SoxType {
 }
 
 pub type SoxTypeRef = Rc<SoxType>;
+
+pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
+
+pub trait SoxNativeFunction {
+    fn call(&self, args: i64) -> SoxObject;
+}
+
+
+
+pub trait SoxClassImpl {
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)];
+}
+
+pub trait StaticType {
+    const NAME: &'static str;
+    fn static_cell() -> &'static OnceCell<SoxType>;
+    fn init_builtin_type() -> &'static SoxType
+    where
+        Self: SoxClassImpl,
+    {
+        let typ = Self::create_static_type();
+        let cell = Self::static_cell();
+        cell.set(typ)
+            .unwrap_or_else(|_| panic!("double initialization of {}", Self::NAME));
+        let v = cell.get().unwrap();
+        v
+    }
+
+    fn create_slots() -> SoxTypeSlot;
+    fn create_static_type() -> SoxType
+    where
+        Self: SoxClassImpl,
+    {
+        let methods = Self::METHOD_DEFS;
+        let slots = Self::create_slots();
+        SoxType::new(
+            None,
+            Default::default(),
+            methods
+                .iter()
+                .map(move |v| (v.0.to_string(), v.1.clone()))
+                .collect::<HashMap<String, SoxMethod>>(),
+            slots,
+        )
+    }
+
+    fn static_type() -> &'static SoxType {
+        Self::static_cell()
+            .get()
+            .expect("static type has not been initialized")
+    }
+}
+
+unsafe impl Send for SoxType {}
+
+unsafe impl Sync for SoxType {}
+
+impl ToSoxResult for SoxObject {
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        Ok(self)
+    }
+}
+
+#[derive(Debug)]
+pub struct SoxRef<T> {
+    pub(crate) val: Rc<T>,
+}
+
+impl<T: SoxObjectPayload> SoxRef<T> {
+    pub fn new(obj: T) -> Self {
+        Self { val: Rc::new(obj) }
+    }
+
+    pub fn to_sox_object(self) -> SoxObject {
+        self.val.to_sox_object(self.clone())
+    }
+}
+
+impl<T: SoxObjectPayload> Deref for SoxRef<T> {
+    type Target = T;
+
+    fn deref(&self) -> &Self::Target {
+        return &self.val;
+    }
+}
+
+impl<T> Clone for SoxRef<T> {
+    fn clone(&self) -> Self {
+        Self {
+            val: Rc::clone(&self.val),
+        }
+    }
+}
+
+impl<T: SoxObjectPayload> TryFromSoxObject for SoxRef<T> {
+    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+        Ok(T::to_sox_type_value(obj))
+    }
+}
+
+impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        Ok(self.to_sox_object())
+    }
+}
+
+
+
+pub trait TryFromSoxObject: Sized {
+    /// Attempt to convert a Sox object to a value of this type.
+    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self>;
+}
+
+pub trait ToSoxResult: Sized {
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult;
+}
+
+impl ToSoxResult for SoxResult {
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        self
+    }
+}
+
+
+pub trait SoxObjectPayload: Any + Sized + 'static {
+    fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self>;
+
+    fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject;
+    fn as_any(&self) -> &dyn Any;
+
+    fn into_ref(self) -> SoxObject {
+        SoxRef::new(self).to_sox_object()
+    }
+
+    fn class(&self, i: &Interpreter) -> &'static SoxType;
+}
+
+
 
 #[cfg(test)]
 mod tests {}
