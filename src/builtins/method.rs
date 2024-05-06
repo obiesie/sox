@@ -181,23 +181,6 @@ where
     }
 }
 
-// impl<
-//     F,
-//     T,
-//     T1,
-//     R
-// > NativeFn<(BorrowedParam<T>, OwnedParam<T1>), R> for F
-//     where
-//         F: Fn(&T, T1, &Interpreter) -> R + 'static,
-//         T: FromArgs,
-//         T1: FromArgs,
-//         R: ToSoxResult
-// {
-//     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-//         let (zelf, v1) = (args.bind::<(T, T1, )>(i)).expect("Fail");
-//         (self)(&zelf, v1, i).to_sox_result(i)
-//     }
-// }
 
 impl<F, T1, T2, R> NativeFn<(T1, T2), R> for F
 where

@@ -24,7 +24,7 @@ pub enum SoxObject {
     Boolean(SoxRef<SoxBool>),
     SoxFunction(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
-    None,
+    None(SoxRef<SoxNone>),
 }
 
 impl SoxObject {
@@ -36,7 +36,7 @@ impl SoxObject {
             SoxObject::Boolean(v) => v.class(i),
             SoxObject::SoxFunction(v) => v.class(i),
             SoxObject::Exception(v) => v.class(i),
-            SoxObject::None => i.types.none_type,
+            SoxObject::None(v) => v.class(i),
         };
         return typ;
     }
@@ -72,7 +72,6 @@ impl SoxObject {
     }
 
     pub fn as_bool(&self) -> Option<SoxRef<SoxBool>> {
-        // TODO implement bool implementation for other types here too
 
         match self {
             SoxObject::Boolean(v) => Some(v.clone()),
@@ -89,7 +88,7 @@ impl SoxObject {
 
     pub fn as_none(&self) -> Option<SoxRef<SoxNone>> {
         match self {
-            SoxObject::None => Some(SoxRef::new(SoxNone {})),
+            SoxObject::None(v) => Some(v.clone()),
             _ => None,
         }
     }
@@ -110,8 +109,7 @@ impl SoxObject {
 }
 
 
-pub type SoxAttributes = HashMap<String, SoxObject>;
-pub(crate) type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
+pub type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
 
 #[derive(Debug)]
 pub struct SoxTypeSlot {
@@ -121,7 +119,6 @@ pub struct SoxTypeSlot {
 #[derive(Debug)]
 pub struct SoxType {
     pub base: Option<SoxTypeRef>,
-    pub attributes: SoxAttributes,
     pub methods: HashMap<String, SoxMethod>,
     pub slots: SoxTypeSlot,
 }
@@ -129,13 +126,11 @@ pub struct SoxType {
 impl SoxType {
     pub fn new(
         base: Option<SoxTypeRef>,
-        attributes: SoxAttributes,
         methods: HashMap<String, SoxMethod>,
         slots: SoxTypeSlot,
     ) -> Self {
         Self {
             base,
-            attributes,
             methods,
             slots,
         }
@@ -180,7 +175,6 @@ pub trait StaticType {
         let slots = Self::create_slots();
         SoxType::new(
             None,
-            Default::default(),
             methods
                 .iter()
                 .map(move |v| (v.0.to_string(), v.1.clone()))
@@ -208,7 +202,7 @@ impl ToSoxResult for SoxObject {
 
 #[derive(Debug)]
 pub struct SoxRef<T> {
-    pub(crate) val: Rc<T>,
+    pub val: Rc<T>,
 }
 
 impl<T: SoxObjectPayload> SoxRef<T> {
