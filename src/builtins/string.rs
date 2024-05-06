@@ -17,19 +17,20 @@ use crate::interpreter::Interpreter;
 pub type SoxStringRef = Rc<SoxString>;
 
 //
-#[soxtype]
 #[derive(Clone, Debug)]
 pub struct SoxString {
     pub value: String,
 }
 
-#[soxtype]
 impl SoxString {
     pub fn new<T: Into<String>>(val: T) -> Self {
         SoxString { value: val.into() }
     }
 }
 
+impl SoxClassImpl for SoxString{
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+}
 impl StaticType for SoxString {
     const NAME: &'static str = "string";
 

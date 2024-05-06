@@ -10,9 +10,6 @@ use std::fmt::Debug;
 
 #[derive(Clone, Debug)]
 pub enum Exception {
-    //RuntimeErr{msg: String},
-    // ArgumentErr{msg: String},
-    //
     Err(RuntimeError),
     Return(SoxObject),
 }

@@ -20,14 +20,12 @@ use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 
-#[soxtype]
 #[derive(Clone, Debug, PartialEq)]
 pub struct SoxFunction {
     pub declaration: Box<Stmt>,
     pub environment_ref: DefaultKey,
 }
 
-#[soxtype]
 impl SoxFunction {
     pub fn new(declaration: Stmt, environment_ref: DefaultKey) -> Self {
         Self {
@@ -105,6 +103,10 @@ impl SoxObjectPayload for SoxFunction {
     fn class(&self, i: &Interpreter) -> &'static SoxType {
         i.types.func_type
     }
+}
+
+impl SoxClassImpl for SoxFunction{
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 
 impl StaticType for SoxFunction {

@@ -19,11 +19,14 @@ pub struct SoxInt {
     pub value: i64,
 }
 
-#[soxtype]
 impl SoxInt {
     pub fn new(val: i64) -> Self {
         SoxInt { value: val }
     }
+}
+
+impl SoxClassImpl for SoxInt{
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 
 impl SoxObjectPayload for SoxInt {

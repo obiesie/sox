@@ -10,17 +10,18 @@ use crate::core::{
 };
 use crate::interpreter::Interpreter;
 
-#[soxtype]
 #[derive(Debug, Clone, Copy)]
 pub struct SoxNone;
 
-#[soxtype]
 impl SoxNone {
     pub fn bool(&self) -> bool {
         false
     }
 }
 
+impl SoxClassImpl for SoxNone{
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+}
 impl SoxObjectPayload for SoxNone {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_none().unwrap()

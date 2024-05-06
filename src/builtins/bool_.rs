@@ -13,13 +13,11 @@ use crate::core::{
 };
 use crate::interpreter::Interpreter;
 
-#[soxtype]
 #[derive(Debug, Clone, Copy)]
 pub struct SoxBool {
     pub value: bool,
 }
 
-#[soxtype]
 impl SoxBool {
     pub fn new(val: bool) -> Self {
         SoxBool { value: val }
@@ -31,6 +29,11 @@ impl SoxBool {
     }
 }
 
+impl SoxClassImpl for SoxBool{
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[
+        ("bool_", SoxMethod{ func: static_func(SoxBool::bool_ )})
+    ];
+}
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
         if let Some(bool_val) = obj.as_bool() {
