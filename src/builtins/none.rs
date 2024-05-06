@@ -11,7 +11,7 @@ use crate::core::{
 use crate::interpreter::Interpreter;
 
 #[soxtype]
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy)]
 pub struct SoxNone;
 
 #[soxtype]
@@ -27,7 +27,7 @@ impl SoxObjectPayload for SoxNone {
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::None
+        SoxObject::None(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -35,7 +35,7 @@ impl SoxObjectPayload for SoxNone {
     }
 
     fn into_ref(self) -> SoxObject {
-        SoxObject::None
+        SoxRef::new(self).to_sox_object()
     }
 
     fn class(&self, i: &Interpreter) -> &'static SoxType {
