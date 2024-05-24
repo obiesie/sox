@@ -1,6 +1,6 @@
+use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use crate::builtins::exceptions::{Exception, RuntimeError};
 
 use crate::core::{SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
@@ -72,10 +72,13 @@ pub struct ArgumentError;
 
 impl<T: TryFromSoxObject> FromArgs for T {
     fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
-        let val = if let Some(v) = args.args.iter().take(1).next(){
+        let val = if let Some(v) = args.args.iter().take(1).next() {
             T::try_from_sox_object(i, v.clone())
         } else {
-            Err(Exception::Err(RuntimeError { msg: "Too few argument supplied to function".into() }).into_ref())
+            Err(Exception::Err(RuntimeError {
+                msg: "Too few argument supplied to function".into(),
+            })
+            .into_ref())
         };
         val
     }
