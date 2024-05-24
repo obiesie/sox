@@ -3,7 +3,7 @@ use std::ops::Deref;
 
 use once_cell::sync::OnceCell;
 
-use crate::builtins::method::{SoxMethod, static_func};
+use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::string::SoxString;
 use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
@@ -26,10 +26,13 @@ impl SoxBool {
     }
 }
 
-impl SoxClassImpl for SoxBool{
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[
-        ("bool", SoxMethod{ func: static_func(SoxBool::bool)})
-    ];
+impl SoxClassImpl for SoxBool {
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[(
+        "bool",
+        SoxMethod {
+            func: static_func(SoxBool::bool),
+        },
+    )];
 }
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {

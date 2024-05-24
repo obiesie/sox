@@ -28,7 +28,7 @@ impl SoxString {
     }
 }
 
-impl SoxClassImpl for SoxString{
+impl SoxClassImpl for SoxString {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 impl StaticType for SoxString {

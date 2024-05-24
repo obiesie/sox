@@ -123,8 +123,6 @@ where
     }
 }
 
-
-
 impl<F, S, R> NativeFn<(BorrowedParam<S>,), R> for F
 where
     F: Fn(&S) -> R + 'static,
@@ -150,7 +148,6 @@ where
     }
 }
 
-
 impl<F, S, T, R> NativeFn<(BorrowedParam<S>, OwnedParam<T>), R> for F
 where
     F: Fn(&S, T) -> R + 'static,
@@ -164,17 +161,18 @@ where
     }
 }
 
-
 impl<F, T1, T2, T3, R> NativeFn<(T1, T2, T3), R> for F
-    where
-        F: Fn(T1, T2, T3) -> R + 'static,
-        T1: FromArgs,
-        T2: FromArgs,
-        T3: FromArgs,
-        R: ToSoxResult,
+where
+    F: Fn(T1, T2, T3) -> R + 'static,
+    T1: FromArgs,
+    T2: FromArgs,
+    T3: FromArgs,
+    R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1, v2) = (args.bind::<(T1, T2, T3)>(i).expect("Failed to bind function arguments."));
+        let (zelf, v1, v2) = (args
+            .bind::<(T1, T2, T3)>(i)
+            .expect("Failed to bind function arguments."));
         (self)(zelf, v1, v2).to_sox_result(i)
     }
 }

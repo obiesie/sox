@@ -19,7 +19,7 @@ impl SoxNone {
     }
 }
 
-impl SoxClassImpl for SoxNone{
+impl SoxClassImpl for SoxNone {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 impl SoxObjectPayload for SoxNone {

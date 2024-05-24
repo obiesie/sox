@@ -25,7 +25,7 @@ impl SoxInt {
     }
 }
 
-impl SoxClassImpl for SoxInt{
+impl SoxClassImpl for SoxInt {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 

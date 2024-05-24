@@ -24,7 +24,7 @@ pub struct Interpreter {
     pub envs: SlotMap<DefaultKey, Env>,
     pub active_env_ref: DefaultKey,
     pub types: TypeLibrary,
-    pub none: SoxRef<SoxNone>
+    pub none: SoxRef<SoxNone>,
 }
 
 impl Interpreter {
@@ -33,12 +33,12 @@ impl Interpreter {
         let mut envs = SlotMap::new();
         let active_env_ref = envs.insert(environment);
         let types = TypeLibrary::init();
-        let none = SoxRef::new(SoxNone{});
+        let none = SoxRef::new(SoxNone {});
         let interpreter = Interpreter {
             envs,
             active_env_ref,
             types,
-            none
+            none,
         };
         interpreter
     }
@@ -430,29 +430,27 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::LessEqual => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value <= v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value <= v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
                             "Arguments to the less than or equals operator must both be numbers"
                                 .into(),
                         ))
-                    };
+                        };
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
                             "Arguments to the greater than or equals operator must both be numbers"
                                 .into(),
                         ))
-                    };
+                        };
                     value
                 }
                 TokenType::Bang => {

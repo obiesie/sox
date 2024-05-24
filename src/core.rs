@@ -15,7 +15,6 @@ use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 pub use once_cell::sync::{Lazy, OnceCell};
 
-
 #[derive(Clone, Debug)]
 pub enum SoxObject {
     Int(SoxRef<SoxInt>),
@@ -72,7 +71,6 @@ impl SoxObject {
     }
 
     pub fn as_bool(&self) -> Option<SoxRef<SoxBool>> {
-
         match self {
             SoxObject::Boolean(v) => Some(v.clone()),
             _ => None,
@@ -107,7 +105,6 @@ impl SoxObject {
         }
     }
 }
-
 
 pub type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
 
@@ -144,8 +141,6 @@ pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
 pub trait SoxNativeFunction {
     fn call(&self, args: i64) -> SoxObject;
 }
-
-
 
 pub trait SoxClassImpl {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)];
@@ -237,8 +232,6 @@ impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
     }
 }
 
-
-
 pub trait TryFromSoxObject: Sized {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self>;
 }
@@ -253,7 +246,6 @@ impl ToSoxResult for SoxResult {
     }
 }
 
-
 pub trait SoxObjectPayload: Any + Sized + 'static {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self>;
 
@@ -266,8 +258,6 @@ pub trait SoxObjectPayload: Any + Sized + 'static {
 
     fn class(&self, i: &Interpreter) -> &'static SoxType;
 }
-
-
 
 #[cfg(test)]
 mod tests {}

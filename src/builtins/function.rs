@@ -105,7 +105,7 @@ impl SoxObjectPayload for SoxFunction {
     }
 }
 
-impl SoxClassImpl for SoxFunction{
+impl SoxClassImpl for SoxFunction {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 

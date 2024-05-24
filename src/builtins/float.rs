@@ -16,14 +16,13 @@ pub struct SoxFloat {
     pub value: f64,
 }
 
-
 impl SoxFloat {
     pub fn new(val: f64) -> Self {
         SoxFloat { value: val }
     }
 }
 
-impl SoxClassImpl for SoxFloat{
+impl SoxClassImpl for SoxFloat {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
 }
 
