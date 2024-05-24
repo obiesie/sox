@@ -2,7 +2,6 @@ use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
 
-
 use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
 
@@ -10,7 +9,6 @@ use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
 use crate::builtins::string::SoxString;
-
 
 use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
@@ -35,7 +33,12 @@ impl SoxFunction {
     }
 
     pub fn arity(&self) -> usize {
-        if let Stmt::Function { name: _, params, body: _ } = *self.declaration.clone() {
+        if let Stmt::Function {
+            name: _,
+            params,
+            body: _,
+        } = *self.declaration.clone()
+        {
             params.len()
         } else {
             0
@@ -50,7 +53,12 @@ impl SoxFunction {
 
             let mut namespace = Namespace::default();
             let mut return_value = Ok(SoxNone {}.into_ref());
-            if let Stmt::Function { name: _, params, body } = *fo.declaration.clone() {
+            if let Stmt::Function {
+                name: _,
+                params,
+                body,
+            } = *fo.declaration.clone()
+            {
                 for (param, arg) in zip(params, args.args.clone()) {
                     namespace.define(param.lexeme, arg)?;
                 }

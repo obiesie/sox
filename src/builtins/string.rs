@@ -4,13 +4,9 @@ use std::rc::Rc;
 
 pub use once_cell::sync::{Lazy, OnceCell};
 
-
-
 use crate::builtins::method::SoxMethod;
 use crate::core::SoxClassImpl;
-use crate::core::{
-    SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
-};
+use crate::core::{SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
 use crate::interpreter::Interpreter;
 
 pub type SoxStringRef = Rc<SoxString>;

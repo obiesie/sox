@@ -6,7 +6,6 @@ use log::{debug, info};
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::core::{SoxObject, SoxObjectPayload, SoxResult};
 
-
 #[derive(Clone, Debug)]
 pub struct Namespace {
     pub bindings: HashMap<String, SoxObject>,
