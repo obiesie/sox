@@ -1,16 +1,15 @@
 use std::any::Any;
-use std::ops::{Add, Deref};
+
 use std::rc::Rc;
 
 pub use once_cell::sync::{Lazy, OnceCell};
 
-use macros::soxtype;
+
 
 use crate::builtins::method::SoxMethod;
 use crate::core::SoxClassImpl;
 use crate::core::{
-    SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType, ToSoxResult,
-    TryFromSoxObject,
+    SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
 };
 use crate::interpreter::Interpreter;
 
@@ -61,7 +60,7 @@ impl SoxObjectPayload for SoxString {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
+    fn class(&self, _i: &Interpreter) -> &'static SoxType {
         todo!()
     }
 }

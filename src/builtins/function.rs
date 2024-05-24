@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-use std::rc::Rc;
+
 
 use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
@@ -10,7 +10,7 @@ use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
 use crate::builtins::string::SoxString;
-use macros::{soxmethod, soxtype};
+
 
 use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
@@ -35,7 +35,7 @@ impl SoxFunction {
     }
 
     pub fn arity(&self) -> usize {
-        if let Stmt::Function { name, params, body } = *self.declaration.clone() {
+        if let Stmt::Function { name: _, params, body: _ } = *self.declaration.clone() {
             params.len()
         } else {
             0
@@ -50,7 +50,7 @@ impl SoxFunction {
 
             let mut namespace = Namespace::default();
             let mut return_value = Ok(SoxNone {}.into_ref());
-            if let Stmt::Function { name, params, body } = *fo.declaration.clone() {
+            if let Stmt::Function { name: _, params, body } = *fo.declaration.clone() {
                 for (param, arg) in zip(params, args.args.clone()) {
                     namespace.define(param.lexeme, arg)?;
                 }
@@ -125,7 +125,7 @@ impl StaticType for SoxFunction {
 }
 
 impl TryFromSoxObject for SoxFunction {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
         if let Some(func) = obj.as_func() {
             Ok(func.val.deref().clone())
         } else {
@@ -139,7 +139,7 @@ impl TryFromSoxObject for SoxFunction {
 }
 
 impl ToSoxResult for SoxFunction {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         let obj = self.into_ref();
         Ok(obj)
     }

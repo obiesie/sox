@@ -346,7 +346,7 @@ class A {
         print "A method";
     }
 }"#;
-        let mut lexer = Lexer::lex(source);
+        let lexer = Lexer::lex(source);
         let tokens = lexer.collect::<Vec<Token>>();
 
         let non_whitespace_tokens = tokens

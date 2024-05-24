@@ -265,7 +265,7 @@ impl StmtVisitor for &mut Interpreter {
 
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let mut return_value = self.none.into_ref();
-        if let Stmt::Return { keyword, value } = stmt {
+        if let Stmt::Return { keyword: _, value } = stmt {
             return_value = self.evaluate(value)?;
         }
         Err(Exception::Return(return_value).into_ref())
@@ -483,10 +483,10 @@ impl ExprVisitor for &mut Interpreter {
             let right = self.evaluate(right)?;
             match operator.token_type {
                 TokenType::Minus => {
-                    let value = if let Some(mut v) = right.as_float() {
+                    let value = if let Some(v) = right.as_float() {
                         let new_val = SoxFloat { value: -v.value };
                         Ok(new_val.into_ref())
-                    } else if let Some(mut v) = right.as_int() {
+                    } else if let Some(v) = right.as_int() {
                         let new_val = SoxInt { value: -v.value };
                         Ok(new_val.into_ref())
                     } else {
@@ -552,7 +552,7 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_call_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Call {
             callee,
-            paren,
+            paren: _,
             arguments,
         } = expr
         {

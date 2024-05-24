@@ -4,8 +4,8 @@ use std::fmt::Display;
 use log::{debug, info};
 
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::core::{SoxObject, SoxObjectPayload, SoxRef, SoxResult};
-use crate::interpreter::Interpreter;
+use crate::core::{SoxObject, SoxObjectPayload, SoxResult};
+
 
 #[derive(Clone, Debug)]
 pub struct Namespace {

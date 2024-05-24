@@ -12,7 +12,7 @@ pub struct SoxMethod {
 }
 
 impl Debug for SoxMethod {
-    fn fmt(&self, f: &mut Formatter<'_>) -> std::fmt::Result {
+    fn fmt(&self, _f: &mut Formatter<'_>) -> std::fmt::Result {
         todo!()
     }
 }
@@ -106,7 +106,7 @@ where
     F: Fn() -> R + 'static,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &Interpreter, _args: FuncArgs) -> SoxResult {
         (self)().to_sox_result(i)
     }
 }
@@ -170,15 +170,15 @@ where
     R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1, v2) = (args
+        let (zelf, v1, v2) = args
             .bind::<(T1, T2, T3)>(i)
-            .expect("Failed to bind function arguments."));
+            .expect("Failed to bind function arguments.");
         (self)(zelf, v1, v2).to_sox_result(i)
     }
 }
 
 impl FromArgs for FuncArgs {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(_i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
         return Ok(args.clone());
     }
 }

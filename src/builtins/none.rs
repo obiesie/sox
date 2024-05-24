@@ -2,7 +2,7 @@ use std::any::Any;
 
 use once_cell::sync::OnceCell;
 
-use macros::soxtype;
+
 
 use crate::builtins::method::SoxMethod;
 use crate::core::{

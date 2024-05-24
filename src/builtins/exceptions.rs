@@ -3,7 +3,7 @@ use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
 };
 use crate::interpreter::Interpreter;
-use macros::soxtype;
+
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;
@@ -36,7 +36,7 @@ impl From<Exception> for RuntimeError {
 }
 
 impl SoxObjectPayload for Exception {
-    fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
+    fn to_sox_type_value(_obj: SoxObject) -> SoxRef<Self> {
         todo!()
     }
 

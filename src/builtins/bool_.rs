@@ -35,7 +35,7 @@ impl SoxClassImpl for SoxBool {
     )];
 }
 impl TryFromSoxObject for SoxBool {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
         if let Some(bool_val) = obj.as_bool() {
             Ok(bool_val.val.deref().clone())
         } else {
@@ -49,7 +49,7 @@ impl TryFromSoxObject for SoxBool {
 }
 
 impl ToSoxResult for SoxBool {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         let obj = self.into_ref();
         Ok(obj)
     }

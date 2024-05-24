@@ -7,7 +7,7 @@ use macros::soxtype;
 
 use crate::builtins::method::SoxMethod;
 use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
 };
 use crate::interpreter::Interpreter;
 
@@ -46,7 +46,7 @@ impl SoxObjectPayload for SoxInt {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
+    fn class(&self, _i: &Interpreter) -> &'static SoxType {
         todo!()
     }
 }

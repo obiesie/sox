@@ -184,7 +184,7 @@ unsafe impl Send for SoxType {}
 unsafe impl Sync for SoxType {}
 
 impl ToSoxResult for SoxObject {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         Ok(self)
     }
 }
@@ -221,13 +221,13 @@ impl<T> Clone for SoxRef<T> {
 }
 
 impl<T: SoxObjectPayload> TryFromSoxObject for SoxRef<T> {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
         Ok(T::to_sox_type_value(obj))
     }
 }
 
 impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         Ok(self.to_sox_object())
     }
 }
@@ -241,7 +241,7 @@ pub trait ToSoxResult: Sized {
 }
 
 impl ToSoxResult for SoxResult {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         self
     }
 }
