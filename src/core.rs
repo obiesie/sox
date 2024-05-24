@@ -44,7 +44,7 @@ impl SoxObject {
     pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
         let typ = self.sox_type(i);
 
-        let bool_method = typ.methods.get("bool_");
+        let bool_method = typ.methods.get("bool");
         let truth_val = if let Some(meth) = bool_method {
             let call_args = FuncArgs {
                 args: vec![self.clone()],
@@ -158,7 +158,7 @@ pub trait StaticType {
     where
         Self: SoxClassImpl,
     {
-        let typ = Self::create_static_type();
+        let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
         cell.set(typ)
             .unwrap_or_else(|_| panic!("double initialization of {}", Self::NAME));
@@ -181,12 +181,6 @@ pub trait StaticType {
                 .collect::<HashMap<String, SoxMethod>>(),
             slots,
         )
-    }
-
-    fn static_type() -> &'static SoxType {
-        Self::static_cell()
-            .get()
-            .expect("static type has not been initialized")
     }
 }
 
@@ -246,7 +240,6 @@ impl<T: SoxObjectPayload> ToSoxResult for SoxRef<T> {
 
 
 pub trait TryFromSoxObject: Sized {
-    /// Attempt to convert a Sox object to a value of this type.
     fn try_from_sox_object(i: &Interpreter, obj: SoxObject) -> SoxResult<Self>;
 }
 
