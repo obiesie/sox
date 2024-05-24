@@ -24,6 +24,7 @@ pub struct Interpreter {
     pub envs: SlotMap<DefaultKey, Env>,
     pub active_env_ref: DefaultKey,
     pub types: TypeLibrary,
+    pub none: SoxRef<SoxNone>
 }
 
 impl Interpreter {
@@ -32,10 +33,12 @@ impl Interpreter {
         let mut envs = SlotMap::new();
         let active_env_ref = envs.insert(environment);
         let types = TypeLibrary::init();
+        let none = SoxRef::new(SoxNone{});
         let interpreter = Interpreter {
             envs,
             active_env_ref,
             types,
+            none
         };
         interpreter
     }
@@ -261,7 +264,7 @@ impl StmtVisitor for &mut Interpreter {
     }
 
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut return_value = SoxObject::None;
+        let mut return_value = self.none.into_ref();
         if let Stmt::Return { keyword, value } = stmt {
             return_value = self.evaluate(value)?;
         }
