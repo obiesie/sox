@@ -27,10 +27,6 @@ impl SoxMethod {
 
 pub trait NativeFn<K, R>: Sized + 'static {
     fn call(&self, i: &Interpreter, arg: FuncArgs) -> SoxResult;
-    fn into_func(self) -> &'static SoxNativeFunction {
-        let boxed = Box::new(move |i: &Interpreter, args: FuncArgs| self.call(i, args));
-        Box::leak(boxed)
-    }
 
     const STATIC_FUNC: &'static SoxNativeFunction = {
         if std::mem::size_of::<Self>() == 0 {
@@ -44,9 +40,10 @@ pub trait NativeFn<K, R>: Sized + 'static {
     };
 }
 
-pub const fn static_func<Kind, R, F: NativeFn<Kind, R>>(f: F) -> &'static SoxNativeFunction {
+pub const fn static_func<K, R, F: NativeFn<K, R>>(f: F) -> &'static SoxNativeFunction {
     std::mem::forget(f);
-    F::STATIC_FUNC
+    let v = F::STATIC_FUNC;
+    v
 }
 
 #[derive(Clone, Debug)]
@@ -100,10 +97,9 @@ impl<A: FromArgs, B: FromArgs, C: FromArgs> FromArgs for (A, B, C) {
         ))
     }
 }
+pub struct BorrowedParam<T>(PhantomData<T>);
 
-pub trait SoxNF<Kind> {
-    fn call_(&self, args: Vec<i64>);
-}
+pub struct OwnedParam<T>(PhantomData<T>);
 
 impl<F, R> NativeFn<(), R> for F
 where
@@ -115,21 +111,19 @@ where
     }
 }
 
-impl<F, T1, R> NativeFn<(T1,), R> for F
+impl<F, T1, R> NativeFn<(OwnedParam<T1>,), R> for F
 where
     F: Fn(T1) -> R + 'static,
     T1: FromArgs,
     R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf,) = (args.bind::<(T1,)>(i)).expect("Fail");
+        let (zelf,) = (args.bind::<(T1,)>(i)).expect("Failed to bind function arguments.");
         (self)(zelf).to_sox_result(i)
     }
 }
 
-pub struct BorrowedParam<T>(PhantomData<T>);
 
-pub struct OwnedParam<T>(PhantomData<T>);
 
 impl<F, S, R> NativeFn<(BorrowedParam<S>,), R> for F
 where
@@ -138,35 +132,24 @@ where
     R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf,) = (args.bind::<(S,)>(i)).expect("Fail");
+        let (zelf,) = (args.bind::<(S,)>(i)).expect("Failed to bind function arguments.");
         (self)(&zelf).to_sox_result(i)
     }
 }
 
-impl<F, S, S1, R> NativeFn<(BorrowedParam<S>, S1, &Interpreter), R> for F
+impl<F, S, S1, R> NativeFn<(S, S1), R> for F
 where
-    F: Fn(&S, S1, &Interpreter) -> R + 'static,
+    F: Fn(&S, S1) -> R + 'static,
     S: FromArgs,
     S1: FromArgs,
     R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, s1) = (args.bind::<(S, S1)>(i)).expect("Fail");
-        (self)(&zelf, s1, i).to_sox_result(i)
+        let (zelf, s1) = (args.bind::<(S, S1)>(i)).expect("Failed to bind function arguments.");
+        (self)(&zelf, s1).to_sox_result(i)
     }
 }
 
-impl<F, T, R> NativeFn<(OwnedParam<T>,), R> for F
-where
-    F: Fn(T) -> R + 'static,
-    T: FromArgs,
-    R: ToSoxResult,
-{
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf,) = (args.bind::<(T,)>(i)).expect("Fail");
-        (self)(zelf).to_sox_result(i)
-    }
-}
 
 impl<F, S, T, R> NativeFn<(BorrowedParam<S>, OwnedParam<T>), R> for F
 where
@@ -176,35 +159,22 @@ where
     R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1) = (args.bind::<(S, T)>(i)).expect("Fail");
+        let (zelf, v1) = (args.bind::<(S, T)>(i)).expect("Failed to bind function arguments.");
         (self)(&zelf, v1).to_sox_result(i)
     }
 }
 
 
-impl<F, T1, T2, R> NativeFn<(T1, T2), R> for F
-where
-    F: Fn(T1, T2) -> R + 'static,
-    T1: FromArgs,
-    T2: FromArgs,
-    R: ToSoxResult,
-{
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1) = (args.bind::<(T1, T2)>(i).expect("Fail"));
-        (self)(zelf, v1).to_sox_result(i)
-    }
-}
-
 impl<F, T1, T2, T3, R> NativeFn<(T1, T2, T3), R> for F
-where
-    F: Fn(T1, T2, T3) -> R + 'static,
-    T1: FromArgs,
-    T2: FromArgs,
-    T3: FromArgs,
-    R: ToSoxResult,
+    where
+        F: Fn(T1, T2, T3) -> R + 'static,
+        T1: FromArgs,
+        T2: FromArgs,
+        T3: FromArgs,
+        R: ToSoxResult,
 {
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1, v2) = (args.bind::<(T1, T2, T3)>(i).expect("Fail"));
+        let (zelf, v1, v2) = (args.bind::<(T1, T2, T3)>(i).expect("Failed to bind function arguments."));
         (self)(zelf, v1, v2).to_sox_result(i)
     }
 }
