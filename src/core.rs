@@ -4,6 +4,8 @@ use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
 
+pub use once_cell::sync::{Lazy, OnceCell};
+
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::Exception;
 use crate::builtins::float::SoxFloat;
@@ -13,7 +15,6 @@ use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
-pub use once_cell::sync::{Lazy, OnceCell};
 
 #[derive(Clone, Debug)]
 pub enum SoxObject {
@@ -48,8 +49,12 @@ impl SoxObject {
             let call_args = FuncArgs {
                 args: vec![self.clone()],
             };
-            let truth_val = (meth.func)(i, call_args).unwrap();
-            truth_val.as_bool().unwrap().value
+            let truth_val = (meth.func)(i, call_args);
+            if let Ok(tv) = truth_val {
+                tv.as_bool().map_or(false, |v| v.value)
+            } else {
+                false
+            }
         } else {
             true
         };
@@ -150,8 +155,8 @@ pub trait StaticType {
     const NAME: &'static str;
     fn static_cell() -> &'static OnceCell<SoxType>;
     fn init_builtin_type() -> &'static SoxType
-    where
-        Self: SoxClassImpl,
+        where
+            Self: SoxClassImpl,
     {
         let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
@@ -163,8 +168,8 @@ pub trait StaticType {
 
     fn create_slots() -> SoxTypeSlot;
     fn create_static_type() -> SoxType
-    where
-        Self: SoxClassImpl,
+        where
+            Self: SoxClassImpl,
     {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
