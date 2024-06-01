@@ -31,19 +31,7 @@ impl SoxFunction {
             environment_ref,
         }
     }
-
-    pub fn arity(&self) -> usize {
-        if let Stmt::Function {
-            name: _,
-            params,
-            body: _,
-        } = *self.declaration.clone()
-        {
-            params.len()
-        } else {
-            0
-        }
-    }
+    
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
