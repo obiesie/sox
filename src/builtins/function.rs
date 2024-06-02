@@ -8,11 +8,12 @@ use slotmap::DefaultKey;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
 use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
-    ToSoxResult, TryFromSoxObject,
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
+    TryFromSoxObject,
 };
 use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
@@ -31,7 +32,6 @@ impl SoxFunction {
             environment_ref,
         }
     }
-    
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
@@ -85,7 +85,7 @@ impl SoxObjectPayload for SoxFunction {
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::SoxFunction(ref_type)
+        SoxObject::Function(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {

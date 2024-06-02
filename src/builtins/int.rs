@@ -6,9 +6,8 @@ use once_cell::sync::OnceCell;
 use macros::soxtype;
 
 use crate::builtins::method::SoxMethod;
-use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
-};
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
+use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 pub type SoxIntRef = Rc<SoxInt>;

@@ -4,10 +4,11 @@ use std::ops::Deref;
 use once_cell::sync::OnceCell;
 
 use crate::builtins::method::{static_func, SoxMethod};
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, SoxType, SoxTypeSlot, StaticType,
-    ToSoxResult, TryFromSoxObject,
+    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
+    TryFromSoxObject,
 };
 use crate::interpreter::Interpreter;
 

@@ -1,15 +1,12 @@
 use std::any::Any;
 
-use std::rc::Rc;
-
 pub use once_cell::sync::{Lazy, OnceCell};
 
 use crate::builtins::method::SoxMethod;
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::core::SoxClassImpl;
-use crate::core::{SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType};
+use crate::core::{SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
-
-pub type SoxStringRef = Rc<SoxString>;
 
 //
 #[derive(Clone, Debug)]

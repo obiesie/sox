@@ -7,3 +7,4 @@ pub mod none;
 pub mod string;
 
 pub mod bool_;
+pub mod r#type;

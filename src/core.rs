@@ -13,6 +13,7 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 
@@ -22,9 +23,11 @@ pub enum SoxObject {
     String(SoxRef<SoxString>),
     Float(SoxRef<SoxFloat>),
     Boolean(SoxRef<SoxBool>),
-    SoxFunction(SoxRef<SoxFunction>),
+    Function(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
+    //Class(SoxRef<SoxType>),
+    // ClassInstance(SoxRef<ClassInstance>)
 }
 
 impl SoxObject {
@@ -34,9 +37,11 @@ impl SoxObject {
             SoxObject::String(v) => v.class(i),
             SoxObject::Float(v) => v.class(i),
             SoxObject::Boolean(v) => v.class(i),
-            SoxObject::SoxFunction(v) => v.class(i),
+            SoxObject::Function(v) => v.class(i),
             SoxObject::Exception(v) => v.class(i),
             SoxObject::None(v) => v.class(i),
+            //SoxObject::Class(v) => v.class(i),
+            //SoxObject::ClassInstance => {}
         };
         return typ;
     }
@@ -98,7 +103,7 @@ impl SoxObject {
 
     pub fn as_func(&self) -> Option<SoxRef<SoxFunction>> {
         match self {
-            SoxObject::SoxFunction(v) => Some(v.clone()),
+            SoxObject::Function(v) => Some(v.clone()),
             _ => None,
         }
     }
@@ -110,36 +115,6 @@ impl SoxObject {
         }
     }
 }
-
-pub type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
-
-#[derive(Debug)]
-pub struct SoxTypeSlot {
-    pub call: Option<GenericMethod>,
-}
-
-#[derive(Debug)]
-pub struct SoxType {
-    pub base: Option<SoxTypeRef>,
-    pub methods: HashMap<String, SoxMethod>,
-    pub slots: SoxTypeSlot,
-}
-
-impl SoxType {
-    pub fn new(
-        base: Option<SoxTypeRef>,
-        methods: HashMap<String, SoxMethod>,
-        slots: SoxTypeSlot,
-    ) -> Self {
-        Self {
-            base,
-            methods,
-            slots,
-        }
-    }
-}
-
-pub type SoxTypeRef = Rc<SoxType>;
 
 pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
 
@@ -155,8 +130,8 @@ pub trait StaticType {
     const NAME: &'static str;
     fn static_cell() -> &'static OnceCell<SoxType>;
     fn init_builtin_type() -> &'static SoxType
-        where
-            Self: SoxClassImpl,
+    where
+        Self: SoxClassImpl,
     {
         let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
@@ -168,8 +143,8 @@ pub trait StaticType {
 
     fn create_slots() -> SoxTypeSlot;
     fn create_static_type() -> SoxType
-        where
-            Self: SoxClassImpl,
+    where
+        Self: SoxClassImpl,
     {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
@@ -194,7 +169,7 @@ impl ToSoxResult for SoxObject {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, PartialEq)]
 pub struct SoxRef<T> {
     pub val: Rc<T>,
 }

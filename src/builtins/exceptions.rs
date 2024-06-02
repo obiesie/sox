@@ -1,9 +1,8 @@
 use crate::builtins::method::SoxMethod;
-use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxType, SoxTypeSlot, StaticType,
-};
+use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;

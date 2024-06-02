@@ -1,5 +1,6 @@
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
+use std::collections::HashMap;
 
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -271,8 +272,79 @@ impl StmtVisitor for &mut Interpreter {
         Err(Exception::Return(return_value).into_ref())
     }
 
-    fn visit_class_stmt(&mut self, _stmt: &Stmt) -> Self::T {
+    fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
         todo!()
+
+        // let astmt = stmt.clone();
+        // let ret_val = if let Stmt::Class {
+        //     name,
+        //     superclass,
+        //     methods,
+        // } = astmt
+        // {
+        //     let mut o = None;
+        //
+        //     let sc = if superclass.is_some() {
+        //         let c = superclass.as_ref().unwrap();
+        //         let sc = self.evaluate(c);
+        //         if let Ok(SoxObject::Class(v)) = sc {
+        //             info!("Evaluated to a class");
+        //             o = Some(v);
+        //         } else {
+        //             return Exception::Err(RuntimeError {
+        //                 msg: "Superclass must be a class.".into(),
+        //             });
+        //         }
+        //     };
+        //
+        //     {
+        //         let active_env = self.active_env_mut();
+        //         active_env.define(name.lexeme.clone().into(), self.none.into_ref());
+        //     }
+        //     let prev_env = self.active_env_ref.clone();
+        //     if superclass.is_some() {
+        //         let env_ref = {
+        //             let active_env = self.active_env();
+        //             let mut env_copy = active_env.clone();
+        //             let namespace = Namespace::default();
+        //             env_copy.push(namespace)?;
+        //             let env_ref = self.envs.insert(env_copy);
+        //
+        //             env_ref
+        //         };
+        //         self.active_env_ref = env_ref;
+        //
+        //         let sc = self.evaluate(superclass.as_ref().unwrap());
+        //         if let Ok(SoxObject::Class(v)) = sc {
+        //             let env = ref_env!(self, env_ref);
+        //             env.define("super".into(), SoxObject::Class(v.clone()))
+        //         }
+        //     }
+        //
+        //     let mut methods_map = HashMap::new();
+        //     for method in methods.iter() {
+        //         if let Stmt::Function { name, body, params } = method {
+        //             let func = SoxFunction {
+        //                 declaration: Box::new(method.clone()),
+        //                 environment_ref: self.active_env_ref.clone(),
+        //                 is_initializer: name.lexeme == "init".to_string(),
+        //             };
+        //             methods_map.insert(name.lexeme.clone().into(), Rc::new(func));
+        //         }
+        //     }
+        //     let class_name = name.lexeme.to_string();
+        //     let class = SoxClass::new(class_name, methods_map, o);
+        //     self.active_env_ref = prev_env;
+        //     let active_env = env!(self);
+        //     active_env.assign(name.clone(), SoxObject::Class(Rc::new(class)))?;
+        //
+        //     Ok(())
+        // } else {
+        //     Err(Exception::Err(RuntimeError {
+        //         msg: "Calling a visit_class_stmt on non class type.".into(),
+        //     }))
+        // };
+        // ret_val
     }
 }
 
@@ -435,22 +507,23 @@ impl ExprVisitor for &mut Interpreter {
                             Ok(SoxBool::from(v1.value <= v2.value).into_ref())
                         } else {
                             Err(Interpreter::runtime_error(
-                            "Arguments to the less than or equals operator must both be numbers"
-                                .into(),
-                        ))
+                                "Arguments to the less than or equals operator must both be numbers"
+                                    .into(),
+                            ))
                         };
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                    } else {
+                        Err(Interpreter::runtime_error(
                             "Arguments to the greater than or equals operator must both be numbers"
                                 .into(),
                         ))
-                        };
+                    };
                     value
                 }
                 TokenType::Bang => {
