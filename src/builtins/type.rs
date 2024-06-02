@@ -36,28 +36,15 @@ impl SoxType {
 }
 
 impl StaticType for SoxType {
-    const NAME: &'static str = "";
+    const NAME: &'static str = "type";
 
     fn static_cell() -> &'static OnceCell<SoxType> {
-        todo!()
-    }
-
-    fn init_builtin_type() -> &'static SoxType
-    where
-        Self: SoxClassImpl,
-    {
-        todo!()
+        static CELL: OnceCell<SoxType> = OnceCell::new();
+        &CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
-        todo!()
-    }
-
-    fn create_static_type() -> SoxType
-    where
-        Self: SoxClassImpl,
-    {
-        todo!()
+        SoxTypeSlot { call: None }
     }
 }
 
