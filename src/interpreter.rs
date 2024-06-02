@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
-use std::collections::HashMap;
 
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -9,11 +10,12 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::FuncArgs;
 use crate::builtins::none::SoxNone;
+use crate::builtins::r#type::SoxType;
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
+use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
-use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -273,78 +275,79 @@ impl StmtVisitor for &mut Interpreter {
     }
 
     fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        todo!()
+        let astmt = stmt.clone();
+        let ret_val = if let Stmt::Class {
+            name,
+            superclass,
+            methods,
+        } = astmt
+        {
+            let mut o = None;
 
-        // let astmt = stmt.clone();
-        // let ret_val = if let Stmt::Class {
-        //     name,
-        //     superclass,
-        //     methods,
-        // } = astmt
-        // {
-        //     let mut o = None;
-        //
-        //     let sc = if superclass.is_some() {
-        //         let c = superclass.as_ref().unwrap();
-        //         let sc = self.evaluate(c);
-        //         if let Ok(SoxObject::Class(v)) = sc {
-        //             info!("Evaluated to a class");
-        //             o = Some(v);
-        //         } else {
-        //             return Exception::Err(RuntimeError {
-        //                 msg: "Superclass must be a class.".into(),
-        //             });
-        //         }
-        //     };
-        //
-        //     {
-        //         let active_env = self.active_env_mut();
-        //         active_env.define(name.lexeme.clone().into(), self.none.into_ref());
-        //     }
-        //     let prev_env = self.active_env_ref.clone();
-        //     if superclass.is_some() {
-        //         let env_ref = {
-        //             let active_env = self.active_env();
-        //             let mut env_copy = active_env.clone();
-        //             let namespace = Namespace::default();
-        //             env_copy.push(namespace)?;
-        //             let env_ref = self.envs.insert(env_copy);
-        //
-        //             env_ref
-        //         };
-        //         self.active_env_ref = env_ref;
-        //
-        //         let sc = self.evaluate(superclass.as_ref().unwrap());
-        //         if let Ok(SoxObject::Class(v)) = sc {
-        //             let env = ref_env!(self, env_ref);
-        //             env.define("super".into(), SoxObject::Class(v.clone()))
-        //         }
-        //     }
-        //
-        //     let mut methods_map = HashMap::new();
-        //     for method in methods.iter() {
-        //         if let Stmt::Function { name, body, params } = method {
-        //             let func = SoxFunction {
-        //                 declaration: Box::new(method.clone()),
-        //                 environment_ref: self.active_env_ref.clone(),
-        //                 is_initializer: name.lexeme == "init".to_string(),
-        //             };
-        //             methods_map.insert(name.lexeme.clone().into(), Rc::new(func));
-        //         }
-        //     }
-        //     let class_name = name.lexeme.to_string();
-        //     let class = SoxClass::new(class_name, methods_map, o);
-        //     self.active_env_ref = prev_env;
-        //     let active_env = env!(self);
-        //     active_env.assign(name.clone(), SoxObject::Class(Rc::new(class)))?;
-        //
-        //     Ok(())
-        // } else {
-        //     Err(Exception::Err(RuntimeError {
-        //         msg: "Calling a visit_class_stmt on non class type.".into(),
-        //     }))
-        // };
-        // ret_val
+            // get super class if exists
+            let sc = if superclass.is_some() {
+                let c = superclass.as_ref().unwrap();
+                let sc = self.evaluate(c);
+                if let Ok(SoxObject::Class(v)) = sc {
+                    info!("Evaluated to a class");
+                    o = Some(v);
+                } else {
+                    let re = Interpreter::runtime_error("Superclass must be a class.".to_string());
+                    return Err(re);
+                }
+            };
+            let none_val = {self.none.clone().into_ref()};
+            let active_env = self.active_env_mut();
+            active_env.define(name.lexeme.to_string(), none_val);
+
+            let prev_env = self.active_env_ref.clone();
+            // setup super class within namespace
+            if superclass.is_some() {
+                let env_ref = {
+                    let active_env = self.active_env();
+                    let mut env_copy = active_env.clone();
+                    let namespace = Namespace::default();
+                    env_copy.push(namespace)?;
+                    let env_ref = self.envs.insert(env_copy);
+
+                    env_ref
+                };
+                self.active_env_ref = env_ref;
+
+                let sc = self.evaluate(superclass.as_ref().unwrap());
+                if let Ok(SoxObject::Class(v)) = sc {
+                    let env = self.referenced_env(env_ref);
+
+                    env.define("super", SoxObject::Class(v.clone()))
+                }
+            }
+
+            let mut methods_map = HashMap::new();
+            //setup methods
+            for method in methods.iter() {
+                if let Stmt::Function { name, body, params } = method {
+                    let func = SoxFunction {
+                        declaration: Box::new(method.clone()),
+                        environment_ref: self.active_env_ref.clone(),
+                        //is_initializer: name.lexeme == "init".to_string(),
+                    };
+                    methods_map.insert(name.lexeme.clone().into(), func.into_ref());
+                }
+            }
+
+            // set up class in environment
+            let class_name = name.lexeme.to_string();
+            let class = SoxType::new(class_name.to_string(), o, Default::default(), Default::default(), methods_map);
+            self.active_env_ref = prev_env;
+            let active_env = self.active_env_mut();
+            active_env.assign(class_name, class.into_ref())?;
+
+            Ok(())
+        } else {
+            let err = Interpreter::runtime_error("Calling a visit_class_stmt on non class type.".into());
+            return Err(err);
+        };
+        ret_val
     }
 }
 
