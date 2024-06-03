@@ -1,7 +1,5 @@
 use std::any::Any;
 use std::collections::HashMap;
-use std::hash::Hash;
-use std::ops::Deref;
 
 use once_cell::sync::OnceCell;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -9,7 +7,6 @@ use crate::builtins::function::SoxFunction;
 
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
-use crate::core::SoxObject::ClassInstance;
 use crate::interpreter::Interpreter;
 use crate::token::Token;
 
