@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use once_cell::sync::OnceCell;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
+use once_cell::sync::OnceCell;
 
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
@@ -18,7 +18,6 @@ pub struct SoxTypeSlot {
     //pub methods: &'static [SoxMethod],
 }
 
-
 pub type SoxAttributes = HashMap<String, SoxObject>;
 
 #[derive(Debug)]
@@ -26,7 +25,7 @@ pub struct SoxType {
     pub base: Option<SoxRef<SoxType>>,
     pub methods: HashMap<String, SoxMethod>,
     pub slots: SoxTypeSlot,
-    pub attributes: SoxAttributes
+    pub attributes: SoxAttributes,
 }
 
 impl SoxType {
@@ -35,13 +34,13 @@ impl SoxType {
         base: Option<SoxRef<SoxType>>,
         methods: HashMap<String, SoxMethod>,
         slots: SoxTypeSlot,
-        attributes: SoxAttributes
+        attributes: SoxAttributes,
     ) -> Self {
         Self {
             base,
             methods,
             slots,
-            attributes
+            attributes,
         }
     }
 
@@ -72,7 +71,7 @@ impl SoxType {
                 Ok(instance)
             };
             ret_val
-        }else {
+        } else {
             let error = Exception::Err(RuntimeError {
                 msg: "first argument to this call method should be a type object".to_string(),
             });
@@ -80,7 +79,7 @@ impl SoxType {
         }
     }
 }
-impl SoxObjectPayload for SoxType{
+impl SoxObjectPayload for SoxType {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         todo!()
     }
@@ -193,11 +192,7 @@ impl SoxClassInstance {
         self.fields.insert(name.lexeme.into(), value);
     }
 
-    pub fn get_(
-        instance: SoxClassInstance,
-        name: Token,
-        interp: &mut Interpreter,
-    ) -> SoxResult {
+    pub fn get_(instance: SoxClassInstance, name: Token, interp: &mut Interpreter) -> SoxResult {
         todo!()
         // let inst = instance.clone();
         // let val = if inst.fields.contains_key(name.lexeme.as_str()) {
@@ -215,7 +210,7 @@ impl SoxClassInstance {
     }
 }
 
-impl SoxObjectPayload for SoxClassInstance{
+impl SoxObjectPayload for SoxClassInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         todo!()
     }

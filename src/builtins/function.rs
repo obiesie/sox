@@ -33,11 +33,7 @@ impl SoxFunction {
         }
     }
 
-    pub fn bind(
-        &self,
-        instance: SoxObject,
-        interp: &mut Interpreter,
-    ) -> SoxResult {
+    pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         todo!()
         // if let Object::ClassInstance(_) = instance.clone() {
         //     let environment = ref_env!(interp, self.environment_ref);
@@ -45,7 +41,7 @@ impl SoxFunction {
         //     let namespace = Namespace::default();
         //     new_env.push(namespace).expect("TODO: panic message");
         //     new_env.define("this".into(), instance);
-        // 
+        //
         //     let env_ref = interp.envs.insert(new_env);
         //     let new_func = Function {
         //         declaration: self.declaration.clone(),
@@ -59,7 +55,6 @@ impl SoxFunction {
         //     }))
         // }
     }
-
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {

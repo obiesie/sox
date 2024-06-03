@@ -27,7 +27,7 @@ pub enum SoxObject {
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
     Class(SoxRef<SoxType>),
-    ClassInstance(SoxRef<SoxClassInstance>)
+    ClassInstance(SoxRef<SoxClassInstance>),
 }
 
 impl SoxObject {
@@ -41,7 +41,7 @@ impl SoxObject {
             SoxObject::Exception(v) => v.class(i),
             SoxObject::None(v) => v.class(i),
             SoxObject::Class(v) => v.class(i),
-            SoxObject::ClassInstance(v) => {v.class(i)}
+            SoxObject::ClassInstance(v) => v.class(i),
         };
         return typ;
     }
@@ -163,7 +163,7 @@ pub trait StaticType {
                 .map(move |v| (v.0.to_string(), v.1.clone()))
                 .collect::<HashMap<String, SoxMethod>>(),
             slots,
-            Default::default()
+            Default::default(),
         )
     }
 }

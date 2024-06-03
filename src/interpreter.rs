@@ -13,9 +13,9 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::SoxType;
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
-use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
+use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -296,7 +296,7 @@ impl StmtVisitor for &mut Interpreter {
                     return Err(re);
                 }
             };
-            let none_val = {self.none.clone().into_ref()};
+            let none_val = { self.none.clone().into_ref() };
             let active_env = self.active_env_mut();
             active_env.define(name.lexeme.to_string(), none_val);
 
@@ -337,14 +337,21 @@ impl StmtVisitor for &mut Interpreter {
 
             // set up class in environment
             let class_name = name.lexeme.to_string();
-            let class = SoxType::new(class_name.to_string(), o, Default::default(), Default::default(), methods_map);
+            let class = SoxType::new(
+                class_name.to_string(),
+                o,
+                Default::default(),
+                Default::default(),
+                methods_map,
+            );
             self.active_env_ref = prev_env;
             let active_env = self.active_env_mut();
             active_env.assign(class_name, class.into_ref())?;
 
             Ok(())
         } else {
-            let err = Interpreter::runtime_error("Calling a visit_class_stmt on non class type.".into());
+            let err =
+                Interpreter::runtime_error("Calling a visit_class_stmt on non class type.".into());
             return Err(err);
         };
         ret_val
@@ -517,16 +524,15 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
                             "Arguments to the greater than or equals operator must both be numbers"
                                 .into(),
                         ))
-                    };
+                        };
                     value
                 }
                 TokenType::Bang => {
