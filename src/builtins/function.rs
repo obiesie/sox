@@ -33,6 +33,34 @@ impl SoxFunction {
         }
     }
 
+    pub fn bind(
+        &self,
+        instance: SoxObject,
+        interp: &mut Interpreter,
+    ) -> SoxResult {
+        todo!()
+        // if let Object::ClassInstance(_) = instance.clone() {
+        //     let environment = ref_env!(interp, self.environment_ref);
+        //     let mut new_env = environment.clone();
+        //     let namespace = Namespace::default();
+        //     new_env.push(namespace).expect("TODO: panic message");
+        //     new_env.define("this".into(), instance);
+        // 
+        //     let env_ref = interp.envs.insert(new_env);
+        //     let new_func = Function {
+        //         declaration: self.declaration.clone(),
+        //         environment_ref: env_ref,
+        //         is_initializer: false,
+        //     };
+        //     return Ok(Object::Function(Rc::new(new_func)));
+        // } else {
+        //     Err(RuntimeException::RuntimeError(RuntimeError {
+        //         msg: "Could not bind method to instance".into(),
+        //     }))
+        // }
+    }
+
+
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
             let previous_env_ref = interpreter.active_env_ref;

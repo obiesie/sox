@@ -13,7 +13,7 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
-use crate::builtins::r#type::{SoxType, SoxTypeSlot};
+use crate::builtins::r#type::{SoxClassInstance, SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 
@@ -26,8 +26,8 @@ pub enum SoxObject {
     Function(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
-    //Class(SoxRef<SoxType>),
-    // ClassInstance(SoxRef<ClassInstance>)
+    Class(SoxRef<SoxType>),
+    ClassInstance(SoxRef<SoxClassInstance>)
 }
 
 impl SoxObject {
@@ -40,8 +40,8 @@ impl SoxObject {
             SoxObject::Function(v) => v.class(i),
             SoxObject::Exception(v) => v.class(i),
             SoxObject::None(v) => v.class(i),
-            //SoxObject::Class(v) => v.class(i),
-            //SoxObject::ClassInstance => {}
+            SoxObject::Class(v) => v.class(i),
+            SoxObject::ClassInstance(v) => {v.class(i)}
         };
         return typ;
     }
@@ -114,6 +114,13 @@ impl SoxObject {
             _ => None,
         }
     }
+
+    pub fn as_type(&self) -> Option<SoxRef<SoxType>> {
+        match self {
+            SoxObject::Class(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
 }
 
 pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;
@@ -149,12 +156,14 @@ pub trait StaticType {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
         SoxType::new(
+            "".to_string(),
             None,
             methods
                 .iter()
                 .map(move |v| (v.0.to_string(), v.1.clone()))
                 .collect::<HashMap<String, SoxMethod>>(),
             slots,
+            Default::default()
         )
     }
 }
