@@ -121,6 +121,13 @@ impl SoxObject {
             _ => None,
         }
     }
+
+    pub fn as_class_instance(&self) -> Option<SoxRef<SoxClassInstance>> {
+        match self {
+            SoxObject::ClassInstance(v) => Some(v.clone()),
+            _ => None,
+        }
+    }
 }
 
 pub type SoxResult<T = SoxObject> = Result<T, SoxObject>;

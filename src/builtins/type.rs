@@ -132,39 +132,45 @@ impl SoxClassInstance {
     }
 
     pub fn get(inst: SoxClassInstance, name: Token, interp: &mut Interpreter) -> SoxResult {
-        let val = if inst.fields.contains_key(name.lexeme.as_str()) {
-            Ok(inst.fields.get(name.lexeme.as_str()).unwrap().clone())
-        } else if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
-            let another_instance = SoxRef::new(inst);
-            if let Some(f) = method.as_func() {
-                let bound_method = f.bind(SoxObject::ClassInstance(another_instance), interp);
-                bound_method
-            } else {
-                Err(Interpreter::runtime_error(format!("Found property with same name, {:?}, but it is not a functioin", name.lexeme)))
+        if let Some(field_value) = inst.fields.get(name.lexeme.as_str()) {
+            return Ok(field_value.clone());
+        }
 
+        if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
+            if let Some(func) = method.as_func() {
+                let bound_method = func.bind(SoxObject::ClassInstance(SoxRef::new(inst)), interp);
+                return bound_method;
+            } else {
+                return Err(Interpreter::runtime_error(
+                    format!("Found property with same name, {}, but it is not a function", name.lexeme),
+                ));
             }
-        } else {
-            Err(Interpreter::runtime_error(format!("Undefined property - {:?}", name.lexeme)))
-            
-        };
-        return val;
+        }
+
+        Err(Interpreter::runtime_error(
+            format!("Undefined property - {}", name.lexeme),
+        ))
     }
 }
 
 impl SoxObjectPayload for SoxClassInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-        todo!()
+        obj.as_class_instance().unwrap()
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        todo!()
+        SoxObject::ClassInstance(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
+    }
+
+    fn into_ref(self) -> SoxObject {
+        SoxRef::new(self).to_sox_object()
     }
 
     fn class(&self, i: &Interpreter) -> &'static SoxType {
-        todo!()
+        i.types.type_type
     }
 }
