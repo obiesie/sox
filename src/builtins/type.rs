@@ -1,10 +1,10 @@
 use std::any::Any;
 use std::collections::HashMap;
 
-use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::builtins::function::SoxFunction;
 use once_cell::sync::OnceCell;
 
+use crate::builtins::exceptions::{Exception, RuntimeError};
+use crate::builtins::function::SoxFunction;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
 use crate::interpreter::Interpreter;
@@ -45,16 +45,11 @@ impl SoxType {
     }
 
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
-        let method = if let Some(m) = self.attributes.get(name) {
-            Some(m.clone())
-        } else {
-            None
-        };
-        if method.is_none() && self.base.is_some() {
-            self.base.as_ref().unwrap().find_method(name)
-        } else {
-            method
-        }
+        self.attributes.get(name)
+            .cloned()
+            .or_else(|| {
+                self.base.as_ref().and_then(|base| base.find_method(name))
+            })
     }
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
@@ -79,23 +74,29 @@ impl SoxType {
         }
     }
 }
+
 impl SoxObjectPayload for SoxType {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-        todo!()
+        obj.as_type().unwrap()
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        todo!()
+        SoxObject::Class(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
-        todo!()
+        self
+    }
+
+    fn into_ref(self) -> SoxObject {
+        SoxRef::new(self).to_sox_object()
     }
 
     fn class(&self, i: &Interpreter) -> &'static SoxType {
-        todo!()
+        i.types.type_type
     }
 }
+
 impl StaticType for SoxType {
     const NAME: &'static str = "type";
 
@@ -119,69 +120,7 @@ pub struct SoxClassInstance {
     fields: HashMap<String, SoxObject>,
 }
 
-//impl SoxClass {
-//     pub fn new(
-//         name: String,
-//         methods: HashMap<String, SoxMethod>,
-//         superclass: Option<SoxRef<SoxType>>,
-//     ) -> Self {
-//         Self {
-//             name,
-//             methods,
-//             superclass,
-//         }
-//     }
-//
-//     pub fn find_method(&self, name: &str) -> Option<Rc<Function>> {
-//         let method = if let Some(m) = self.methods.get(name) {
-//             Some(m.clone())
-//         } else {
-//             None
-//         };
-//         if method.is_none() && self.superclass.is_some() {
-//             self.superclass.as_ref().unwrap().find_method(name)
-//         } else {
-//             method
-//         }
-//     }
-//
-//     pub fn arity(&self) -> usize {
-//         let initializer = self.find_method("init".into());
-//         let ret_val = if let Some(init_func) = initializer {
-//             let func = init_func;
-//             func.arity()
-//         } else {
-//             0
-//         };
-//         ret_val
-//     }
-// }
-// impl Callable for Class {
-//     type T = Result<Object, RuntimeException>;
-//
-//     fn call(&self, interpreter: &mut Interpreter, args: Vec<Object>) -> Self::T {
-//         let class_instance = ClassInstance::new(Rc::new(self.to_owned()));
-//         let initializer = self.find_method("init".into());
-//         let instance = Object::ClassInstance(Rc::new(class_instance));
-//         let ret_val = if let Some(init_func) = initializer {
-//             let mut func = init_func;
-//             let bound_method = func.bind(instance.clone(), interpreter)?;
-//             if let Object::Function(f) = bound_method {
-//                 let mut func = f;
-//                 func.call(interpreter, args)?;
-//                 Ok(instance)
-//             } else {
-//                 Err(RuntimeException::RuntimeError(RuntimeError {
-//                     msg: format!("Initializer found is not a callable function."),
-//                 }))
-//             }
-//         } else {
-//             Ok(instance)
-//         };
-//         ret_val
-//     }
-// }
-//
+
 impl SoxClassInstance {
     pub fn new(class: SoxRef<SoxType>) -> Self {
         let fields = HashMap::new();
@@ -192,21 +131,23 @@ impl SoxClassInstance {
         self.fields.insert(name.lexeme.into(), value);
     }
 
-    pub fn get_(instance: SoxClassInstance, name: Token, interp: &mut Interpreter) -> SoxResult {
-        todo!()
-        // let inst = instance.clone();
-        // let val = if inst.fields.contains_key(name.lexeme.as_str()) {
-        //     Ok(inst.fields.get(name.lexeme.as_str()).unwrap().clone())
-        // } else if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
-        //     let another_instance = SoxRef::new(instance.clone());
-        //     let bound_method = method.bind(SoxObject::ClassInstance(another_instance), interp);
-        //     bound_method
-        // } else {
-        //     Err(RuntimeException::RuntimeError(RuntimeError {
-        //         msg: format!("Undefined property - {:?}", name.lexeme),
-        //     }))
-        // };
-        // return val;
+    pub fn get(inst: SoxClassInstance, name: Token, interp: &mut Interpreter) -> SoxResult {
+        let val = if inst.fields.contains_key(name.lexeme.as_str()) {
+            Ok(inst.fields.get(name.lexeme.as_str()).unwrap().clone())
+        } else if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
+            let another_instance = SoxRef::new(inst);
+            if let Some(f) = method.as_func() {
+                let bound_method = f.bind(SoxObject::ClassInstance(another_instance), interp);
+                bound_method
+            } else {
+                Err(Interpreter::runtime_error(format!("Found property with same name, {:?}, but it is not a functioin", name.lexeme)))
+
+            }
+        } else {
+            Err(Interpreter::runtime_error(format!("Undefined property - {:?}", name.lexeme)))
+            
+        };
+        return val;
     }
 }
 
