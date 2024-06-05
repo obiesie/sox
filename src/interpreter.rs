@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::ops::Deref;
 
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
@@ -10,12 +11,12 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::FuncArgs;
 use crate::builtins::none::SoxNone;
-use crate::builtins::r#type::SoxType;
+use crate::builtins::r#type::{SoxClassInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
+use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
-use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -118,6 +119,7 @@ impl Interpreter {
         active_env.pop()?;
         Ok(())
     }
+
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
         let active_env = self.active_env_mut();
@@ -529,9 +531,9 @@ impl ExprVisitor for &mut Interpreter {
                             Ok(SoxBool::from(v1.value >= v2.value).into_ref())
                         } else {
                             Err(Interpreter::runtime_error(
-                            "Arguments to the greater than or equals operator must both be numbers"
-                                .into(),
-                        ))
+                                "Arguments to the greater than or equals operator must both be numbers"
+                                    .into(),
+                            ))
                         };
                     value
                 }
@@ -662,14 +664,38 @@ impl ExprVisitor for &mut Interpreter {
             ))
         }
     }
-    fn visit_get_expr(&mut self, _expr: &Expr) -> Self::T {
-        todo!()
+    fn visit_get_expr(&mut self, expr: &Expr) -> Self::T {
+        let ret_val = if let Expr::Get { name, object } = expr {
+            let object = self.evaluate(object)?;
+            if let SoxObject::ClassInstance(inst) = object {
+                SoxClassInstance::get(inst, name.clone(), self)
+            } else {
+                Err(Interpreter::runtime_error(
+                    "Only class instances have attributes".into(),
+                ))
+                
+            }
+        } else {
+            Err(Interpreter::runtime_error(
+                "Calling vist_get_expr on none get expr".into(),
+            ))
+                
+        };
+        ret_val
     }
+
     fn visit_set_expr(&mut self, _expr: &Expr) -> Self::T {
         todo!()
     }
-    fn visit_this_expr(&mut self, _expr: &Expr) -> Self::T {
-        todo!()
+    fn visit_this_expr(&mut self, expr: &Expr) -> Self::T {
+        if let Expr::This { keyword } = expr {
+            let value = self.lookup_variable(keyword, expr);
+            value
+        } else {
+            Err(Interpreter::runtime_error(
+                "Calling vist_this_expr on none this expr".into(),
+            ))
+        }
     }
     fn visit_super_expr(&mut self, _expr: &Expr) -> Self::T {
         todo!()

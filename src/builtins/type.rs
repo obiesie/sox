@@ -131,14 +131,14 @@ impl SoxClassInstance {
         self.fields.insert(name.lexeme.into(), value);
     }
 
-    pub fn get(inst: SoxClassInstance, name: Token, interp: &mut Interpreter) -> SoxResult {
+    pub fn get(inst: SoxRef<SoxClassInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
         if let Some(field_value) = inst.fields.get(name.lexeme.as_str()) {
             return Ok(field_value.clone());
         }
 
         if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
             if let Some(func) = method.as_func() {
-                let bound_method = func.bind(SoxObject::ClassInstance(SoxRef::new(inst)), interp);
+                let bound_method = func.bind(SoxObject::ClassInstance(inst.clone()), interp);
                 return bound_method;
             } else {
                 return Err(Interpreter::runtime_error(
