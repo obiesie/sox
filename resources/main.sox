@@ -23,5 +23,17 @@ class test{
     }
  }
  
- let a = test();
+ class another_test: test {
+ 
+    my_test(){
+        let i = super.my_test();
+        print i;
+        print i;
+        print i;
+        print i;
+        return 10;
+        
+    }
+ }
+ let a = another_test();
  print a.my_test();
