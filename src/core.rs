@@ -27,7 +27,7 @@ pub enum SoxObject {
     Function(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
-    Class(SoxRef<SoxType>), 
+    Class(SoxRef<SoxType>),
     ClassInstance(SoxRef<SoxClassInstance>),
 }
 
@@ -209,12 +209,10 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
     }
 }
 
-
-impl<T: SoxObjectPayload> DerefMut for SoxRef<T>{
+impl<T: SoxObjectPayload> DerefMut for SoxRef<T> {
     fn deref_mut(&mut self) -> &mut Self::Target {
         //&mut self.val
         todo!()
-        
     }
 }
 

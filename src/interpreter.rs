@@ -14,9 +14,9 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxClassInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
-use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
+use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -119,7 +119,6 @@ impl Interpreter {
         active_env.pop()?;
         Ok(())
     }
-
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
         let active_env = self.active_env_mut();
@@ -526,15 +525,16 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the greater than or equals operator must both be numbers"
-                                    .into(),
-                            ))
-                        };
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                    } else {
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the greater than or equals operator must both be numbers"
+                                .into(),
+                        ))
+                    };
                     value
                 }
                 TokenType::Bang => {
@@ -692,20 +692,18 @@ impl ExprVisitor for &mut Interpreter {
             let object = self.evaluate(object)?;
             if let Some(mut v) = object.as_class_instance() {
                 let value = self.evaluate(value)?;
-                
+
                 v.set(name.clone(), value.clone());
                 Ok(value)
             } else {
                 Err(Interpreter::runtime_error(
                     "Only instances have fields".into(),
                 ))
-               
             }
         } else {
             Err(Interpreter::runtime_error(
                 "Calling vist_set_expr on none set expr".into(),
-            )) 
-           
+            ))
         };
         ret_val
     }
@@ -723,6 +721,3 @@ impl ExprVisitor for &mut Interpreter {
         todo!()
     }
 }
-
-
-

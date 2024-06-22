@@ -35,21 +35,23 @@ impl SoxFunction {
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         if let SoxObject::ClassInstance(_) = instance {
-            let environment = interp.referenced_env(self.environment_ref);//ref_env!(interp, self.environment_ref);
+            let environment = interp.referenced_env(self.environment_ref); //ref_env!(interp, self.environment_ref);
             let mut new_env = environment.clone();
             let namespace = Namespace::default();
             new_env.push(namespace).expect("TODO: panic message");
             new_env.define("this", instance);
-        
+
             let env_ref = interp.envs.insert(new_env);
             let new_func = SoxFunction {
                 declaration: self.declaration.clone(),
                 environment_ref: env_ref,
                 //is_initializer: false,
             };
-            return Ok(new_func.into_ref());//Ok(Object::Function(Rc::new(new_func)));
+            return Ok(new_func.into_ref()); //Ok(Object::Function(Rc::new(new_func)));
         } else {
-            Err(Interpreter::runtime_error("Could not bind method to instance".to_string()))
+            Err(Interpreter::runtime_error(
+                "Could not bind method to instance".to_string(),
+            ))
         }
     }
 

@@ -46,11 +46,10 @@ impl SoxType {
     }
 
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
-        self.attributes.get(name)
+        self.attributes
+            .get(name)
             .cloned()
-            .or_else(|| {
-                self.base.as_ref().and_then(|base| base.find_method(name))
-            })
+            .or_else(|| self.base.as_ref().and_then(|base| base.find_method(name)))
     }
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
@@ -59,7 +58,9 @@ impl SoxType {
             let initializer = to.find_method("init".into());
             let instance = class_instance.into_ref(); //SoxObject::ClassInstance(Rc::new(class_instance));
             let ret_val = if let Some(init_func) = initializer {
-                let func = init_func.as_func().expect("init resolved to a non function object");
+                let func = init_func
+                    .as_func()
+                    .expect("init resolved to a non function object");
                 let bound_method = func.bind(instance.clone(), interpreter)?;
                 SoxFunction::call(bound_method, args, interpreter)?;
                 Ok(instance)
@@ -107,7 +108,9 @@ impl StaticType for SoxType {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: Some(Self::call) }
+        SoxTypeSlot {
+            call: Some(Self::call),
+        }
     }
 }
 
@@ -121,14 +124,15 @@ pub struct SoxClassInstance {
     fields: RefCell<HashMap<String, SoxObject>>,
 }
 
-
 impl SoxClassInstance {
     pub fn new(class: SoxRef<SoxType>) -> Self {
         let fields = HashMap::new();
-        Self { class, 
-            fields: RefCell::new(fields) }
+        Self {
+            class,
+            fields: RefCell::new(fields),
+        }
     }
-    
+
     pub fn set(&self, name: Token, value: SoxObject) {
         self.fields.borrow_mut().insert(name.lexeme.into(), value);
     }
@@ -143,27 +147,27 @@ impl SoxClassInstance {
                 let bound_method = func.bind(SoxObject::ClassInstance(inst.clone()), interp);
                 return bound_method;
             } else {
-                return Err(Interpreter::runtime_error(
-                    format!("Found property with same name, {}, but it is not a function", name.lexeme),
-                ));
+                return Err(Interpreter::runtime_error(format!(
+                    "Found property with same name, {}, but it is not a function",
+                    name.lexeme
+                )));
             }
         }
 
-        Err(Interpreter::runtime_error(
-            format!("Undefined property - {}", name.lexeme),
-        ))
+        Err(Interpreter::runtime_error(format!(
+            "Undefined property - {}",
+            name.lexeme
+        )))
     }
 }
 
 impl SoxObjectPayload for SoxClassInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_class_instance().unwrap()
-        
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
         SoxObject::ClassInstance(ref_type)
-        
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -179,7 +183,6 @@ impl SoxObjectPayload for SoxClassInstance {
     }
 }
 
-
 #[cfg(test)]
 mod tests {
     use std::cell::RefCell;
@@ -193,47 +196,61 @@ mod tests {
     use crate::token_type::TokenType;
 
     #[test]
-    fn test_class_instance(){
-        let class = SoxType::new("TEST".into(), None, 
-                                 HashMap::default(), 
-                                 SoxTypeSlot::default(),
-                                 HashMap::default());
+    fn test_class_instance() {
+        let class = SoxType::new(
+            "TEST".into(),
+            None,
+            HashMap::default(),
+            SoxTypeSlot::default(),
+            HashMap::default(),
+        );
 
-        let class_b = SoxType::new("TEST".into(), None,
-                                 HashMap::default(),
-                                 SoxTypeSlot::default(),
-                                 HashMap::default()).into_ref();
+        let class_b = SoxType::new(
+            "TEST".into(),
+            None,
+            HashMap::default(),
+            SoxTypeSlot::default(),
+            HashMap::default(),
+        )
+        .into_ref();
 
-        let class_a = SoxType::new("TEST".into(), None,
-                                   HashMap::default(),
-                                   SoxTypeSlot::default(),
-                                   HashMap::default()).into_ref();
+        let class_a = SoxType::new(
+            "TEST".into(),
+            None,
+            HashMap::default(),
+            SoxTypeSlot::default(),
+            HashMap::default(),
+        )
+        .into_ref();
 
         let class_ref = SoxRef::new(class);
         let fields = HashMap::new();
-        let ci = SoxClassInstance{
+        let ci = SoxClassInstance {
             class: class_ref,
-            fields: RefCell::new(fields) };
+            fields: RefCell::new(fields),
+        };
         let a = SoxRef::new(ci);
         let b = a.clone();
-        let token1 = Token{
+        let token1 = Token {
             token_type: TokenType::SoxString,
 
             lexeme: "test".to_string(),
             literal: Literal::String("test".to_string()),
             line: 0,
         };
-        
+
         let i = SoxInt::new(65).into_ref();
         a.set(token1.clone(), class_b);
         b.set(token1.clone(), i);
-        
-        let mut interp = Interpreter::new();
-        println!("Value is {:?}", SoxClassInstance::get(b, token1.clone(), &mut interp));
-        println!("Value is {:?}", SoxClassInstance::get(a, token1, &mut interp));
-        
-        
 
+        let mut interp = Interpreter::new();
+        println!(
+            "Value is {:?}",
+            SoxClassInstance::get(b, token1.clone(), &mut interp)
+        );
+        println!(
+            "Value is {:?}",
+            SoxClassInstance::get(a, token1, &mut interp)
+        );
     }
 }
-
