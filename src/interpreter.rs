@@ -1,6 +1,6 @@
-use std::collections::HashMap;
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
+use std::collections::HashMap;
 
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -523,16 +523,15 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
                             "Arguments to the greater than or equals operator must both be numbers"
                                 .into(),
                         ))
-                    };
+                        };
                     value
                 }
                 TokenType::Bang => {
@@ -726,22 +725,32 @@ impl ExprVisitor for &mut Interpreter {
                 let method_name = method.lexeme.clone();
                 let method = c.find_method(method_name.as_str());
                 let t = if let Some(m) = method {
-                    if let Some(m_) = m.as_func(){
+                    if let Some(m_) = m.as_func() {
                         let bound_method = m_.bind(object, self)?;
                         Ok(bound_method)
                     } else {
-                        Err(Interpreter::runtime_error(format!("Undefined property {}", method_name)))
+                        Err(Interpreter::runtime_error(format!(
+                            "Undefined property {}",
+                            method_name
+                        )))
                     }
                 } else {
-                    Err(Interpreter::runtime_error(format!("Undefined property {}", method_name)))
+                    Err(Interpreter::runtime_error(format!(
+                        "Undefined property {}",
+                        method_name
+                    )))
                 };
                 t
             } else {
-                Err(Interpreter::runtime_error("Unable to resolve instance - this".into()))
+                Err(Interpreter::runtime_error(
+                    "Unable to resolve instance - this".into(),
+                ))
             };
             method
         } else {
-            Err(Interpreter::runtime_error("Calling vist_super_expr on none super expr".into()))
+            Err(Interpreter::runtime_error(
+                "Calling vist_super_expr on none super expr".into(),
+            ))
         }
     }
 }
