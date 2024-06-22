@@ -717,7 +717,33 @@ impl ExprVisitor for &mut Interpreter {
             ))
         }
     }
-    fn visit_super_expr(&mut self, _expr: &Expr) -> Self::T {
-        todo!()
+    fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
+        if let Expr::Super { keyword, method } = expr {
+            let env = self.active_env_mut();
+            let superclass = env.get("super")?;
+            let object = env.get("this")?;
+
+            let method = if let SoxObject::Class(v) = superclass {
+                let c = v;
+                let method_name = method.lexeme.clone();
+                let method = c.find_method(method_name.as_str());
+                let t = if let Some(m) = method {
+                    if let Some(m_) = m.as_func(){
+                        let bound_method = m_.bind(object, self)?;
+                        Ok(bound_method)
+                    } else {
+                        Err(Interpreter::runtime_error(format!("Undefined property {}", method_name)))
+                    }
+                } else {
+                    Err(Interpreter::runtime_error(format!("Undefined property {}", method_name)))
+                };
+                t
+            } else {
+                Err(Interpreter::runtime_error("Unable to resolve instance - this".into()))
+            };
+            method
+        } else {
+            Err(Interpreter::runtime_error("Calling vist_super_expr on none super expr".into()))
+        }
     }
 }
