@@ -34,7 +34,6 @@ impl SoxFunction {
     }
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
-        //todo!()
         if let SoxObject::ClassInstance(_) = instance {
             let environment = interp.referenced_env(self.environment_ref);//ref_env!(interp, self.environment_ref);
             let mut new_env = environment.clone();

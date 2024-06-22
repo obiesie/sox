@@ -11,7 +11,7 @@ pub struct TypeLibrary {
     pub none_type: &'static SoxType,
     pub exception_type: &'static SoxType,
     pub func_type: &'static SoxType,
-    pub type_type: &'static SoxType,
+    pub type_type: &'static SoxType, 
 }
 
 impl TypeLibrary {

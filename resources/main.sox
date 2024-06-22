@@ -15,3 +15,13 @@ for (let i=0; i < 5; i=i+1){
 }
 
 print fib(7);
+
+class test{
+
+     my_test(){
+        return 1;
+    }
+ }
+ 
+ let a = test();
+ print a.my_test();

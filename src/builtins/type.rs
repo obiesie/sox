@@ -107,7 +107,7 @@ impl StaticType for SoxType {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None }
+        SoxTypeSlot { call: Some(Self::call) }
     }
 }
 
@@ -128,7 +128,7 @@ impl SoxClassInstance {
         Self { class, 
             fields: RefCell::new(fields) }
     }
-
+    
     pub fn set(&self, name: Token, value: SoxObject) {
         self.fields.borrow_mut().insert(name.lexeme.into(), value);
     }
