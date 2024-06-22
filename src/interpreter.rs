@@ -673,19 +673,41 @@ impl ExprVisitor for &mut Interpreter {
                 Err(Interpreter::runtime_error(
                     "Only class instances have attributes".into(),
                 ))
-                
             }
         } else {
             Err(Interpreter::runtime_error(
                 "Calling vist_get_expr on none get expr".into(),
             ))
-                
         };
         ret_val
     }
 
-    fn visit_set_expr(&mut self, _expr: &Expr) -> Self::T {
-        todo!()
+    fn visit_set_expr(&mut self, expr: &Expr) -> Self::T {
+        let ret_val = if let Expr::Set {
+            name,
+            object,
+            value,
+        } = expr
+        {
+            let object = self.evaluate(object)?;
+            if let Some(mut v) = object.as_class_instance() {
+                let value = self.evaluate(value)?;
+                
+                v.set(name.clone(), value.clone());
+                Ok(value)
+            } else {
+                Err(Interpreter::runtime_error(
+                    "Only instances have fields".into(),
+                ))
+               
+            }
+        } else {
+            Err(Interpreter::runtime_error(
+                "Calling vist_set_expr on none set expr".into(),
+            )) 
+           
+        };
+        ret_val
     }
     fn visit_this_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::This { keyword } = expr {
@@ -701,3 +723,6 @@ impl ExprVisitor for &mut Interpreter {
         todo!()
     }
 }
+
+
+

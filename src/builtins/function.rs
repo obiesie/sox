@@ -51,9 +51,6 @@ impl SoxFunction {
             return Ok(new_func.into_ref());//Ok(Object::Function(Rc::new(new_func)));
         } else {
             Err(Interpreter::runtime_error("Could not bind method to instance".to_string()))
-            // Err(RuntimeException::RuntimeError(RuntimeError {
-            //     msg: "Could not bind method to instance".into(),
-            // }))
         }
     }
 

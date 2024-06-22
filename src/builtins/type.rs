@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::cell::RefCell;
 use std::collections::HashMap;
 
 use once_cell::sync::OnceCell;
@@ -58,7 +59,7 @@ impl SoxType {
             let initializer = to.find_method("init".into());
             let instance = class_instance.into_ref(); //SoxObject::ClassInstance(Rc::new(class_instance));
             let ret_val = if let Some(init_func) = initializer {
-                let func = init_func.as_func().expect("Non function found as init");
+                let func = init_func.as_func().expect("init resolved to a non function object");
                 let bound_method = func.bind(instance.clone(), interpreter)?;
                 SoxFunction::call(bound_method, args, interpreter)?;
                 Ok(instance)
@@ -117,22 +118,23 @@ impl SoxClassImpl for SoxType {
 #[derive(Clone, Debug)]
 pub struct SoxClassInstance {
     class: SoxRef<SoxType>,
-    fields: HashMap<String, SoxObject>,
+    fields: RefCell<HashMap<String, SoxObject>>,
 }
 
 
 impl SoxClassInstance {
     pub fn new(class: SoxRef<SoxType>) -> Self {
         let fields = HashMap::new();
-        Self { class, fields }
+        Self { class, 
+            fields: RefCell::new(fields) }
     }
 
-    pub fn set(&mut self, name: Token, value: SoxObject) {
-        self.fields.insert(name.lexeme.into(), value);
+    pub fn set(&self, name: Token, value: SoxObject) {
+        self.fields.borrow_mut().insert(name.lexeme.into(), value);
     }
 
     pub fn get(inst: SoxRef<SoxClassInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
-        if let Some(field_value) = inst.fields.get(name.lexeme.as_str()) {
+        if let Some(field_value) = inst.fields.borrow().get(name.lexeme.as_str()) {
             return Ok(field_value.clone());
         }
 
@@ -156,10 +158,12 @@ impl SoxClassInstance {
 impl SoxObjectPayload for SoxClassInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_class_instance().unwrap()
+        
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
         SoxObject::ClassInstance(ref_type)
+        
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -174,3 +178,62 @@ impl SoxObjectPayload for SoxClassInstance {
         i.types.type_type
     }
 }
+
+
+#[cfg(test)]
+mod tests {
+    use std::cell::RefCell;
+    use std::collections::HashMap;
+
+    use crate::builtins::int::SoxInt;
+    use crate::builtins::r#type::{SoxClassInstance, SoxType, SoxTypeSlot};
+    use crate::core::{SoxObjectPayload, SoxRef};
+    use crate::interpreter::Interpreter;
+    use crate::token::{Literal, Token};
+    use crate::token_type::TokenType;
+
+    #[test]
+    fn test_class_instance(){
+        let class = SoxType::new("TEST".into(), None, 
+                                 HashMap::default(), 
+                                 SoxTypeSlot::default(),
+                                 HashMap::default());
+
+        let class_b = SoxType::new("TEST".into(), None,
+                                 HashMap::default(),
+                                 SoxTypeSlot::default(),
+                                 HashMap::default()).into_ref();
+
+        let class_a = SoxType::new("TEST".into(), None,
+                                   HashMap::default(),
+                                   SoxTypeSlot::default(),
+                                   HashMap::default()).into_ref();
+
+        let class_ref = SoxRef::new(class);
+        let fields = HashMap::new();
+        let ci = SoxClassInstance{
+            class: class_ref,
+            fields: RefCell::new(fields) };
+        let a = SoxRef::new(ci);
+        let b = a.clone();
+        let token1 = Token{
+            token_type: TokenType::SoxString,
+
+            lexeme: "test".to_string(),
+            literal: Literal::String("test".to_string()),
+            line: 0,
+        };
+        
+        let i = SoxInt::new(65).into_ref();
+        a.set(token1.clone(), class_b);
+        b.set(token1.clone(), i);
+        
+        let mut interp = Interpreter::new();
+        println!("Value is {:?}", SoxClassInstance::get(b, token1.clone(), &mut interp));
+        println!("Value is {:?}", SoxClassInstance::get(a, token1, &mut interp));
+        
+        
+
+    }
+}
+

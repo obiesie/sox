@@ -1,7 +1,8 @@
 use std::any::Any;
+use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
-use std::ops::Deref;
+use std::ops::{Deref, DerefMut};
 use std::rc::Rc;
 
 pub use once_cell::sync::{Lazy, OnceCell};
@@ -26,7 +27,7 @@ pub enum SoxObject {
     Function(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
-    Class(SoxRef<SoxType>),
+    Class(SoxRef<SoxType>), 
     ClassInstance(SoxRef<SoxClassInstance>),
 }
 
@@ -205,6 +206,15 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
 
     fn deref(&self) -> &Self::Target {
         return &self.val;
+    }
+}
+
+
+impl<T: SoxObjectPayload> DerefMut for SoxRef<T>{
+    fn deref_mut(&mut self) -> &mut Self::Target {
+        //&mut self.val
+        todo!()
+        
     }
 }
 
