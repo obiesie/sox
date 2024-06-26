@@ -23,7 +23,7 @@ use crate::stmt::Stmt;
 pub struct SoxFunction {
     pub declaration: Box<Stmt>,
     pub environment_ref: DefaultKey,
-    pub is_initializer: bool
+    pub is_initializer: bool,
 }
 
 impl SoxFunction {
@@ -31,7 +31,7 @@ impl SoxFunction {
         Self {
             declaration: Box::new(declaration),
             environment_ref,
-            is_initializer: false
+            is_initializer: false,
         }
     }
 
@@ -40,7 +40,9 @@ impl SoxFunction {
             let environment = interp.referenced_env(self.environment_ref); //ref_env!(interp, self.environment_ref);
             let mut new_env = environment.clone();
             let namespace = Namespace::default();
-            new_env.push(namespace).expect("Failed to push namespace into env.");
+            new_env
+                .push(namespace)
+                .expect("Failed to push namespace into env.");
             new_env.define("this", instance);
 
             let env_ref = interp.envs.insert(new_env);

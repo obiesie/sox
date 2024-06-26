@@ -45,8 +45,7 @@ impl SoxObject {
         };
         return typ;
     }
-    
-    
+
     pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
         let typ = self.sox_type(i);
 

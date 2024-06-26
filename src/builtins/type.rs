@@ -27,8 +27,7 @@ pub struct SoxType {
     pub methods: HashMap<String, SoxMethod>,
     pub slots: SoxTypeSlot,
     pub attributes: SoxAttributes,
-    pub name: Option<String>
-
+    pub name: Option<String>,
 }
 
 impl SoxType {
@@ -39,13 +38,12 @@ impl SoxType {
         slots: SoxTypeSlot,
         attributes: SoxAttributes,
     ) -> Self {
-        
         let t = Self {
             base,
             methods,
             slots,
             attributes,
-            name: None
+            name: None,
         };
         t
     }
@@ -57,18 +55,16 @@ impl SoxType {
         slots: SoxTypeSlot,
         attributes: SoxAttributes,
     ) -> Self {
-
         let t = Self {
             base,
             methods,
             slots,
             attributes,
-            name: Some(name.to_string())
+            name: Some(name.to_string()),
         };
         t
     }
 
-    
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
         self.attributes
             .get(name)
@@ -80,7 +76,7 @@ impl SoxType {
         if let Some(to) = fo.as_type() {
             let class_instance = SoxClassInstance::new(to.clone());
             let initializer = to.find_method("init".into());
-            let instance = class_instance.into_ref(); 
+            let instance = class_instance.into_ref();
             let ret_val = if let Some(init_func) = initializer {
                 let func = init_func
                     .as_func()
