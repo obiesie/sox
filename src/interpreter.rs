@@ -281,7 +281,7 @@ impl StmtVisitor for &mut Interpreter {
             methods,
         } = astmt
         {
-            let mut o = None;
+            let mut base = None;
 
             // get super class if exists
             let sc = if superclass.is_some() {
@@ -289,7 +289,7 @@ impl StmtVisitor for &mut Interpreter {
                 let sc = self.evaluate(c);
                 if let Ok(SoxObject::Class(v)) = sc {
                     info!("Evaluated to a class");
-                    o = Some(v);
+                    base = Some(v);
                 } else {
                     let re = Interpreter::runtime_error("Superclass must be a class.".to_string());
                     return Err(re);
@@ -328,7 +328,7 @@ impl StmtVisitor for &mut Interpreter {
                     let func = SoxFunction {
                         declaration: Box::new(method.clone()),
                         environment_ref: self.active_env_ref.clone(),
-                        //is_initializer: name.lexeme == "init".to_string(),
+                        is_initializer: name.lexeme == "init".to_string(),
                     };
                     methods_map.insert(name.lexeme.clone().into(), func.into_ref());
                 }
@@ -337,8 +337,8 @@ impl StmtVisitor for &mut Interpreter {
             // set up class in environment
             let class_name = name.lexeme.to_string();
             let class = SoxType::new(
-                class_name.to_string(),
-                o,
+                class_name.clone(),
+                base,
                 Default::default(),
                 Default::default(),
                 methods_map,
@@ -665,6 +665,8 @@ impl ExprVisitor for &mut Interpreter {
         let ret_val = if let Expr::Get { name, object } = expr {
             let object = self.evaluate(object)?;
             if let SoxObject::ClassInstance(inst) = object {
+                info!("Instance of type {:?}", inst.class(self));
+
                 SoxClassInstance::get(inst, name.clone(), self)
             } else {
                 Err(Interpreter::runtime_error(
@@ -673,7 +675,7 @@ impl ExprVisitor for &mut Interpreter {
             }
         } else {
             Err(Interpreter::runtime_error(
-                "Calling vist_get_expr on none get expr".into(),
+                "Calling visit_get_expr on none get expr".into(),
             ))
         };
         ret_val

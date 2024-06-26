@@ -1,6 +1,6 @@
 use proc_macro::{self, TokenStream};
 
-use quote::{quote, ToTokens};
+use quote::{quote};
 use syn::Item;
 use syn::{parse_macro_input, ItemFn};
 

@@ -27,24 +27,48 @@ pub struct SoxType {
     pub methods: HashMap<String, SoxMethod>,
     pub slots: SoxTypeSlot,
     pub attributes: SoxAttributes,
+    pub name: Option<String>
+
 }
 
 impl SoxType {
-    pub fn new(
-        name: String,
+    pub fn new_static_type<T: ToString>(
+        name: T,
         base: Option<SoxRef<SoxType>>,
         methods: HashMap<String, SoxMethod>,
         slots: SoxTypeSlot,
         attributes: SoxAttributes,
     ) -> Self {
-        Self {
+        
+        let t = Self {
             base,
             methods,
             slots,
             attributes,
-        }
+            name: None
+        };
+        t
     }
 
+    pub fn new<T: ToString>(
+        name: T,
+        base: Option<SoxRef<SoxType>>,
+        methods: HashMap<String, SoxMethod>,
+        slots: SoxTypeSlot,
+        attributes: SoxAttributes,
+    ) -> Self {
+
+        let t = Self {
+            base,
+            methods,
+            slots,
+            attributes,
+            name: Some(name.to_string())
+        };
+        t
+    }
+
+    
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
         self.attributes
             .get(name)
@@ -56,7 +80,7 @@ impl SoxType {
         if let Some(to) = fo.as_type() {
             let class_instance = SoxClassInstance::new(to.clone());
             let initializer = to.find_method("init".into());
-            let instance = class_instance.into_ref(); //SoxObject::ClassInstance(Rc::new(class_instance));
+            let instance = class_instance.into_ref(); 
             let ret_val = if let Some(init_func) = initializer {
                 let func = init_func
                     .as_func()
@@ -178,8 +202,8 @@ impl SoxObjectPayload for SoxClassInstance {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
-        i.types.type_type
+    fn class(&self, i: &Interpreter) -> &SoxType {
+        self.class.val.as_ref()
     }
 }
 
@@ -187,10 +211,11 @@ impl SoxObjectPayload for SoxClassInstance {
 mod tests {
     use std::cell::RefCell;
     use std::collections::HashMap;
+    use std::ops::Deref;
 
     use crate::builtins::int::SoxInt;
     use crate::builtins::r#type::{SoxClassInstance, SoxType, SoxTypeSlot};
-    use crate::core::{SoxObjectPayload, SoxRef};
+    use crate::core::{SoxObjectPayload, SoxRef, StaticType};
     use crate::interpreter::Interpreter;
     use crate::token::{Literal, Token};
     use crate::token_type::TokenType;
@@ -198,7 +223,7 @@ mod tests {
     #[test]
     fn test_class_instance() {
         let class = SoxType::new(
-            "TEST".into(),
+            "TEST",
             None,
             HashMap::default(),
             SoxTypeSlot::default(),
@@ -206,7 +231,7 @@ mod tests {
         );
 
         let class_b = SoxType::new(
-            "TEST".into(),
+            "TEST",
             None,
             HashMap::default(),
             SoxTypeSlot::default(),
@@ -215,7 +240,7 @@ mod tests {
         .into_ref();
 
         let class_a = SoxType::new(
-            "TEST".into(),
+            "TEST",
             None,
             HashMap::default(),
             SoxTypeSlot::default(),
@@ -252,5 +277,8 @@ mod tests {
             "Value is {:?}",
             SoxClassInstance::get(a, token1, &mut interp)
         );
+        let t = class_a.as_type().unwrap().val.deref();
+        let t1 = SoxType::NAME;
+        println!("Class a type is {}", t1);
     }
 }

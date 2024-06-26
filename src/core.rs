@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::cell::RefCell;
 use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::{Deref, DerefMut};
@@ -32,7 +31,7 @@ pub enum SoxObject {
 }
 
 impl SoxObject {
-    pub fn sox_type(&self, i: &Interpreter) -> &'static SoxType {
+    pub fn sox_type(&self, i: &Interpreter) -> &SoxType {
         let typ = match &self {
             SoxObject::Int(v) => v.class(i),
             SoxObject::String(v) => v.class(i),
@@ -46,7 +45,8 @@ impl SoxObject {
         };
         return typ;
     }
-
+    
+    
     pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
         let typ = self.sox_type(i);
 
@@ -163,7 +163,7 @@ pub trait StaticType {
     {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
-        SoxType::new(
+        SoxType::new_static_type(
             "".to_string(),
             None,
             methods
@@ -260,7 +260,7 @@ pub trait SoxObjectPayload: Any + Sized + 'static {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, i: &Interpreter) -> &'static SoxType;
+    fn class(&self, i: &Interpreter) -> &SoxType;
 }
 
 #[cfg(test)]

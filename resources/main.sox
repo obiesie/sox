@@ -25,12 +25,18 @@ class test{
  
  class another_test: test {
  
+    init(){
+        print "running init";
+        this.name = "this is a test attr";
+    }
+ 
     my_test(){
         let i = super.my_test();
         print i;
         print i;
         print i;
         print i;
+        print this.name + " here";
         return 10;
         
     }
