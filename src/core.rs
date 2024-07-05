@@ -26,8 +26,8 @@ pub enum SoxObject {
     Function(SoxRef<SoxFunction>),
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
-    Class(SoxRef<SoxType>),
-    ClassInstance(SoxRef<SoxClassInstance>),
+    Type(SoxRef<SoxType>),
+    TypeInstance(SoxRef<SoxClassInstance>),
 }
 
 impl SoxObject {
@@ -40,8 +40,8 @@ impl SoxObject {
             SoxObject::Function(v) => v.class(i),
             SoxObject::Exception(v) => v.class(i),
             SoxObject::None(v) => v.class(i),
-            SoxObject::Class(v) => v.class(i),
-            SoxObject::ClassInstance(v) => v.class(i),
+            SoxObject::Type(v) => v.class(i),
+            SoxObject::TypeInstance(v) => v.class(i),
         };
         return typ;
     }
@@ -49,13 +49,11 @@ impl SoxObject {
     pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
         let typ = self.sox_type(i);
 
-        let bool_method = typ.methods.get("bool");
-        let truth_val = if let Some(meth) = bool_method {
+        let truth_val = if let Some(meth) = typ.methods.get("bool") {
             let call_args = FuncArgs {
                 args: vec![self.clone()],
             };
-            let truth_val = (meth.func)(i, call_args);
-            if let Ok(tv) = truth_val {
+            if let Ok(tv) = (meth.func)(i, call_args) {
                 tv.as_bool().map_or(false, |v| v.value)
             } else {
                 false
@@ -117,14 +115,14 @@ impl SoxObject {
 
     pub fn as_type(&self) -> Option<SoxRef<SoxType>> {
         match self {
-            SoxObject::Class(v) => Some(v.clone()),
+            SoxObject::Type(v) => Some(v.clone()),
             _ => None,
         }
     }
 
     pub fn as_class_instance(&self) -> Option<SoxRef<SoxClassInstance>> {
         match self {
-            SoxObject::ClassInstance(v) => Some(v.clone()),
+            SoxObject::TypeInstance(v) => Some(v.clone()),
             _ => None,
         }
     }
@@ -208,12 +206,6 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
     }
 }
 
-impl<T: SoxObjectPayload> DerefMut for SoxRef<T> {
-    fn deref_mut(&mut self) -> &mut Self::Target {
-        //&mut self.val
-        todo!()
-    }
-}
 
 impl<T> Clone for SoxRef<T> {
     fn clone(&self) -> Self {

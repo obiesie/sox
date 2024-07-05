@@ -103,7 +103,7 @@ impl SoxObjectPayload for SoxType {
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::Class(ref_type)
+        SoxObject::Type(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {
@@ -164,7 +164,7 @@ impl SoxClassInstance {
 
         if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
             if let Some(func) = method.as_func() {
-                let bound_method = func.bind(SoxObject::ClassInstance(inst.clone()), interp);
+                let bound_method = func.bind(SoxObject::TypeInstance(inst.clone()), interp);
                 return bound_method;
             } else {
                 return Err(Interpreter::runtime_error(format!(
@@ -187,7 +187,7 @@ impl SoxObjectPayload for SoxClassInstance {
     }
 
     fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::ClassInstance(ref_type)
+        SoxObject::TypeInstance(ref_type)
     }
 
     fn as_any(&self) -> &dyn Any {

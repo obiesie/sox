@@ -287,7 +287,7 @@ impl StmtVisitor for &mut Interpreter {
             let sc = if superclass.is_some() {
                 let c = superclass.as_ref().unwrap();
                 let sc = self.evaluate(c);
-                if let Ok(SoxObject::Class(v)) = sc {
+                if let Ok(SoxObject::Type(v)) = sc {
                     info!("Evaluated to a class");
                     base = Some(v);
                 } else {
@@ -300,7 +300,7 @@ impl StmtVisitor for &mut Interpreter {
             active_env.define(name.lexeme.to_string(), none_val);
 
             let prev_env = self.active_env_ref.clone();
-            // setup super class within namespace
+            // setup super keyword within namespace
             if superclass.is_some() {
                 let env_ref = {
                     let active_env = self.active_env();
@@ -314,10 +314,10 @@ impl StmtVisitor for &mut Interpreter {
                 self.active_env_ref = env_ref;
 
                 let sc = self.evaluate(superclass.as_ref().unwrap());
-                if let Ok(SoxObject::Class(v)) = sc {
+                if let Ok(SoxObject::Type(v)) = sc {
                     let env = self.referenced_env(env_ref);
 
-                    env.define("super", SoxObject::Class(v.clone()))
+                    env.define("super", SoxObject::Type(v.clone()))
                 }
             }
 
@@ -664,7 +664,7 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_get_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Get { name, object } = expr {
             let object = self.evaluate(object)?;
-            if let SoxObject::ClassInstance(inst) = object {
+            if let SoxObject::TypeInstance(inst) = object {
                 info!("Instance of type {:?}", inst.class(self));
 
                 SoxClassInstance::get(inst, name.clone(), self)
@@ -722,7 +722,7 @@ impl ExprVisitor for &mut Interpreter {
             let superclass = env.get("super")?;
             let object = env.get("this")?;
 
-            let method = if let SoxObject::Class(v) = superclass {
+            let method = if let SoxObject::Type(v) = superclass {
                 let c = v;
                 let method_name = method.lexeme.clone();
                 let method = c.find_method(method_name.as_str());
