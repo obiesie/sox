@@ -1,6 +1,7 @@
+use std::collections::HashMap;
+
 use log::{debug, info};
 use slotmap::{DefaultKey, SlotMap};
-use std::collections::HashMap;
 
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -12,9 +13,9 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxClassInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
+use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
-use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -273,35 +274,35 @@ impl StmtVisitor for &mut Interpreter {
         Err(Exception::Return(return_value).into_ref())
     }
 
+
     fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let astmt = stmt.clone();
         let ret_val = if let Stmt::Class {
             name,
             superclass,
             methods,
-        } = astmt
+        } = stmt
         {
-            let mut base = None;
-
-            // get super class if exists
+            // get super class if exist
             let sc = if superclass.is_some() {
-                let c = superclass.as_ref().unwrap();
-                let sc = self.evaluate(c);
+                let sc = self.evaluate(superclass.as_ref().unwrap());
+
                 if let Ok(SoxObject::Type(v)) = sc {
                     info!("Evaluated to a class");
-                    base = Some(v);
+                    Some(v)
                 } else {
                     let re = Interpreter::runtime_error("Superclass must be a class.".to_string());
                     return Err(re);
                 }
+            } else {
+                None
             };
-            let none_val = { self.none.clone().into_ref() };
+            let none_val = self.none.clone().into_ref();
             let active_env = self.active_env_mut();
             active_env.define(name.lexeme.to_string(), none_val);
 
             let prev_env = self.active_env_ref.clone();
             // setup super keyword within namespace
-            if superclass.is_some() {
+            if sc.is_some() {
                 let env_ref = {
                     let active_env = self.active_env();
                     let mut env_copy = active_env.clone();
@@ -312,13 +313,8 @@ impl StmtVisitor for &mut Interpreter {
                     env_ref
                 };
                 self.active_env_ref = env_ref;
-
-                let sc = self.evaluate(superclass.as_ref().unwrap());
-                if let Ok(SoxObject::Type(v)) = sc {
-                    let env = self.referenced_env(env_ref);
-
-                    env.define("super", SoxObject::Type(v.clone()))
-                }
+                let env = self.referenced_env(env_ref);
+                env.define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
             }
 
             let mut methods_map = HashMap::new();
@@ -337,8 +333,8 @@ impl StmtVisitor for &mut Interpreter {
             // set up class in environment
             let class_name = name.lexeme.to_string();
             let class = SoxType::new(
-                class_name.clone(),
-                base,
+                class_name.to_string(),
+                sc,
                 Default::default(),
                 Default::default(),
                 methods_map,
@@ -528,9 +524,9 @@ impl ExprVisitor for &mut Interpreter {
                             Ok(SoxBool::from(v1.value >= v2.value).into_ref())
                         } else {
                             Err(Interpreter::runtime_error(
-                            "Arguments to the greater than or equals operator must both be numbers"
-                                .into(),
-                        ))
+                                "Arguments to the greater than or equals operator must both be numbers"
+                                    .into(),
+                            ))
                         };
                     value
                 }

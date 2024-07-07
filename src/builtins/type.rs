@@ -16,7 +16,6 @@ pub type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
 #[derive(Clone, Debug, Default)]
 pub struct SoxTypeSlot {
     pub call: Option<GenericMethod>,
-    //pub methods: &'static [SoxMethod],
 }
 
 pub type SoxAttributes = HashMap<String, SoxObject>;
