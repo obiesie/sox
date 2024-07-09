@@ -73,9 +73,9 @@ impl SoxType {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(to) = fo.as_type() {
-            let class_instance = SoxInstance::new(to.clone());
+            let instance = SoxInstance::new(to.clone());
             let initializer = to.find_method("init".into());
-            let instance = class_instance.into_ref();
+            let instance = instance.into_ref();
             let ret_val = if let Some(init_func) = initializer {
                 let func = init_func
                     .as_func()

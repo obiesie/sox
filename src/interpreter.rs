@@ -715,16 +715,16 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
             let env = self.active_env_mut();
-            let superclass = env.get("super")?;
-            let object = env.get("this")?;
+            let super_type = env.get("super")?;
+            let instance = env.get("this")?;
 
-            let method = if let SoxObject::Type(v) = superclass {
+            let method = if let SoxObject::Type(v) = super_type {
                 let c = v;
                 let method_name = method.lexeme.clone();
                 let method = c.find_method(method_name.as_str());
                 let t = if let Some(m) = method {
-                    if let Some(m_) = m.as_func() {
-                        let bound_method = m_.bind(object, self)?;
+                    if let Some(func) = m.as_func() {
+                        let bound_method = func.bind(instance, self)?;
                         Ok(bound_method)
                     } else {
                         Err(Interpreter::runtime_error(format!(
