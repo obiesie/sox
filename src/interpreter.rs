@@ -10,7 +10,7 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::FuncArgs;
 use crate::builtins::none::SoxNone;
-use crate::builtins::r#type::{SoxClassInstance, SoxType};
+use crate::builtins::r#type::{SoxInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
 use crate::core::{SoxObject, SoxResult};
@@ -320,7 +320,7 @@ impl StmtVisitor for &mut Interpreter {
             let mut methods_map = HashMap::new();
             //setup methods
             for method in methods.iter() {
-                if let Stmt::Function { name, body, params } = method {
+                if let Stmt::Function { name, body: _body, params: _params } = method {
                     let func = SoxFunction {
                         declaration: Box::new(method.clone()),
                         environment_ref: self.active_env_ref.clone(),
@@ -663,7 +663,7 @@ impl ExprVisitor for &mut Interpreter {
             if let SoxObject::TypeInstance(inst) = object {
                 info!("Instance of type {:?}", inst.class(self));
 
-                SoxClassInstance::get(inst, name.clone(), self)
+                SoxInstance::get(inst, name.clone(), self)
             } else {
                 Err(Interpreter::runtime_error(
                     "Only class instances have attributes".into(),
@@ -697,7 +697,7 @@ impl ExprVisitor for &mut Interpreter {
             }
         } else {
             Err(Interpreter::runtime_error(
-                "Calling vist_set_expr on none set expr".into(),
+                "Calling visit_set_expr on none set expr".into(),
             ))
         };
         ret_val
@@ -708,7 +708,7 @@ impl ExprVisitor for &mut Interpreter {
             value
         } else {
             Err(Interpreter::runtime_error(
-                "Calling vist_this_expr on none this expr".into(),
+                "Calling visit_this_expr on none this expr".into(),
             ))
         }
     }
@@ -747,7 +747,7 @@ impl ExprVisitor for &mut Interpreter {
             method
         } else {
             Err(Interpreter::runtime_error(
-                "Calling vist_super_expr on none super expr".into(),
+                "Calling visit_super_expr on none super expr".into(),
             ))
         }
     }

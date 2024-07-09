@@ -13,7 +13,7 @@ use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
-use crate::builtins::r#type::{SoxClassInstance, SoxType, SoxTypeSlot};
+use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 
@@ -27,7 +27,7 @@ pub enum SoxObject {
     Exception(SoxRef<Exception>),
     None(SoxRef<SoxNone>),
     Type(SoxRef<SoxType>),
-    TypeInstance(SoxRef<SoxClassInstance>),
+    TypeInstance(SoxRef<SoxInstance>),
 }
 
 impl SoxObject {
@@ -120,7 +120,7 @@ impl SoxObject {
         }
     }
 
-    pub fn as_class_instance(&self) -> Option<SoxRef<SoxClassInstance>> {
+    pub fn as_class_instance(&self) -> Option<SoxRef<SoxInstance>> {
         match self {
             SoxObject::TypeInstance(v) => Some(v.clone()),
             _ => None,

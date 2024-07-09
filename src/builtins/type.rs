@@ -73,7 +73,7 @@ impl SoxType {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(to) = fo.as_type() {
-            let class_instance = SoxClassInstance::new(to.clone());
+            let class_instance = SoxInstance::new(to.clone());
             let initializer = to.find_method("init".into());
             let instance = class_instance.into_ref();
             let ret_val = if let Some(init_func) = initializer {
@@ -138,12 +138,12 @@ impl SoxClassImpl for SoxType {
 }
 
 #[derive(Clone, Debug)]
-pub struct SoxClassInstance {
+pub struct SoxInstance {
     class: SoxRef<SoxType>,
     fields: RefCell<HashMap<String, SoxObject>>,
 }
 
-impl SoxClassInstance {
+impl SoxInstance {
     pub fn new(class: SoxRef<SoxType>) -> Self {
         let fields = HashMap::new();
         Self {
@@ -156,7 +156,7 @@ impl SoxClassInstance {
         self.fields.borrow_mut().insert(name.lexeme.into(), value);
     }
 
-    pub fn get(inst: SoxRef<SoxClassInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
+    pub fn get(inst: SoxRef<SoxInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
         if let Some(field_value) = inst.fields.borrow().get(name.lexeme.as_str()) {
             return Ok(field_value.clone());
         }
@@ -180,7 +180,7 @@ impl SoxClassInstance {
     }
 }
 
-impl SoxObjectPayload for SoxClassInstance {
+impl SoxObjectPayload for SoxInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_class_instance().unwrap()
     }
@@ -209,7 +209,7 @@ mod tests {
     use std::ops::Deref;
 
     use crate::builtins::int::SoxInt;
-    use crate::builtins::r#type::{SoxClassInstance, SoxType, SoxTypeSlot};
+    use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
     use crate::core::{SoxObjectPayload, SoxRef, StaticType};
     use crate::interpreter::Interpreter;
     use crate::token::{Literal, Token};
@@ -245,7 +245,7 @@ mod tests {
 
         let class_ref = SoxRef::new(class);
         let fields = HashMap::new();
-        let ci = SoxClassInstance {
+        let ci = SoxInstance {
             class: class_ref,
             fields: RefCell::new(fields),
         };
@@ -266,11 +266,11 @@ mod tests {
         let mut interp = Interpreter::new();
         println!(
             "Value is {:?}",
-            SoxClassInstance::get(b, token1.clone(), &mut interp)
+            SoxInstance::get(b, token1.clone(), &mut interp)
         );
         println!(
             "Value is {:?}",
-            SoxClassInstance::get(a, token1, &mut interp)
+            SoxInstance::get(a, token1, &mut interp)
         );
         let t = class_a.as_type().unwrap().val.deref();
         let t1 = SoxType::NAME;
