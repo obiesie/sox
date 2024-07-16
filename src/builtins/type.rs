@@ -37,14 +37,14 @@ impl SoxType {
         slots: SoxTypeSlot,
         attributes: SoxAttributes,
     ) -> Self {
-        let t = Self {
+        let typ = Self {
             base,
             methods,
             slots,
             attributes,
             name: None,
         };
-        t
+        typ
     }
 
     pub fn new<T: ToString>(
@@ -54,14 +54,14 @@ impl SoxType {
         slots: SoxTypeSlot,
         attributes: SoxAttributes,
     ) -> Self {
-        let t = Self {
+        let typ = Self {
             base,
             methods,
             slots,
             attributes,
             name: Some(name.to_string()),
         };
-        t
+        typ
     }
 
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
@@ -139,7 +139,7 @@ impl SoxClassImpl for SoxType {
 
 #[derive(Clone, Debug)]
 pub struct SoxInstance {
-    class: SoxRef<SoxType>,
+    typ: SoxRef<SoxType>,
     fields: RefCell<HashMap<String, SoxObject>>,
 }
 
@@ -147,7 +147,7 @@ impl SoxInstance {
     pub fn new(class: SoxRef<SoxType>) -> Self {
         let fields = HashMap::new();
         Self {
-            class,
+            typ: class,
             fields: RefCell::new(fields),
         }
     }
@@ -161,7 +161,7 @@ impl SoxInstance {
             return Ok(field_value.clone());
         }
 
-        if let Some(method) = inst.class.find_method(name.lexeme.as_str()) {
+        if let Some(method) = inst.typ.find_method(name.lexeme.as_str()) {
             if let Some(func) = method.as_func() {
                 let bound_method = func.bind(SoxObject::TypeInstance(inst.clone()), interp);
                 return bound_method;
@@ -198,7 +198,7 @@ impl SoxObjectPayload for SoxInstance {
     }
 
     fn class(&self, i: &Interpreter) -> &SoxType {
-        self.class.val.as_ref()
+        self.typ.val.as_ref()
     }
 }
 
@@ -246,7 +246,7 @@ mod tests {
         let class_ref = SoxRef::new(class);
         let fields = HashMap::new();
         let ci = SoxInstance {
-            class: class_ref,
+            typ: class_ref,
             fields: RefCell::new(fields),
         };
         let a = SoxRef::new(ci);

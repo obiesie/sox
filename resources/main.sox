@@ -25,11 +25,10 @@ class C{
 }
 
 
-class test{
+class Test{
 
     init(){
         print "running init in test";
-        this.test1 = C();
     }
 
     my_test(){
@@ -37,7 +36,7 @@ class test{
     }
  }
  
- class another_test: test {
+ class AnotherTest: Test {
  
     init(){
         super.init();
@@ -57,5 +56,5 @@ class test{
         
     }
  }
- let a = another_test();
+ let a = AnotherTest();
  print a.my_test();
