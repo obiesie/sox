@@ -26,8 +26,10 @@ use crate::token_type::TokenType;
 pub struct Interpreter {
     pub envs: SlotMap<DefaultKey, Env>,
     pub active_env_ref: DefaultKey,
+    pub global_env_ref: DefaultKey,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
+    pub locals: HashMap<(String, usize), usize>
 }
 
 impl Interpreter {
@@ -40,8 +42,10 @@ impl Interpreter {
         let interpreter = Interpreter {
             envs,
             active_env_ref,
+            global_env_ref: active_env_ref.clone(),
             types,
             none,
+            locals: Default::default()
         };
         interpreter
     }
@@ -67,6 +71,10 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
+    fn global_env_mut(&mut self) -> &mut Env{
+        return self.envs.get_mut(self.global_env_ref).unwrap();
+    }
+    
     fn active_env_mut(&mut self) -> &mut Env {
         return self.envs.get_mut(self.active_env_ref).unwrap();
     }
@@ -120,9 +128,20 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
+        // let active_env = self.active_env_mut();
+        // let val = active_env.get(name.lexeme.as_str());
+        // return val;
+
         let active_env = self.active_env_mut();
-        let val = active_env.get(name.lexeme.as_str());
-        return val;
+        let val = active_env.get(name.lexeme.to_string());
+        let ret_val = if let Ok(v) = val{
+            Ok(v)
+        } else {
+            let global_env = self.global_env_mut();
+            let val = global_env.get(name.lexeme.to_string());
+            val
+        };
+        ret_val
     }
 
     pub fn runtime_error(msg: String) -> SoxObject {
