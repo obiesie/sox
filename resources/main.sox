@@ -51,9 +51,7 @@ class Test{
         print i;
         print i;
         print this.name + " here";
-        print this.test1.name1;
-        return 10;
-        
+        return 10;  
     }
  }
  let a = AnotherTest();
