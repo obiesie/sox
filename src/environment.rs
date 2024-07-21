@@ -86,9 +86,9 @@ impl Env {
         return Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
         })
-            .into_ref()); 
+        .into_ref());
     }
-    
+
     pub fn assign<T: Into<String> + Display>(
         &mut self,
         name: T,

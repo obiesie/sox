@@ -49,7 +49,10 @@ impl<'a> Resolver<'a> {
         self.scopes.push(HashMap::new());
     }
 
-    pub fn resolve(&mut self, statements: &Vec<Stmt>) -> Result<HashMap<(String, usize), usize>, ResolverError> {
+    pub fn resolve(
+        &mut self,
+        statements: &Vec<Stmt>,
+    ) -> Result<HashMap<(String, usize), usize>, ResolverError> {
         for stmt in statements {
             self.resolve_stmt(stmt.clone())?;
         }
@@ -60,7 +63,8 @@ impl<'a> Resolver<'a> {
     pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
         for (index, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(name.lexeme.as_str()) {
-                self.resolved_data.insert((name.lexeme.to_string(), name.line), index);
+                self.resolved_data
+                    .insert((name.lexeme.to_string(), name.line), index);
             }
         }
 
@@ -213,7 +217,12 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
     }
 
     fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        if let Stmt::Class { name, methods, superclass} = stmt {
+        if let Stmt::Class {
+            name,
+            methods,
+            superclass,
+        } = stmt
+        {
             let enclosing_class = self.current_class;
             self.current_class = ClassType::Class;
 
@@ -222,12 +231,12 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
 
             let class_name = name.clone();
             if let Some(sc) = superclass {
-                self.current_class  = ClassType::SubClass;
-                if let Expr::Variable { name } = sc{
-                    if name.lexeme == class_name.lexeme{
+                self.current_class = ClassType::SubClass;
+                if let Expr::Variable { name } = sc {
+                    if name.lexeme == class_name.lexeme {
                         return Err(ResolverError {
                             msg: "A class cannot inherit from itself.".into(),
-                        })
+                        });
                     }
                 }
                 self.resolve_expr(sc)?;
@@ -252,7 +261,7 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
             }
             self.end_scope();
             self.current_class = enclosing_class;
-            if superclass.is_some(){
+            if superclass.is_some() {
                 self.end_scope();
             }
         }
@@ -383,10 +392,9 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
 
     fn visit_this_expr(&mut self, expr: &Expr) -> Self::T {
         let res = if let Expr::This { keyword } = expr {
-            if self.current_class == ClassType::None{
+            if self.current_class == ClassType::None {
                 Err(ResolverError {
-                    msg:
-                    "Can't use 'this' outside of a class".into(),
+                    msg: "Can't use 'this' outside of a class".into(),
                 })
             } else {
                 self.resolve_local(expr.clone(), keyword.clone())?;
@@ -394,28 +402,21 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
             }
         } else {
             Err(ResolverError {
-                msg:
-                "Can't use func visit_this_expr on none this expression".into(),
+                msg: "Can't use func visit_this_expr on none this expression".into(),
             })
         };
         res
     }
 
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
-
-        if let Expr::Super {
-           keyword, method
-        } = expr
-        {
-            let res = if self.current_class == ClassType::None{
+        if let Expr::Super { keyword, method } = expr {
+            let res = if self.current_class == ClassType::None {
                 Err(ResolverError {
-                    msg:
-                        "Can't use 'super' outside of a class".into(),
+                    msg: "Can't use 'super' outside of a class".into(),
                 })
-            } else if self.current_class != ClassType::SubClass{
+            } else if self.current_class != ClassType::SubClass {
                 Err(ResolverError {
-                    msg:
-                    "Can't use 'super' in a class with no superclass".into(),
+                    msg: "Can't use 'super' in a class with no superclass".into(),
                 })
             } else {
                 self.resolve_local(expr.clone(), keyword.clone())?;
@@ -424,8 +425,7 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
             res
         } else {
             Err(ResolverError {
-                msg:
-                "Can't use func visit_super_expr on none super expression".into(),
+                msg: "Can't use func visit_super_expr on none super expression".into(),
             })
         }
     }

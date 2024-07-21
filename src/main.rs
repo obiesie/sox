@@ -61,17 +61,17 @@ fn run(source: String, enable_var_resolution: bool) {
     let tokens = Lexer::lex(source.as_str());
     let mut parser = Parser::new(tokens);
     let mut var_resolver = Resolver::new();
-    
+
     let ast = parser.parse();
-    
+
     let mut interpreter = Interpreter::new();
 
     if ast.is_ok() {
-        if enable_var_resolution{
+        if enable_var_resolution {
             let resolved_data = var_resolver.resolve(&ast.as_ref().unwrap());
-            
+
             interpreter.locals = resolved_data.unwrap();
-        } 
+        }
         interpreter.interpret(&ast.unwrap())
     }
 }

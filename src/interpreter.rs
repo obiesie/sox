@@ -13,9 +13,9 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
-use crate::core::{SoxObject, SoxResult};
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
+use crate::core::{SoxObject, SoxResult};
 use crate::environment::{Env, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
@@ -29,7 +29,7 @@ pub struct Interpreter {
     pub global_env_ref: DefaultKey,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
-    pub locals: HashMap<(String, usize), usize>
+    pub locals: HashMap<(String, usize), usize>,
 }
 
 impl Interpreter {
@@ -45,7 +45,7 @@ impl Interpreter {
             global_env_ref: active_env_ref.clone(),
             types,
             none,
-            locals: Default::default()
+            locals: Default::default(),
         };
         interpreter
     }
@@ -71,7 +71,7 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-    fn global_env_mut(&mut self) -> &mut Env{
+    fn global_env_mut(&mut self) -> &mut Env {
         return self.envs.get_mut(self.global_env_ref).unwrap();
     }
 
@@ -136,7 +136,7 @@ impl Interpreter {
         let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
         return if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
             let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
-            active_env.get_at( name.lexeme.to_string(), dist.clone())
+            active_env.get_at(name.lexeme.to_string(), dist.clone())
         } else {
             let global_env = self.global_env_mut();
 
@@ -294,7 +294,6 @@ impl StmtVisitor for &mut Interpreter {
         Err(Exception::Return(return_value).into_ref())
     }
 
-
     fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let ret_val = if let Stmt::Class {
             name,
@@ -340,7 +339,12 @@ impl StmtVisitor for &mut Interpreter {
             let mut methods_map = HashMap::new();
             //setup methods
             for method in methods.iter() {
-                if let Stmt::Function { name, body: _body, params: _params } = method {
+                if let Stmt::Function {
+                    name,
+                    body: _body,
+                    params: _params,
+                } = method
+                {
                     let func = SoxFunction {
                         declaration: Box::new(method.clone()),
                         environment_ref: self.active_env_ref.clone(),
@@ -377,7 +381,6 @@ impl ExprVisitor for &mut Interpreter {
     type T = Result<SoxObject, SoxObject>;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
-
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
             let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
@@ -394,7 +397,6 @@ impl ExprVisitor for &mut Interpreter {
             Ok(eval_val)
         } else {
             Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
-
         };
         ret_val
 
@@ -560,15 +562,16 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the greater than or equals operator must both be numbers"
-                                    .into(),
-                            ))
-                        };
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                    } else {
+                        Err(Interpreter::runtime_error(
+                            "Arguments to the greater than or equals operator must both be numbers"
+                                .into(),
+                        ))
+                    };
                     value
                 }
                 TokenType::Bang => {

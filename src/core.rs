@@ -206,7 +206,6 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
     }
 }
 
-
 impl<T> Clone for SoxRef<T> {
     fn clone(&self) -> Self {
         Self {

@@ -51,7 +51,7 @@ impl SoxFunction {
                 environment_ref: env_ref,
                 is_initializer: false,
             };
-            return Ok(new_func.into_ref()); 
+            return Ok(new_func.into_ref());
         } else {
             Err(Interpreter::runtime_error(
                 "Could not bind method to instance".to_string(),

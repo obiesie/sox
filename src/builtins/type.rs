@@ -268,10 +268,7 @@ mod tests {
             "Value is {:?}",
             SoxInstance::get(b, token1.clone(), &mut interp)
         );
-        println!(
-            "Value is {:?}",
-            SoxInstance::get(a, token1, &mut interp)
-        );
+        println!("Value is {:?}", SoxInstance::get(a, token1, &mut interp));
         let t = class_a.as_type().unwrap().val.deref();
         let t1 = SoxType::NAME;
         println!("Class a type is {}", t1);
