@@ -76,6 +76,19 @@ impl Env {
         .into_ref());
     }
 
+    pub fn get_at<T: Into<String> + Display>(&mut self, name: T, index: usize) -> SoxResult {
+        let ns_size = self.namespaces.len();
+        let ns = self.namespaces.get_mut(ns_size - index - 1).unwrap();
+        let name_literal = name.into();
+        if let Ok(value) = ns.get(name_literal.as_str()) {
+            return Ok(value.clone());
+        };
+        return Err(Exception::Err(RuntimeError {
+            msg: format!("NameError: name '{name_literal}' is not defined"),
+        })
+            .into_ref()); 
+    }
+    
     pub fn assign<T: Into<String> + Display>(
         &mut self,
         name: T,

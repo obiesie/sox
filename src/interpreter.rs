@@ -74,7 +74,7 @@ impl Interpreter {
     fn global_env_mut(&mut self) -> &mut Env{
         return self.envs.get_mut(self.global_env_ref).unwrap();
     }
-    
+
     fn active_env_mut(&mut self) -> &mut Env {
         return self.envs.get_mut(self.active_env_ref).unwrap();
     }
@@ -89,6 +89,7 @@ impl Interpreter {
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for stmt in statements {
+            info!("Executing statement -- {:?}", stmt);
             self.execute(stmt).expect("Runtime error");
         }
     }
@@ -131,17 +132,17 @@ impl Interpreter {
         // let active_env = self.active_env_mut();
         // let val = active_env.get(name.lexeme.as_str());
         // return val;
-
-        let active_env = self.active_env_mut();
-        let val = active_env.get(name.lexeme.to_string());
-        let ret_val = if let Ok(v) = val{
-            Ok(v)
+        //let val = active_env.get(name.lexeme.to_string());
+        let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
+        return if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
+            let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
+            active_env.get_at( name.lexeme.to_string(), dist.clone())
         } else {
             let global_env = self.global_env_mut();
+
             let val = global_env.get(name.lexeme.to_string());
             val
         };
-        ret_val
     }
 
     pub fn runtime_error(msg: String) -> SoxObject {
@@ -376,16 +377,37 @@ impl ExprVisitor for &mut Interpreter {
     type T = Result<SoxObject, SoxObject>;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
+
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
-            let env = self.active_env_mut();
-            env.assign(name.lexeme.as_str(), eval_val.clone())?;
-            // TODO should returned value be what is looked up?
+            let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
+            if dist.is_some() {
+                let tmp = dist.unwrap();
+                info!("Distance found from resolution is {tmp}");
+
+                let env = self.active_env_mut();
+                env.assign(name.lexeme.to_string(), eval_val.clone())?;
+            } else {
+                let global_env = self.global_env_mut();
+                global_env.assign(name.lexeme.to_string(), eval_val.clone())?;
+            };
             Ok(eval_val)
         } else {
             Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
+
         };
         ret_val
+
+        // let ret_val = if let Expr::Assign { name, value } = expr {
+        //     let eval_val = self.evaluate(value)?;
+        //     let env = self.active_env_mut();
+        //     env.assign(name.lexeme.as_str(), eval_val.clone())?;
+        //     // TODO should returned value be what is looked up?
+        //     Ok(eval_val)
+        // } else {
+        //     Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
+        // };
+        // ret_val
     }
 
     fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {

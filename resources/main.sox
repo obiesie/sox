@@ -10,49 +10,7 @@ def fib(n) {
     return fib(n-1) + fib(n-2);
 }
 
-for (let i=0; i < 5; i=i+1){
-    print i * 2;
-}
-
+print fib(4);
+print fib(5);
+print fib(6);
 print fib(7);
-
-
-class C{
-    init(){
-        print "init in C";
-        this.name1 = "C";
-    }
-}
-
-
-class Test{
-
-    init(){
-        print "running init in test";
-    }
-
-    my_test(){
-        return 1;
-    }
- }
- 
- class AnotherTest: Test {
- 
-    init(){
-        super.init();
-        print "running init";
-        this.name = "this is a test attr";
-    }
- 
-    my_test(){
-        let i = super.my_test();
-        print i;
-        print i;
-        print i;
-        print i;
-        print this.name + " here";
-        return 10;  
-    }
- }
- let a = AnotherTest();
- print a.my_test();

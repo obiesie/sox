@@ -54,8 +54,7 @@ impl<'a> Resolver<'a> {
             self.resolve_stmt(stmt.clone())?;
         }
         let res = self.resolved_data.clone();
-        Ok(res
-        )
+        Ok(res)
     }
 
     pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
