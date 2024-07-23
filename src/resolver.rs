@@ -61,6 +61,7 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
+        
         for (index, scope) in self.scopes.iter().rev().enumerate() {
             if scope.contains_key(name.lexeme.as_str()) {
                 self.resolved_data
