@@ -4,13 +4,24 @@ A very simple program to test our vm.
 
 
 def fib(n) {
-    if (n == 0 or n == 1) {
-        return n;
+    let i = 0;
+    while (i < 20) {
+        //print "test";
+        let j = 0;
+        while (j < 20) {
+            let k = 0;
+            while (k < 20) {
+                if (i < 50) {
+                    let t = i+j+k;
+                    //print "value is ";
+                    //print k;
+                }
+                k = k + 1;
+            }
+            j = j+1;
+        }
+        i = i+1;
     }
-    return fib(n-1) + fib(n-2);
 }
 
-print fib(4);
-print fib(5);
-print fib(6);
-print fib(7);
+fib(11);

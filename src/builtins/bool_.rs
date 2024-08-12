@@ -1,7 +1,6 @@
 use std::any::Any;
 use std::ops::Deref;
-
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
@@ -34,6 +33,11 @@ impl SoxClassImpl for SoxBool {
             func: static_func(SoxBool::bool),
         },
     )];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
@@ -80,11 +84,6 @@ impl SoxObjectPayload for SoxBool {
 
 impl StaticType for SoxBool {
     const NAME: &'static str = "bool";
-
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
 
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }

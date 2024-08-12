@@ -1,5 +1,5 @@
 use std::any::Any;
-
+use std::sync::OnceLock;
 pub use once_cell::sync::{Lazy, OnceCell};
 
 use crate::builtins::method::SoxMethod;
@@ -22,15 +22,16 @@ impl SoxString {
 
 impl SoxClassImpl for SoxString {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 impl StaticType for SoxString {
     const NAME: &'static str = "string";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
-
+   
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }
     }

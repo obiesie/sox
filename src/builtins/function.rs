@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 use slotmap::DefaultKey;
 
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -15,7 +14,7 @@ use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
     TryFromSoxObject,
 };
-use crate::environment::Namespace;
+use crate::environment::{EnvKey, Namespace};
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 
@@ -39,11 +38,13 @@ impl SoxFunction {
         if let SoxObject::TypeInstance(_) = instance {
             let environment = interp.referenced_env(self.environment_ref); //ref_env!(interp, self.environment_ref);
             let mut new_env = environment.clone();
-            let namespace = Namespace::default();
+            let namespace = Namespace::new(new_env.mode.clone());
             new_env
                 .push(namespace)
                 .expect("Failed to push namespace into env.");
-            new_env.define("this", instance);
+            let key = EnvKey::Name("this".to_string());
+
+            new_env.define(&key, instance);
 
             let env_ref = interp.envs.insert(new_env);
             let new_func = SoxFunction {
@@ -65,7 +66,7 @@ impl SoxFunction {
 
             interpreter.active_env_ref = fo.environment_ref.clone();
 
-            let mut namespace = Namespace::default();
+            let mut namespace = Namespace::new(interpreter.env_storage_mode.clone());
             let mut return_value = Ok(SoxNone {}.into_ref());
             if let Stmt::Function {
                 name: _,
@@ -74,7 +75,9 @@ impl SoxFunction {
             } = *fo.declaration.clone()
             {
                 for (param, arg) in zip(params, args.args.clone()) {
-                    namespace.define(param.lexeme, arg)?;
+                    let key = EnvKey::Name(param.lexeme.to_string());
+
+                    namespace.define(&key, arg)?;
                 }
                 let ret = interpreter.execute_block(body.iter().collect(), Some(namespace));
 
@@ -129,16 +132,17 @@ impl SoxObjectPayload for SoxFunction {
 
 impl SoxClassImpl for SoxFunction {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 
 impl StaticType for SoxFunction {
     const NAME: &'static str = "function";
-
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
-
+    
+    
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot {
             call: Some(Self::call),

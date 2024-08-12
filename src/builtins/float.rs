@@ -1,6 +1,5 @@
 use std::any::Any;
-
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use macros::soxtype;
 
@@ -23,6 +22,11 @@ impl SoxFloat {
 
 impl SoxClassImpl for SoxFloat {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 
 impl SoxObjectPayload for SoxFloat {
@@ -50,11 +54,8 @@ impl SoxObjectPayload for SoxFloat {
 impl StaticType for SoxFloat {
     const NAME: &'static str = "float";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
-
+   
+    
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }
     }

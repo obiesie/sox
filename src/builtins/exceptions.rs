@@ -3,9 +3,9 @@ use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType}
 use crate::interpreter::Interpreter;
 
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;
+use std::sync::OnceLock;
 
 #[derive(Clone, Debug)]
 pub enum Exception {
@@ -54,11 +54,7 @@ impl SoxObjectPayload for Exception {
 
 impl StaticType for Exception {
     const NAME: &'static str = "";
-
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
+    
 
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }
@@ -67,4 +63,9 @@ impl StaticType for Exception {
 
 impl SoxClassImpl for Exception {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }

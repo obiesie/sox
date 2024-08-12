@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use std::fmt::Debug;
 use std::ops::Deref;
 use std::rc::Rc;
-
+use std::sync::OnceLock;
 pub use once_cell::sync::{Lazy, OnceCell};
 
 use crate::builtins::bool_::SoxBool;
@@ -136,11 +136,12 @@ pub trait SoxNativeFunction {
 
 pub trait SoxClassImpl {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)];
+    fn static_cell() -> &'static OnceLock<SoxType>;
 }
 
 pub trait StaticType {
     const NAME: &'static str;
-    fn static_cell() -> &'static OnceCell<SoxType>;
+
     fn init_builtin_type() -> &'static SoxType
     where
         Self: SoxClassImpl,
@@ -148,7 +149,7 @@ pub trait StaticType {
         let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
         cell.set(typ)
-            .unwrap_or_else(|_| print!("Double initialization") );
+            .unwrap_or_else(|_| {});
         let v = cell.get().unwrap();
         v
     }

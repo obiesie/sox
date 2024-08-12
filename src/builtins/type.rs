@@ -1,8 +1,7 @@
 use std::any::Any;
 use std::cell::RefCell;
 use std::collections::HashMap;
-
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
@@ -121,10 +120,7 @@ impl SoxObjectPayload for SoxType {
 impl StaticType for SoxType {
     const NAME: &'static str = "type";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
+   
 
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot {
@@ -135,6 +131,11 @@ impl StaticType for SoxType {
 
 impl SoxClassImpl for SoxType {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 
 #[derive(Clone, Debug)]
@@ -211,6 +212,7 @@ mod tests {
     use crate::builtins::int::SoxInt;
     use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
     use crate::core::{SoxObjectPayload, SoxRef, StaticType};
+    use crate::environment::StoreMode;
     use crate::interpreter::Interpreter;
     use crate::token::{Literal, Token};
     use crate::token_type::TokenType;
@@ -263,7 +265,7 @@ mod tests {
         a.set(token1.clone(), class_b);
         b.set(token1.clone(), i);
 
-        let mut interp = Interpreter::new();
+        let mut interp = Interpreter::new(StoreMode::Vec);
         println!(
             "Value is {:?}",
             SoxInstance::get(b, token1.clone(), &mut interp)

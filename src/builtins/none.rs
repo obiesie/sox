@@ -1,6 +1,5 @@
 use std::any::Any;
-
-use once_cell::sync::OnceCell;
+use std::sync::OnceLock;
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
@@ -18,6 +17,11 @@ impl SoxNone {
 
 impl SoxClassImpl for SoxNone {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+
+    fn static_cell() -> &'static OnceLock<SoxType> {
+        static CELL: OnceLock<SoxType> = OnceLock::new();
+        &CELL
+    }
 }
 impl SoxObjectPayload for SoxNone {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
@@ -44,11 +48,8 @@ impl SoxObjectPayload for SoxNone {
 impl StaticType for SoxNone {
     const NAME: &'static str = "none";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
-        &CELL
-    }
-
+    
+    
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }
     }
