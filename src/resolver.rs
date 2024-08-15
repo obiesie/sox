@@ -12,10 +12,10 @@ pub struct ResolverError {
 }
 
 pub struct Resolver<'a> {
-    scopes: Vec<HashMap<String, bool>>,
+    scopes: Vec<Vec<(String, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
-    resolved_data: HashMap<(String, usize), usize>,
+    resolved_data: HashMap<(String, usize), (usize, usize)>,
     _phantom_data: std::marker::PhantomData<&'a ()>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
@@ -46,13 +46,13 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn begin_scope(&mut self) {
-        self.scopes.push(HashMap::new());
+        self.scopes.push(Vec::new());
     }
 
     pub fn resolve(
         &mut self,
         statements: &Vec<Stmt>,
-    ) -> Result<HashMap<(String, usize), usize>, ResolverError> {
+    ) -> Result<HashMap<(String,usize), (usize, usize)>, ResolverError> {
         for stmt in statements {
             self.resolve_stmt(stmt.clone())?;
         }
@@ -61,11 +61,13 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
-        
-        for (index, scope) in self.scopes.iter().rev().enumerate() {
-            if scope.contains_key(name.lexeme.as_str()) {
-                self.resolved_data
-                    .insert((name.lexeme.to_string(), name.line), index);
+        for (dist_index, scope) in self.scopes.iter_mut().rev().enumerate() {
+            
+            for idx in 0..scope.len(){
+                let val = scope.get_mut(idx);
+                if val.unwrap().0 == name.lexeme.as_str(){
+                    self.resolved_data.insert((name.lexeme.to_string(), name.line), (dist_index, idx));
+                }
             }
         }
 
@@ -89,20 +91,34 @@ impl<'a> Resolver<'a> {
         if !self.scopes.is_empty() {
             let scope = self.scopes.last_mut();
             if let Some(scope) = scope {
-                if scope.contains_key(name.lexeme.as_str()) {
+                let s = scope.iter().find(|v| v.0 == name.lexeme.as_str());
+                if s.is_some(){
                     ret_val = Err(ResolverError {
                         msg: "A variable with the same name already exist in this scope.".into(),
                     });
+                } else {
+                    scope.push((name.lexeme, false))
+
                 }
-                scope.insert(name.lexeme, false);
+                // if scope.contains_key(name.lexeme.as_str()) {
+                //     ret_val = Err(ResolverError {
+                //         msg: "A variable with the same name already exist in this scope.".into(),
+                //     });
+                // }
+                // scope.insert(name.lexeme, false);
             }
         }
         ret_val
     }
 
     pub fn define(&mut self, name: Token) -> Result<(), ResolverError> {
-        if !self.scopes.is_empty() {
-            self.scopes.last_mut().unwrap().insert(name.lexeme, true);
+            if !self.scopes.is_empty() {
+            for entry in self.scopes.last_mut().unwrap().iter_mut(){
+                if entry.0 == name.lexeme.as_str(){
+                    entry.1 = true;
+                }
+            }
+            //self.scopes.last_mut().unwrap().push((name.lexeme, true));
         }
         Ok(())
     }
@@ -243,11 +259,11 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
                 self.resolve_expr(sc)?;
 
                 self.begin_scope();
-                self.scopes.last_mut().unwrap().insert("super".into(), true);
+                self.scopes.last_mut().unwrap().push(("super".into(), true));
             }
 
             self.begin_scope();
-            self.scopes.last_mut().unwrap().insert("this".into(), true);
+            self.scopes.last_mut().unwrap().push(("this".into(), true));
             for method in methods.iter() {
                 let dec = if let Stmt::Function { name, params, body } = method {
                     if name.lexeme == "init" {
@@ -333,14 +349,14 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
                     .scopes
                     .last()
                     .unwrap()
-                    .contains_key(name.lexeme.as_str())
+                    .iter().find(|v| v.0 == name.lexeme.as_str()).is_some()
                 && self
                     .scopes
                     .last()
                     .unwrap()
-                    .get(name.lexeme.as_str())
-                    .unwrap()
-                    == &false
+                    .iter().find(|v| v.0 == name.lexeme.as_str())
+                    .unwrap().1
+                    == false
             {
                 info!("The scopes are {:?}", self.scopes);
                 ret_val = Err(ResolverError {

@@ -29,7 +29,7 @@ pub struct Interpreter {
     pub global_env_ref: DefaultKey,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
-    pub locals: HashMap<(String, usize), usize>,
+    pub locals: HashMap<(String, usize), (usize, usize)>,
 }
 
 impl Interpreter {
@@ -72,19 +72,19 @@ impl Interpreter {
     }
 
     fn global_env_mut(&mut self) -> &mut Env {
-        return self.envs.get_mut(self.global_env_ref).unwrap();
+        self.envs.get_mut(self.global_env_ref).unwrap()
     }
 
     fn active_env_mut(&mut self) -> &mut Env {
-        return self.envs.get_mut(self.active_env_ref).unwrap();
+        self.envs.get_mut(self.active_env_ref).unwrap()
     }
 
     fn active_env(&self) -> &Env {
-        return self.envs.get(self.active_env_ref).unwrap();
+        self.envs.get(self.active_env_ref).unwrap()
     }
 
     pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
-        return self.envs.get_mut(key).unwrap();
+        self.envs.get_mut(key).unwrap()
     }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
@@ -133,17 +133,28 @@ impl Interpreter {
         // let val = active_env.get(name.lexeme.as_str());
         // return val;
         //let val = active_env.get(name.lexeme.to_string());
-        let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
-        return if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
+        //info!("lookup {:?}", name);
+
+        if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
+            //info!("resolved var is {:?}", dist);
+            //info!("envs is {:?}", self.envs);
+            let (dst, binding_idx) = dist;
             let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
-            active_env.get_at(name.lexeme.to_string(), dist.clone())
+            let key = (name.lexeme.to_string(), *dst, *binding_idx);
+            //info!("{:?} is {:?}", name, active_env.get(&key));
+
+            active_env.get(&key)
+
+            //active_env.get_at(name.lexeme.to_string(), dst.clone(), idx.clone())
         } else {
             let global_env = self.global_env_mut();
-
-            let val = global_env.get(name.lexeme.to_string());
+            // let key = EnvKey::Name(name.lexeme.to_string());
+            // 
+            let val = global_env.find_and_get(name.lexeme.to_string());
             val
-        };
+        }
     }
+
 
     pub fn runtime_error(msg: String) -> SoxObject {
         let error = Exception::Err(RuntimeError { msg });
@@ -193,6 +204,11 @@ impl StmtVisitor for &mut Interpreter {
             }
             let active_env = self.active_env_mut();
             let name_ident = name.lexeme.to_string();
+
+            //let key = EnvKey::Name(name_ident);
+
+            //let val = global_env.get(&key);
+
             active_env.define(name_ident, value)
         } else {
             return Err(Interpreter::runtime_error(
@@ -210,12 +226,12 @@ impl StmtVisitor for &mut Interpreter {
             debug!("statements are {:?}", stmts);
             self.execute_block(stmts, None)?;
 
-            return Ok(());
+            Ok(())
         } else {
-            return Err(Interpreter::runtime_error(
+            Err(Interpreter::runtime_error(
                 "Evaluation failed - visited non block statement with visit_block_stmt."
                     .to_string(),
-            ));
+            ))
         }
     }
 
@@ -250,10 +266,10 @@ impl StmtVisitor for &mut Interpreter {
 
             Ok(())
         } else {
-            return Err(Interpreter::runtime_error(
+            Err(Interpreter::runtime_error(
                 "Evaluation failed -  visited non while statement with visit_while_stmt."
                     .to_string(),
-            ));
+            ))
         }
     }
 
@@ -279,10 +295,10 @@ impl StmtVisitor for &mut Interpreter {
 
             Ok(())
         } else {
-            return Err(Interpreter::runtime_error(
+            Err(Interpreter::runtime_error(
                 "Evaluation failed -  Calling a visit_function_stmt on non function node."
                     .to_string(),
-            ));
+            ))
         }
     }
 
@@ -363,9 +379,13 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
+            let (dist_to_binding, binding_idx) = self.locals.get(&(name.lexeme.to_string(), name.line)).unwrap();
+            let key = (name.lexeme.to_string(), *dist_to_binding, *binding_idx);
+
             self.active_env_ref = prev_env;
             let active_env = self.active_env_mut();
-            active_env.assign(class_name, class.into_ref())?;
+            active_env.assign(&key, class.into_ref())?;
+
 
             Ok(())
         } else {
@@ -385,31 +405,22 @@ impl ExprVisitor for &mut Interpreter {
             let eval_val = self.evaluate(value)?;
             let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
             if dist.is_some() {
-                let tmp = dist.unwrap();
-                info!("Distance found from resolution is {tmp}");
+                let (dst, idx) = dist.unwrap();
+                // info!("Distance found from resolution is {dst}");
+                let key = (name.lexeme.to_string(), *dst, *idx);
 
                 let env = self.active_env_mut();
-                env.assign(name.lexeme.to_string(), eval_val.clone())?;
+                env.assign(&key, eval_val.clone())?;
             } else {
                 let global_env = self.global_env_mut();
-                global_env.assign(name.lexeme.to_string(), eval_val.clone())?;
+
+                global_env.find_and_assign(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
         } else {
             Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
         };
         ret_val
-
-        // let ret_val = if let Expr::Assign { name, value } = expr {
-        //     let eval_val = self.evaluate(value)?;
-        //     let env = self.active_env_mut();
-        //     env.assign(name.lexeme.as_str(), eval_val.clone())?;
-        //     // TODO should returned value be what is looked up?
-        //     Ok(eval_val)
-        // } else {
-        //     Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
-        // };
-        // ret_val
     }
 
     fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
@@ -596,7 +607,7 @@ impl ExprVisitor for &mut Interpreter {
                 "Evaluation failed - called visit_grouping_expr on a non-group node.".to_string(),
             ))
         };
-        return value;
+        value
     }
 
     fn visit_unary_expr(&mut self, expr: &Expr) -> Self::T {
@@ -631,7 +642,7 @@ impl ExprVisitor for &mut Interpreter {
             );
             Err(error)
         };
-        return value;
+        value
     }
 
     fn visit_logical_expr(&mut self, expr: &Expr) -> Self::T {
@@ -651,7 +662,7 @@ impl ExprVisitor for &mut Interpreter {
                     return Ok(left);
                 }
             }
-            return self.evaluate(&right);
+            self.evaluate(&right)
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed - called visit_logical_expr on non logical expression."
@@ -661,13 +672,13 @@ impl ExprVisitor for &mut Interpreter {
     }
 
     fn visit_variable_expr(&mut self, expr: &Expr) -> Self::T {
-        return if let Expr::Variable { name } = expr {
+        if let Expr::Variable { name } = expr {
             self.lookup_variable(name, expr)
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
             ))
-        };
+        }
     }
 
     fn visit_call_expr(&mut self, expr: &Expr) -> Self::T {
@@ -758,9 +769,15 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
+            let (dist_to_ns, binding_idx) = self.locals.get(&("super".to_string(), keyword.line)).unwrap();
+            let (dist_to_ns2, binding_idx2) = self.locals.get(&("this".to_string(), keyword.line)).unwrap();
+
+            let key = ("super".to_string(), *dist_to_ns, *binding_idx);
+            let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);
+
             let env = self.active_env_mut();
-            let super_type = env.get("super")?;
-            let instance = env.get("this")?;
+            let super_type = env.get(&key)?;
+            let instance = env.get(&key2)?;
 
             let method = if let SoxObject::Type(v) = super_type {
                 let c = v;

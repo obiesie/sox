@@ -15,7 +15,7 @@ use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
     TryFromSoxObject,
 };
-use crate::environment::Namespace;
+use crate::environment::{ Namespace};
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 
@@ -100,7 +100,7 @@ impl SoxFunction {
             let error = Exception::Err(RuntimeError {
                 msg: "first argument to this call method should be a function object".to_string(),
             });
-            return Err(error.into_ref());
+            Err(error.into_ref())
         }
     }
 }
