@@ -9,6 +9,6 @@ pub mod builtins;
 pub mod catalog;
 pub mod core;
 pub mod environment;
+pub mod init;
 pub mod interpreter;
 pub mod resolver;
-pub mod init;

@@ -15,7 +15,7 @@ use crate::core::{
     SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
     TryFromSoxObject,
 };
-use crate::environment::{ Namespace};
+use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 

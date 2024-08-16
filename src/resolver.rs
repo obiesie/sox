@@ -52,7 +52,7 @@ impl<'a> Resolver<'a> {
     pub fn resolve(
         &mut self,
         statements: &Vec<Stmt>,
-    ) -> Result<HashMap<(String,usize), (usize, usize)>, ResolverError> {
+    ) -> Result<HashMap<(String, usize), (usize, usize)>, ResolverError> {
         for stmt in statements {
             self.resolve_stmt(stmt.clone())?;
         }
@@ -62,11 +62,11 @@ impl<'a> Resolver<'a> {
 
     pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
         for (dist_index, scope) in self.scopes.iter_mut().rev().enumerate() {
-            
-            for idx in 0..scope.len(){
+            for idx in 0..scope.len() {
                 let val = scope.get_mut(idx);
-                if val.unwrap().0 == name.lexeme.as_str(){
-                    self.resolved_data.insert((name.lexeme.to_string(), name.line), (dist_index, idx));
+                if val.unwrap().0 == name.lexeme.as_str() {
+                    self.resolved_data
+                        .insert((name.lexeme.to_string(), name.line), (dist_index, idx));
                 }
             }
         }
@@ -92,13 +92,12 @@ impl<'a> Resolver<'a> {
             let scope = self.scopes.last_mut();
             if let Some(scope) = scope {
                 let s = scope.iter().find(|v| v.0 == name.lexeme.as_str());
-                if s.is_some(){
+                if s.is_some() {
                     ret_val = Err(ResolverError {
                         msg: "A variable with the same name already exist in this scope.".into(),
                     });
                 } else {
                     scope.push((name.lexeme, false))
-
                 }
                 // if scope.contains_key(name.lexeme.as_str()) {
                 //     ret_val = Err(ResolverError {
@@ -112,9 +111,9 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn define(&mut self, name: Token) -> Result<(), ResolverError> {
-            if !self.scopes.is_empty() {
-            for entry in self.scopes.last_mut().unwrap().iter_mut(){
-                if entry.0 == name.lexeme.as_str(){
+        if !self.scopes.is_empty() {
+            for entry in self.scopes.last_mut().unwrap().iter_mut() {
+                if entry.0 == name.lexeme.as_str() {
                     entry.1 = true;
                 }
             }
@@ -349,13 +348,17 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
                     .scopes
                     .last()
                     .unwrap()
-                    .iter().find(|v| v.0 == name.lexeme.as_str()).is_some()
+                    .iter()
+                    .find(|v| v.0 == name.lexeme.as_str())
+                    .is_some()
                 && self
                     .scopes
                     .last()
                     .unwrap()
-                    .iter().find(|v| v.0 == name.lexeme.as_str())
-                    .unwrap().1
+                    .iter()
+                    .find(|v| v.0 == name.lexeme.as_str())
+                    .unwrap()
+                    .1
                     == false
             {
                 info!("The scopes are {:?}", self.scopes);

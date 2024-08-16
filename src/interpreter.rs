@@ -149,12 +149,11 @@ impl Interpreter {
         } else {
             let global_env = self.global_env_mut();
             // let key = EnvKey::Name(name.lexeme.to_string());
-            // 
+            //
             let val = global_env.find_and_get(name.lexeme.to_string());
             val
         }
     }
-
 
     pub fn runtime_error(msg: String) -> SoxObject {
         let error = Exception::Err(RuntimeError { msg });
@@ -379,13 +378,15 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
-            let (dist_to_binding, binding_idx) = self.locals.get(&(name.lexeme.to_string(), name.line)).unwrap();
+            let (dist_to_binding, binding_idx) = self
+                .locals
+                .get(&(name.lexeme.to_string(), name.line))
+                .unwrap();
             let key = (name.lexeme.to_string(), *dist_to_binding, *binding_idx);
 
             self.active_env_ref = prev_env;
             let active_env = self.active_env_mut();
             active_env.assign(&key, class.into_ref())?;
-
 
             Ok(())
         } else {
@@ -573,16 +574,15 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
+                    let value =
+                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        } else {
+                            Err(Interpreter::runtime_error(
                             "Arguments to the greater than or equals operator must both be numbers"
                                 .into(),
                         ))
-                    };
+                        };
                     value
                 }
                 TokenType::Bang => {
@@ -769,8 +769,14 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
-            let (dist_to_ns, binding_idx) = self.locals.get(&("super".to_string(), keyword.line)).unwrap();
-            let (dist_to_ns2, binding_idx2) = self.locals.get(&("this".to_string(), keyword.line)).unwrap();
+            let (dist_to_ns, binding_idx) = self
+                .locals
+                .get(&("super".to_string(), keyword.line))
+                .unwrap();
+            let (dist_to_ns2, binding_idx2) = self
+                .locals
+                .get(&("this".to_string(), keyword.line))
+                .unwrap();
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);

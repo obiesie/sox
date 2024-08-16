@@ -10,7 +10,6 @@ pub struct Namespace {
     pub bindings: Vec<(String, SoxObject)>,
 }
 
-
 impl Default for Namespace {
     fn default() -> Self {
         Namespace::new()
@@ -19,12 +18,14 @@ impl Default for Namespace {
 impl Namespace {
     pub(crate) fn new() -> Self {
         let bindings = vec![];
-        Self {
-            bindings,
-        }
+        Self { bindings }
     }
 
-    pub(crate) fn define<T: ToString + Display>(&mut self, key: T, value: SoxObject) -> SoxResult<()> {
+    pub(crate) fn define<T: ToString + Display>(
+        &mut self,
+        key: T,
+        value: SoxObject,
+    ) -> SoxResult<()> {
         self.bindings.push((key.to_string(), value));
         Ok(())
     }
@@ -38,7 +39,6 @@ impl Namespace {
         Ok(())
     }
 
-
     fn get(&mut self, key: &EnvKey) -> SoxResult<SoxObject> {
         let (name, _, binding_idx) = key;
         //if let EnvKey::NameIdxPair((name, _, idx)) = key {
@@ -49,18 +49,16 @@ impl Namespace {
             Err(Exception::Err(RuntimeError {
                 msg: format!("NameError: name '{name}' is not defined"),
             })
-                .into_ref())
+            .into_ref())
         };
         ret_val
     }
 }
 
-
 #[derive(Clone, Debug)]
 pub struct Env {
     pub namespaces: Vec<Namespace>,
 }
-
 
 impl Default for Env {
     fn default() -> Self {
@@ -94,13 +92,16 @@ impl Env {
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
         })
-            .into_ref())
+        .into_ref())
     }
 
     pub fn find_and_get<T: ToString + Display>(&mut self, key: T) -> SoxResult {
         let name_literal = key.to_string();
         for namespace in self.namespaces.iter_mut().rev() {
-            let val = namespace.bindings.iter_mut().find(|v| v.0 == key.to_string());
+            let val = namespace
+                .bindings
+                .iter_mut()
+                .find(|v| v.0 == key.to_string());
             if let Some(v) = val {
                 return Ok(v.1.clone());
             }
@@ -108,13 +109,20 @@ impl Env {
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
         })
-            .into_ref())
+        .into_ref())
     }
 
-    pub fn find_and_assign<T: ToString + Display>(&mut self, key: T, value: SoxObject) -> SoxResult<()>{
+    pub fn find_and_assign<T: ToString + Display>(
+        &mut self,
+        key: T,
+        value: SoxObject,
+    ) -> SoxResult<()> {
         let name_literal = key.to_string();
         for namespace in self.namespaces.iter_mut().rev() {
-            let val = namespace.bindings.iter_mut().find(|v| v.0 == key.to_string());
+            let val = namespace
+                .bindings
+                .iter_mut()
+                .find(|v| v.0 == key.to_string());
             if let Some(v) = val {
                 v.1 = value;
                 return Ok(());
@@ -123,14 +131,10 @@ impl Env {
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
         })
-            .into_ref())
+        .into_ref())
     }
-    
-    pub fn assign(
-        &mut self,
-        key: &EnvKey,
-        value: SoxObject,
-    ) -> SoxResult<()> {
+
+    pub fn assign(&mut self, key: &EnvKey, value: SoxObject) -> SoxResult<()> {
         let mut name_literal = "".to_string();
         let (name, dist_to_ns, _) = key;
         name_literal = name.clone();

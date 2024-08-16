@@ -1,5 +1,5 @@
-use std::{env, process};
 use std::io::Write;
+use std::{env, process};
 
 use log::LevelFilter;
 
@@ -28,4 +28,3 @@ fn main() {
         sox::init::run_prompt();
     }
 }
-
