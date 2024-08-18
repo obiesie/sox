@@ -6,17 +6,19 @@ use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::Token;
 
-#[derive(Clone, Debug, Default)]
-pub struct ResolverError {
-    pub msg: String,
+#[derive(Clone, Debug)]
+pub enum ResolverError {
+    NoScope,
+    DuplicateVariable(String),
+    NotFound(String),
+    SyntaxError(String),
 }
 
-pub struct Resolver<'a> {
+pub struct Resolver {
     scopes: Vec<Vec<(String, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
     resolved_data: HashMap<(String, usize), (usize, usize)>,
-    _phantom_data: std::marker::PhantomData<&'a ()>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
 
@@ -34,14 +36,13 @@ pub enum ClassType {
     SubClass,
 }
 
-impl<'a> Resolver<'a> {
+impl Resolver {
     pub fn new() -> Self {
         Self {
             scopes: vec![],
             current_function: FunctionType::None,
             current_class: ClassType::None,
             resolved_data: Default::default(),
-            _phantom_data: Default::default(),
         }
     }
 
@@ -87,39 +88,29 @@ impl<'a> Resolver<'a> {
     }
 
     pub fn declare(&mut self, name: Token) -> Result<(), ResolverError> {
-        let mut ret_val = Ok(());
-        if !self.scopes.is_empty() {
-            let scope = self.scopes.last_mut();
-            if let Some(scope) = scope {
-                let s = scope.iter().find(|v| v.0 == name.lexeme.as_str());
-                if s.is_some() {
-                    ret_val = Err(ResolverError {
-                        msg: "A variable with the same name already exist in this scope.".into(),
-                    });
-                } else {
-                    scope.push((name.lexeme, false))
-                }
-                // if scope.contains_key(name.lexeme.as_str()) {
-                //     ret_val = Err(ResolverError {
-                //         msg: "A variable with the same name already exist in this scope.".into(),
-                //     });
-                // }
-                // scope.insert(name.lexeme, false);
-            }
+        if self.scopes.is_empty() {
+            return Ok(());
         }
-        ret_val
+
+        let scope = self.scopes.last_mut().unwrap(); // Handle potential None case if needed
+
+        if scope.iter().any(|v| v.0 == name.lexeme.as_str()) {
+            return Err(ResolverError::DuplicateVariable(
+                "A variable with the same name already exists in this scope.".into(),
+            ));
+        }
+
+        scope.push((name.lexeme, false));
+        Ok(())
     }
 
     pub fn define(&mut self, name: Token) -> Result<(), ResolverError> {
-        if !self.scopes.is_empty() {
-            for entry in self.scopes.last_mut().unwrap().iter_mut() {
-                if entry.0 == name.lexeme.as_str() {
-                    entry.1 = true;
-                }
+        if let Some(scope) = self.scopes.last_mut() {
+            if let Some(entry) = scope.iter_mut().find(|e| e.0 == name.lexeme.as_str()) {
+                entry.1 = true;
             }
-            //self.scopes.last_mut().unwrap().push((name.lexeme, true));
         }
-        Ok(())
+        return Ok(());
     }
 
     pub fn resolve_function(
@@ -144,7 +135,7 @@ impl<'a> Resolver<'a> {
     }
 }
 
-impl<'a> StmtVisitor for &mut Resolver<'a> {
+impl StmtVisitor for &mut Resolver {
     type T = Result<(), ResolverError>;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -174,7 +165,6 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
 
     fn visit_block_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if let Stmt::Block(stmts) = stmt {
-            debug!("Scopes are {:?}", self.scopes);
             self.begin_scope();
             self.resolve(stmts)?;
             self.end_scope();
@@ -217,15 +207,15 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
 
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if self.current_function == FunctionType::None {
-            return Err(ResolverError {
-                msg: "Return not allowed at top-level code.".into(),
-            });
+            return Err(ResolverError::SyntaxError(
+                "Return not allowed at top-level code.".into(),
+            ));
         }
         if let Stmt::Return { keyword, value } = stmt {
             if self.current_function == FunctionType::Initializer {
-                return Err(ResolverError {
-                    msg: "Cannot return value from initializer.".into(),
-                });
+                return Err(ResolverError::SyntaxError(
+                    "Cannot return value from initializer.".into(),
+                ));
             }
             self.resolve_expr(value)?;
         }
@@ -250,9 +240,9 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
                 self.current_class = ClassType::SubClass;
                 if let Expr::Variable { name } = sc {
                     if name.lexeme == class_name.lexeme {
-                        return Err(ResolverError {
-                            msg: "A class cannot inherit from itself.".into(),
-                        });
+                        return Err(ResolverError::SyntaxError(
+                            "A class cannot inherit from itself.".into(),
+                        ));
                     }
                 }
                 self.resolve_expr(sc)?;
@@ -284,7 +274,7 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
         Ok(())
     }
 }
-impl<'a> ExprVisitor for &mut Resolver<'a> {
+impl ExprVisitor for &mut Resolver {
     type T = Result<(), ResolverError>;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
@@ -345,29 +335,29 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
             if !self.scopes.is_empty()
                 && self.scopes.last().is_some()
                 && self
-                    .scopes
-                    .last()
-                    .unwrap()
-                    .iter()
-                    .find(|v| v.0 == name.lexeme.as_str())
-                    .is_some()
+                .scopes
+                .last()
+                .unwrap()
+                .iter()
+                .find(|v| v.0 == name.lexeme.as_str())
+                .is_some()
                 && self
-                    .scopes
-                    .last()
-                    .unwrap()
-                    .iter()
-                    .find(|v| v.0 == name.lexeme.as_str())
-                    .unwrap()
-                    .1
-                    == false
+                .scopes
+                .last()
+                .unwrap()
+                .iter()
+                .find(|v| v.0 == name.lexeme.as_str())
+                .unwrap()
+                .1
+                == false
             {
                 info!("The scopes are {:?}", self.scopes);
-                ret_val = Err(ResolverError {
-                    msg: format!(
+                ret_val = Err(ResolverError::SyntaxError(
+                    format!(
                         "Can't read local variable[{:?}] in its own initializer",
                         name.lexeme
                     ),
-                })
+                ))
             }
             self.resolve_local(expr.clone(), name.clone())?;
         }
@@ -413,17 +403,17 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
     fn visit_this_expr(&mut self, expr: &Expr) -> Self::T {
         let res = if let Expr::This { keyword } = expr {
             if self.current_class == ClassType::None {
-                Err(ResolverError {
-                    msg: "Can't use 'this' outside of a class".into(),
-                })
+                Err(ResolverError::SyntaxError(
+                    "Can't use 'this' outside of a class".into(),
+                ))
             } else {
                 self.resolve_local(expr.clone(), keyword.clone())?;
                 Ok(())
             }
         } else {
-            Err(ResolverError {
-                msg: "Can't use func visit_this_expr on none this expression".into(),
-            })
+            Err(ResolverError::SyntaxError(
+                "Can't use func visit_this_expr on none this expression".into(),
+            ))
         };
         res
     }
@@ -431,22 +421,22 @@ impl<'a> ExprVisitor for &mut Resolver<'a> {
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
             let res = if self.current_class == ClassType::None {
-                Err(ResolverError {
-                    msg: "Can't use 'super' outside of a class".into(),
-                })
+                Err(ResolverError::SyntaxError(
+                    "Can't use 'super' outside of a class".into(),
+                ))
             } else if self.current_class != ClassType::SubClass {
-                Err(ResolverError {
-                    msg: "Can't use 'super' in a class with no superclass".into(),
-                })
+                Err(ResolverError::SyntaxError(
+                    "Can't use 'super' in a class with no superclass".into(),
+                ))
             } else {
                 self.resolve_local(expr.clone(), keyword.clone())?;
                 Ok(())
             };
             res
         } else {
-            Err(ResolverError {
-                msg: "Can't use func visit_super_expr on none super expression".into(),
-            })
+            Err(ResolverError::SyntaxError(
+                "Can't use func visit_super_expr on none super expression".into(),
+            ))
         }
     }
 }
