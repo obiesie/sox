@@ -129,27 +129,15 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
-        // let active_env = self.active_env_mut();
-        // let val = active_env.get(name.lexeme.as_str());
-        // return val;
-        //let val = active_env.get(name.lexeme.to_string());
-        //info!("lookup {:?}", name);
-
+        
         if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
-            //info!("resolved var is {:?}", dist);
-            //info!("envs is {:?}", self.envs);
             let (dst, binding_idx) = dist;
             let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
-            //info!("{:?} is {:?}", name, active_env.get(&key));
-
             active_env.get(&key)
 
-            //active_env.get_at(name.lexeme.to_string(), dst.clone(), idx.clone())
         } else {
             let global_env = self.global_env_mut();
-            // let key = EnvKey::Name(name.lexeme.to_string());
-            //
             let val = global_env.find_and_get(name.lexeme.to_string());
             val
         }
@@ -203,11 +191,6 @@ impl StmtVisitor for &mut Interpreter {
             }
             let active_env = self.active_env_mut();
             let name_ident = name.lexeme.to_string();
-
-            //let key = EnvKey::Name(name_ident);
-
-            //let val = global_env.get(&key);
-
             active_env.define(name_ident, value)
         } else {
             return Err(Interpreter::runtime_error(
@@ -414,7 +397,6 @@ impl ExprVisitor for &mut Interpreter {
                 env.assign(&key, eval_val.clone())?;
             } else {
                 let global_env = self.global_env_mut();
-
                 global_env.find_and_assign(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
