@@ -129,13 +129,11 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
-        
         if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
             let (dst, binding_idx) = dist;
             let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
             active_env.get(&key)
-
         } else {
             let global_env = self.global_env_mut();
             let val = global_env.find_and_get(name.lexeme.to_string());
@@ -722,7 +720,7 @@ impl ExprVisitor for &mut Interpreter {
         } = expr
         {
             let object = self.evaluate(object)?;
-            if let Some(mut v) = object.as_class_instance() {
+            if let Some(v) = object.as_class_instance() {
                 let value = self.evaluate(value)?;
 
                 v.set(name.clone(), value.clone());

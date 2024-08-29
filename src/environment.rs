@@ -135,9 +135,7 @@ impl Env {
     }
 
     pub fn assign(&mut self, key: &EnvKey, value: SoxObject) -> SoxResult<()> {
-        let mut name_literal = "".to_string();
-        let (name, dist_to_ns, _) = key;
-        name_literal = name.clone();
+        let (_, dist_to_ns, _) = key;
         let l = self.namespaces.len();
         let ns = self.namespaces.get_mut(l - dist_to_ns - 1).unwrap();
         ns.assign(&key, value)?;

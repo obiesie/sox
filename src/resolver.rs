@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, info};
+use log::info;
 
 use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
@@ -335,29 +335,27 @@ impl ExprVisitor for &mut Resolver {
             if !self.scopes.is_empty()
                 && self.scopes.last().is_some()
                 && self
-                .scopes
-                .last()
-                .unwrap()
-                .iter()
-                .find(|v| v.0 == name.lexeme.as_str())
-                .is_some()
+                    .scopes
+                    .last()
+                    .unwrap()
+                    .iter()
+                    .find(|v| v.0 == name.lexeme.as_str())
+                    .is_some()
                 && self
-                .scopes
-                .last()
-                .unwrap()
-                .iter()
-                .find(|v| v.0 == name.lexeme.as_str())
-                .unwrap()
-                .1
-                == false
+                    .scopes
+                    .last()
+                    .unwrap()
+                    .iter()
+                    .find(|v| v.0 == name.lexeme.as_str())
+                    .unwrap()
+                    .1
+                    == false
             {
                 info!("The scopes are {:?}", self.scopes);
-                ret_val = Err(ResolverError::SyntaxError(
-                    format!(
-                        "Can't read local variable[{:?}] in its own initializer",
-                        name.lexeme
-                    ),
-                ))
+                ret_val = Err(ResolverError::SyntaxError(format!(
+                    "Can't read local variable[{:?}] in its own initializer",
+                    name.lexeme
+                )))
             }
             self.resolve_local(expr.clone(), name.clone())?;
         }
