@@ -55,18 +55,15 @@ impl Namespace {
     }
 
     fn assign(&mut self, key: &EnvKey, value: SoxObject) -> SoxResult<()> {
-        //info!("Assigning value to key - {:?}", key);
         match self.store_mode {
             StoreMode::Vec => {
                 if let EnvKey::NameIdxPair((name, _, binding_idx)) = key {
-                    //info!("assigned {name} to {:?}", value);
                     let mut entry = self.bindings.get_mut(*binding_idx);
                     if entry.as_ref().unwrap().0 == *name {
                         entry.as_mut().unwrap().1 = value;
                     }
                 } else if let EnvKey::Name(name) = key {
                     for binding in self.bindings.iter_mut() {
-                        //info!("assigned {name} to {:?}", value);
                         if binding.0.to_string().eq(name) {
                             binding.1 = value;
                             break;
@@ -156,10 +153,10 @@ pub struct Env {
 
 impl Env {
     pub fn new(mode: StoreMode) -> Self {
-        return Self {
+        Self {
             mode: mode.clone(),
             namespaces: vec![Namespace::new(mode)],
-        };
+        }
     }
     pub fn define(&mut self, key: &EnvKey, value: SoxObject) {
         let ns = self.namespaces.last_mut().unwrap();
@@ -183,41 +180,25 @@ impl Env {
                 name_literal = name.clone();
                 let l = self.namespaces.len();
                 let ns = self.namespaces.get_mut(l - idx - 1).unwrap();
-                //if let Some(ns) = ns {
                     val = Some(ns.get(key));
-                //}
             }
         }
         
         if val.is_some() {
             return val.unwrap();
         }
-        return Err(Exception::Err(RuntimeError {
+        Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{name_literal}' is not defined"),
         })
-            .into_ref());
+            .into_ref())
     }
 
-    // pub fn get_at<T: Into<String> + Display>(&mut self, name: T, index: usize, idx: usize) -> SoxResult {
-    //     let key = EnvKey::NameIdxPair((name.to_string(), idx));
-    //     let ns_size = self.namespaces.len();
-    //     let ns = self.namespaces.get_mut(ns_size - index - 1).unwrap();
-    //     let name_literal = name.into();
-    //     if let Ok(value) = ns.get(&key) {
-    //         return Ok(value.clone());
-    //     };
-    //     return Err(Exception::Err(RuntimeError {
-    //         msg: format!("NameError: name '{name_literal}' is not defined"),
-    //     })
-    //     .into_ref());
-    // }
-
+   
     pub fn assign(
         &mut self,
         key: &EnvKey,
         value: SoxObject,
     ) -> SoxResult<()> {
-        //info!("assign {:?} to {:?}", key, value);
 
         let mut name_literal = "".to_string();
         match key.clone() {
@@ -245,10 +226,10 @@ impl Env {
             }
         }
 
-        return Err(Exception::Err(RuntimeError {
+        Err(Exception::Err(RuntimeError {
             msg: format!("NameError: Name '{name_literal}' is not defined."),
         })
-            .into_ref());
+            .into_ref())
     }
 
     pub fn new_namespace(&mut self) -> SoxResult<()> {

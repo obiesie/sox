@@ -11,12 +11,11 @@ pub struct ResolverError {
     pub msg: String,
 }
 
-pub struct Resolver<'a> {
+pub struct Resolver {
     scopes: Vec<Vec<(String, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
     resolved_data: HashMap<(String, usize), (usize, usize)>,
-    _phantom_data: std::marker::PhantomData<&'a ()>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
 
@@ -34,14 +33,13 @@ pub enum ClassType {
     SubClass,
 }
 
-impl<'a> Resolver<'a> {
+impl Resolver {
     pub fn new() -> Self {
         Self {
             scopes: vec![],
             current_function: FunctionType::None,
             current_class: ClassType::None,
             resolved_data: Default::default(),
-            _phantom_data: Default::default(),
         }
     }
 
@@ -101,12 +99,7 @@ impl<'a> Resolver<'a> {
                     scope.push((name.lexeme, false))
 
                 }
-                // if scope.contains_key(name.lexeme.as_str()) {
-                //     ret_val = Err(ResolverError {
-                //         msg: "A variable with the same name already exist in this scope.".into(),
-                //     });
-                // }
-                // scope.insert(name.lexeme, false);
+                
             }
         }
         ret_val
@@ -119,7 +112,6 @@ impl<'a> Resolver<'a> {
                     entry.1 = true;
                 }
             }
-            //self.scopes.last_mut().unwrap().push((name.lexeme, true));
         }
         Ok(())
     }
@@ -146,7 +138,7 @@ impl<'a> Resolver<'a> {
     }
 }
 
-impl<'a> StmtVisitor for &mut Resolver<'a> {
+impl StmtVisitor for &mut Resolver {
     type T = Result<(), ResolverError>;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -286,7 +278,7 @@ impl<'a> StmtVisitor for &mut Resolver<'a> {
         Ok(())
     }
 }
-impl<'a> ExprVisitor for &mut Resolver<'a> {
+impl ExprVisitor for &mut Resolver {
     type T = Result<(), ResolverError>;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {

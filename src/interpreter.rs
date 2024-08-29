@@ -74,19 +74,19 @@ impl Interpreter {
     }
 
     fn global_env_mut(&mut self) -> &mut Env {
-        return self.envs.get_mut(self.global_env_ref).unwrap();
+        self.envs.get_mut(self.global_env_ref).unwrap()
     }
 
     fn active_env_mut(&mut self) -> &mut Env {
-        return self.envs.get_mut(self.active_env_ref).unwrap();
+        self.envs.get_mut(self.active_env_ref).unwrap()
     }
 
     fn active_env(&self) -> &Env {
-        return self.envs.get(self.active_env_ref).unwrap();
+        self.envs.get(self.active_env_ref).unwrap()
     }
 
     pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
-        return self.envs.get_mut(key).unwrap();
+        self.envs.get_mut(key).unwrap()
     }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
@@ -97,7 +97,7 @@ impl Interpreter {
     }
 
     fn evaluate(&mut self, expr: &Expr) -> SoxResult {
-        return expr.accept(self);
+        expr.accept(self)
     }
 
     fn execute(&mut self, stmt: &Stmt) -> SoxResult<()> {
@@ -131,41 +131,23 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
-        // let active_env = self.active_env_mut();
-        // let val = active_env.get(name.lexeme.as_str());
-        // return val;
-        //let val = active_env.get(name.lexeme.to_string());
-        //info!("lookup {:?}", name);
         if let Some(locals) = &self.locals {
-            return if let Some(dist) = locals.get(&(name.lexeme.to_string(), name.line)) {
-                //info!("resolved var is {:?}", dist);
-                //info!("envs is {:?}", self.envs);
+            if let Some(dist) = locals.get(&(name.lexeme.to_string(), name.line)) {
                 let (dst, idx) = dist;
                 let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
                 let key = EnvKey::NameIdxPair((name.lexeme.to_string(), *dst, *idx));
-                //info!("{:?} is {:?}", name, active_env.get(&key));
-
                 active_env.get(&key)
-
-                //active_env.get_at(name.lexeme.to_string(), dst.clone(), idx.clone())
             } else {
                 let global_env = self.global_env_mut();
                 let key = EnvKey::Name(name.lexeme.to_string());
-
                 let val = global_env.get(&key);
-                //info!("{:?} is {:?}", name, val);
-
                 val
-            };
+            }
         } else {
             let active_env = self.active_env_mut();
             let key = EnvKey::Name(name.lexeme.to_string());
-
             let val = active_env.get(&key);
-            //info!("{:?} is {:?}", name, val);
-
-            return val;
-
+            val
         }
     }
 
