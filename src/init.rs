@@ -1,12 +1,9 @@
-use std::{fs, io};
-use std::io::Write;
+use std::{fs};
 use crate::environment::{StoreMode};
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
-use std::io::Write;
-use std::{fs, io};
 
 pub fn run_file(file_path: String) {
     let contents =
