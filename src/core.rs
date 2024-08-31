@@ -148,7 +148,7 @@ pub trait StaticType {
         let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
         cell.set(typ)
-            .unwrap_or_else(|_| panic!("double initialization of {}", Self::NAME));
+            .unwrap_or_else(|_| print!("Double initialization") );
         let v = cell.get().unwrap();
         v
     }

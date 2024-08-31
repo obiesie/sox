@@ -32,15 +32,15 @@ pub struct SyntaxError {
 
 impl<I: Iterator<Item = Token>> Parser<I> {
     pub fn new(tokens: I) -> Self {
-        return Parser {
+        Parser {
             tokens: tokens.peekable(),
             processed_tokens: vec![],
-        };
+        }
     }
 
     fn previous(&self) -> Token {
         let prev = self.processed_tokens.last().unwrap().clone();
-        return prev;
+        prev
     }
 
     pub fn parse(&mut self) -> Result<Vec<Stmt>, Vec<SyntaxError>> {

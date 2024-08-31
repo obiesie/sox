@@ -41,7 +41,6 @@ impl Namespace {
 
     fn get(&mut self, key: &EnvKey) -> SoxResult<SoxObject> {
         let (name, _, binding_idx) = key;
-        //if let EnvKey::NameIdxPair((name, _, idx)) = key {
         let value = self.bindings.get(*binding_idx);
         let ret_val = if let Some(v) = value {
             Ok(v.1.clone())

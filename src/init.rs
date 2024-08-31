@@ -12,19 +12,7 @@ pub fn run_file(file_path: String) {
 }
 
 pub fn run_prompt() {
-    let stdin = io::stdin();
-    println!("Welcome to sox");
-
-    loop {
-        print!("> ");
-        let _ = io::stdout().flush();
-        let mut buffer = String::new();
-        stdin.read_line(&mut buffer).unwrap();
-        if buffer.is_empty() {
-            break;
-        }
-        run(buffer, false);
-    }
+   todo!()
 }
 
 pub fn run(source: String, enable_var_resolution: bool) {

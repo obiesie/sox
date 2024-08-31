@@ -95,7 +95,7 @@ impl Interpreter {
     }
 
     fn evaluate(&mut self, expr: &Expr) -> SoxResult {
-        return expr.accept(self);
+        expr.accept(self)
     }
 
     fn execute(&mut self, stmt: &Stmt) -> SoxResult<()> {
