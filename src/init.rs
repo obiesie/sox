@@ -26,10 +26,13 @@ pub fn run_prompt() {
         }
         let tokens = Lexer::lex(buffer.as_str());
         let mut parser = Parser::new(tokens);
-        let ast = parser.parse().unwrap();
-       
-        interpreter.interpret(&ast);
-
+        let ast = parser.parse();
+        if let Ok(ast) = ast {
+            interpreter.interpret(&ast);
+        } else {
+            println!("Error - {:?}", ast.err().unwrap());
+            //io::stdout().flush().unwrap();
+        }
     }
 }
 
