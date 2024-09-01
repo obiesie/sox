@@ -155,7 +155,10 @@ impl StmtVisitor for &mut Interpreter {
         if let Stmt::Expression(expr) = stmt {
             let value = self.evaluate(expr);
             return_value = match value {
-                Ok(_) => Ok(()),
+                Ok(v) => {
+                    println!("{:?}", v);
+                    Ok(())
+                },
                 Err(v) => Err(v.into()),
             };
         }

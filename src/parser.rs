@@ -238,10 +238,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let condition = self.expression()?;
         let _ = self.consume(RightParen, "Expect ')' after 'while' condition.".into())?;
         let body = self.statement()?;
-        return Ok(Stmt::While {
+        Ok(Stmt::While {
             condition,
             body: Box::new(body),
-        });
+        })
     }
 
     fn if_statement(&mut self) -> Result<Stmt, SyntaxError> {
@@ -254,20 +254,20 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         if self.match_token(vec![Else]) {
             else_branch = Some(self.statement()?);
         }
-        return Ok(Stmt::If {
+        Ok(Stmt::If {
             condition,
             then_branch: Box::new(then_branch),
             else_branch: Box::new(else_branch),
-        });
+        })
     }
 
     fn expression_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let expr = self.expression();
         if let Ok(e) = expr {
             let _ = self.consume(Semi, "Expect ';' after expression.".into())?;
-            return Ok(Stmt::Expression(e));
+            Ok(Stmt::Expression(e))
         } else {
-            return Err(expr.err().unwrap());
+            Err(expr.err().unwrap())
         }
     }
 
@@ -278,16 +278,16 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             statements.push(stmt);
         }
         let _ = self.consume(RightBrace, "".into())?;
-        return Ok(statements);
+        Ok(statements)
     }
 
     fn print_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let value = self.expression();
         if let Ok(v) = value {
             let _ = self.consume(Semi, "Expect ';' after value.".into())?;
-            return Ok(Stmt::Print(v));
+            Ok(Stmt::Print(v))
         } else {
-            return Err(value.err().unwrap());
+            Err(value.err().unwrap())
         }
     }
 
@@ -308,7 +308,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 });
             }
         }
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn or(&mut self) -> Result<Expr, SyntaxError> {
@@ -322,7 +322,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 right: Box::new(right),
             }
         }
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn and(&mut self) -> Result<Expr, SyntaxError> {

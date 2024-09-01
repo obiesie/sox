@@ -12,7 +12,25 @@ pub fn run_file(file_path: String) {
 }
 
 pub fn run_prompt() {
-   todo!()
+    let stdin = io::stdin();
+    let mut interpreter = Interpreter::new();
+    println!("Welcome to sox");
+
+    loop {
+        print!(">>> ");
+        let _ = io::stdout().flush();
+        let mut buffer = String::new();
+        stdin.read_line(&mut buffer).unwrap();
+        if buffer.is_empty() {
+            break;
+        }
+        let tokens = Lexer::lex(buffer.as_str());
+        let mut parser = Parser::new(tokens);
+        let ast = parser.parse().unwrap();
+       
+        interpreter.interpret(&ast);
+
+    }
 }
 
 pub fn run(source: String, enable_var_resolution: bool) {
