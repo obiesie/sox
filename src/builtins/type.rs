@@ -42,7 +42,7 @@ impl SoxType {
             methods,
             slots,
             attributes,
-            name: None,
+            name: Some(name.to_string()),
         };
         typ
     }
@@ -98,7 +98,7 @@ impl SoxType {
 
 impl Representable for SoxType{
     fn repr(&self, i: &Interpreter) -> String {
-       "Type".to_string() 
+       format!("<Type {}>", self.name.as_ref().unwrap().to_string()) 
     }
 }
 impl SoxObjectPayload for SoxType {
@@ -187,7 +187,7 @@ impl SoxInstance {
 
 impl Representable for SoxInstance{
     fn repr(&self, i: &Interpreter) -> String {
-       "SoxInstance".to_string() 
+       format!("<{} instance>", self.typ.name.as_ref().unwrap_or(&"Unknown type".to_string()).to_string())
     }
 }
 impl SoxObjectPayload for SoxInstance {
