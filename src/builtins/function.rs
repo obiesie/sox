@@ -11,10 +11,7 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
-use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
-    TryFromSoxObject,
-};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
@@ -164,5 +161,11 @@ impl ToSoxResult for SoxFunction {
     fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
         let obj = self.into_ref();
         Ok(obj)
+    }
+}
+
+impl Representable for SoxFunction{
+    fn repr(&self, i: &Interpreter) -> String {
+        "Function".to_string() 
     }
 }

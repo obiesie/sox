@@ -1,4 +1,5 @@
 use std::any::Any;
+use std::io::Repeat;
 use std::rc::Rc;
 
 use once_cell::sync::OnceCell;
@@ -7,7 +8,7 @@ use macros::soxtype;
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 pub type SoxIntRef = Rc<SoxInt>;
@@ -66,5 +67,11 @@ impl StaticType for SoxInt {
 impl From<i64> for SoxInt {
     fn from(i: i64) -> Self {
         Self { value: i }
+    }
+}
+
+impl Representable for SoxInt{
+    fn repr(&self, i: &Interpreter) -> String {
+        self.value.to_string()
     }
 }

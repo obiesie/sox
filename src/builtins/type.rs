@@ -7,7 +7,7 @@ use once_cell::sync::OnceCell;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
 use crate::builtins::method::{FuncArgs, SoxMethod};
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
 use crate::interpreter::Interpreter;
 use crate::token::Token;
 
@@ -96,6 +96,11 @@ impl SoxType {
     }
 }
 
+impl Representable for SoxType{
+    fn repr(&self, i: &Interpreter) -> String {
+       "Type".to_string() 
+    }
+}
 impl SoxObjectPayload for SoxType {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_type().unwrap()
@@ -180,6 +185,11 @@ impl SoxInstance {
     }
 }
 
+impl Representable for SoxInstance{
+    fn repr(&self, i: &Interpreter) -> String {
+       "SoxInstance".to_string() 
+    }
+}
 impl SoxObjectPayload for SoxInstance {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_class_instance().unwrap()

@@ -1,8 +1,9 @@
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
+use std::io::Repeat;
 use std::marker::PhantomData;
 
-use crate::core::{SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};
+use crate::core::{Representable, SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 
 pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;
@@ -187,6 +188,12 @@ where
 
 impl FromArgs for FuncArgs {
     fn from_args(_i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
-        return Ok(args.clone());
+        Ok(args.clone())
+    }
+}
+
+impl Representable for SoxMethod{
+    fn repr(&self, i: &Interpreter) -> String {
+        "SoxMethod".to_string()
     }
 }

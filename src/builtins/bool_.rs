@@ -6,10 +6,7 @@ use once_cell::sync::OnceCell;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::core::{
-    SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult,
-    TryFromSoxObject,
-};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 
 #[derive(Debug, Clone, Copy)]
@@ -21,12 +18,17 @@ impl SoxBool {
     pub fn new(val: bool) -> Self {
         SoxBool { value: val }
     }
-
+    
     pub fn bool(&self) -> Self {
         self.clone()
     }
 }
 
+impl Representable for SoxBool{
+    fn repr(&self, i: &Interpreter) -> String {
+        self.value.to_string()
+    }
+}
 impl SoxClassImpl for SoxBool {
     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[(
         "bool",

@@ -6,7 +6,7 @@ use macros::soxtype;
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 #[soxtype]
@@ -63,5 +63,11 @@ impl StaticType for SoxFloat {
 impl From<f64> for SoxFloat {
     fn from(f: f64) -> Self {
         Self { value: f }
+    }
+}
+
+impl Representable for SoxFloat{
+    fn repr(&self, i: &Interpreter) -> String {
+       self.value.to_string()
     }
 }

@@ -4,7 +4,7 @@ use once_cell::sync::OnceCell;
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 #[derive(Debug, Clone, Copy)]
@@ -51,5 +51,11 @@ impl StaticType for SoxNone {
 
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { call: None }
+    }
+}
+
+impl Representable for SoxNone{
+    fn repr(&self, i: &Interpreter) -> String {
+        "None".to_string()
     }
 }

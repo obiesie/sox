@@ -1,5 +1,5 @@
 use crate::builtins::method::SoxMethod;
-use crate::core::{SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
@@ -13,6 +13,14 @@ pub enum Exception {
     Return(SoxObject),
 }
 
+impl Representable for Exception{
+    fn repr(&self, i: &Interpreter) -> String {
+        match &self {
+            Exception::Err(v) => v.repr(i),
+            Exception::Return(_) => "Return".to_string()
+        }
+    }
+}
 impl From<RuntimeError> for Exception {
     fn from(value: RuntimeError) -> Self {
         Exception::Err(value)
@@ -31,6 +39,12 @@ impl From<Exception> for RuntimeError {
         } else {
             RuntimeError { msg: "".into() }
         }
+    }
+}
+
+impl Representable for RuntimeError{
+    fn repr(&self, i: &Interpreter) -> String {
+       self.msg.to_string()
     }
 }
 

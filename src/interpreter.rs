@@ -156,7 +156,7 @@ impl StmtVisitor for &mut Interpreter {
             let value = self.evaluate(expr);
             return_value = match value {
                 Ok(v) => {
-                    println!("{:?}", v);
+                    println!("{}", v.repr(&self));
                     Ok(())
                 },
                 Err(v) => Err(v.into()),
@@ -170,7 +170,7 @@ impl StmtVisitor for &mut Interpreter {
             let value = self.evaluate(expr);
             match value {
                 Ok(v) => {
-                    println!(">> {:?}", v);
+                    println!("{}", v.repr(&self));
                     Ok(())
                 }
                 Err(v) => Err(v.into()),

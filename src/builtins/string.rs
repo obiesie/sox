@@ -4,7 +4,7 @@ pub use once_cell::sync::{Lazy, OnceCell};
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::SoxClassImpl;
+use crate::core::{Representable, SoxClassImpl};
 use crate::core::{SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
@@ -65,5 +65,10 @@ impl From<String> for SoxString {
     }
 }
 
+impl Representable for SoxString{
+    fn repr(&self, i: &Interpreter) -> String {
+       self.value.to_string()
+    }
+}
 #[cfg(test)]
 mod tests {}

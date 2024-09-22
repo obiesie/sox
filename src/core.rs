@@ -43,7 +43,22 @@ impl SoxObject {
             SoxObject::Type(v) => v.class(i),
             SoxObject::TypeInstance(v) => v.class(i),
         };
-        return typ;
+        typ
+    }
+
+    pub fn repr(&self, i: &Interpreter) -> String {
+        let val = match &self {
+            SoxObject::Int(v) => v.repr(i),
+            SoxObject::String(v) => v.repr(i),
+            SoxObject::Float(v) => v.repr(i),
+            SoxObject::Boolean(v) => v.repr(i),
+            SoxObject::Function(v) => v.repr(i),
+            SoxObject::Exception(v) => v.repr(i),
+            SoxObject::None(v) => v.repr(i),
+            SoxObject::Type(v) => v.repr(i),
+            SoxObject::TypeInstance(v) => v.repr(i),
+        };
+        val
     }
 
     pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
@@ -202,7 +217,7 @@ impl<T: SoxObjectPayload> Deref for SoxRef<T> {
     type Target = T;
 
     fn deref(&self) -> &Self::Target {
-        return &self.val;
+        &self.val
     }
 }
 
@@ -253,5 +268,6 @@ pub trait SoxObjectPayload: Any + Sized + 'static {
     fn class(&self, i: &Interpreter) -> &SoxType;
 }
 
-#[cfg(test)]
-mod tests {}
+pub trait Representable{
+    fn repr(&self, i: &Interpreter) -> String;
+}

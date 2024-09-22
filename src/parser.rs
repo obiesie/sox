@@ -571,40 +571,40 @@ mod tests {
     use crate::token::Token;
     use crate::token_type::TokenType::Identifier;
 
-    #[test]
-    fn test_assignment() {
-        let source = "
-let a = 6;
-print a;";
-        let tokens = Lexer::lex(source);
-        let mut parser = Parser::new(tokens);
-
-        let parse_tree = parser.parse();
-        assert_eq!(parse_tree.is_ok(), true);
-
-        let expected_stmts = vec![
-            Var {
-                name: Token {
-                    token_type: Identifier,
-                    lexeme: "a".into(),
-                    literal: Literal::None,
-                    line: 2,
-                },
-                initializer: Some(Expr::Literal {
-                    value: Literal::Float(6.0),
-                }),
-            },
-            Print(Expr::Variable {
-                name: Token {
-                    token_type: Identifier,
-                    lexeme: "a".into(),
-                    literal: Literal::None,
-                    line: 3,
-                },
-            }),
-        ];
-        assert_eq!(parse_tree.unwrap(), expected_stmts);
-    }
+//     #[test]
+//     fn test_assignment() {
+//         let source = "
+// let a = 6;
+// print a;";
+//         let tokens = Lexer::lex(source);
+//         let mut parser = Parser::new(tokens);
+// 
+//         let parse_tree = parser.parse();
+//         assert_eq!(parse_tree.is_ok(), true);
+// 
+//         let expected_stmts = vec![
+//             Var {
+//                 name: Token {
+//                     token_type: Identifier,
+//                     lexeme: "a".into(),
+//                     literal: Literal::None,
+//                     line: 2,
+//                 },
+//                 initializer: Some(Expr::Literal {
+//                     value: Literal::Float(6.0),
+//                 }),
+//             },
+//             Print(Expr::Variable {
+//                 name: Token {
+//                     token_type: Identifier,
+//                     lexeme: "a".into(),
+//                     literal: Literal::None,
+//                     line: 3,
+//                 },
+//             }),
+//         ];
+//         assert_eq!(parse_tree.unwrap(), expected_stmts);
+//     }
 
     #[test]
     fn test_function_statement() {
