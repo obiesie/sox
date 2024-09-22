@@ -190,9 +190,3 @@ impl FromArgs for FuncArgs {
         Ok(args.clone())
     }
 }
-
-impl Representable for SoxMethod{
-    fn repr(&self, i: &Interpreter) -> String {
-        "SoxMethod".to_string()
-    }
-}
