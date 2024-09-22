@@ -363,15 +363,10 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
-            let (dist_to_binding, binding_idx) = self
-                .locals
-                .get(&(name.lexeme.to_string(), name.line))
-                .unwrap();
-            let key = (name.lexeme.to_string(), *dist_to_binding, *binding_idx);
-
+            
             self.active_env_ref = prev_env;
             let active_env = self.active_env_mut();
-            active_env.assign(&key, class.into_ref())?;
+            active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
 
             Ok(())
         } else {
