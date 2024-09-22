@@ -1,6 +1,5 @@
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
-use std::io::Repeat;
 use std::marker::PhantomData;
 
 use crate::core::{Representable, SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};

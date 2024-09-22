@@ -267,7 +267,7 @@ impl StmtVisitor for &mut Interpreter {
             let env_id = self.envs.insert(func_env);
 
             let stmt_clone = stmt.clone();
-            let fo = SoxFunction::new(stmt_clone, env_id);
+            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, env_id);
             let ns = {
                 let active_env = self.active_env_mut();
                 active_env.define(name.lexeme.clone(), fo.into_ref());
@@ -345,6 +345,7 @@ impl StmtVisitor for &mut Interpreter {
                 } = method
                 {
                     let func = SoxFunction {
+                        name: name.lexeme.to_string(),
                         declaration: Box::new(method.clone()),
                         environment_ref: self.active_env_ref.clone(),
                         is_initializer: name.lexeme == "init".to_string(),

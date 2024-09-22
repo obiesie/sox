@@ -18,14 +18,16 @@ use crate::stmt::Stmt;
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SoxFunction {
+    pub name: String,
     pub declaration: Box<Stmt>,
     pub environment_ref: DefaultKey,
     pub is_initializer: bool,
 }
 
 impl SoxFunction {
-    pub fn new(declaration: Stmt, environment_ref: DefaultKey) -> Self {
+    pub fn new(name: String, declaration: Stmt, environment_ref: DefaultKey) -> Self {
         Self {
+            name,
             declaration: Box::new(declaration),
             environment_ref,
             is_initializer: false,
@@ -34,7 +36,7 @@ impl SoxFunction {
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         if let SoxObject::TypeInstance(_) = instance {
-            let environment = interp.referenced_env(self.environment_ref); //ref_env!(interp, self.environment_ref);
+            let environment = interp.referenced_env(self.environment_ref); 
             let mut new_env = environment.clone();
             let namespace = Namespace::default();
             new_env
@@ -44,11 +46,12 @@ impl SoxFunction {
 
             let env_ref = interp.envs.insert(new_env);
             let new_func = SoxFunction {
+                name: self.name.to_string(),
                 declaration: self.declaration.clone(),
                 environment_ref: env_ref,
                 is_initializer: false,
             };
-            return Ok(new_func.into_ref());
+            Ok(new_func.into_ref())
         } else {
             Err(Interpreter::runtime_error(
                 "Could not bind method to instance".to_string(),
@@ -166,6 +169,7 @@ impl ToSoxResult for SoxFunction {
 
 impl Representable for SoxFunction{
     fn repr(&self, i: &Interpreter) -> String {
-        "Function".to_string() 
+        let func_name = self.name.to_string();
+        format!("<Function {func_name}>") 
     }
 }
