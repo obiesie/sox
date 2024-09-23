@@ -89,7 +89,12 @@ impl Interpreter {
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for stmt in statements {
-            self.execute(stmt).expect("Runtime error");
+            let result = self.execute(stmt).expect("Runtime error");
+            if let SoxObject::None(_) = result{
+                
+            } else {
+                println!("{}", result.repr(&self));
+            }
         }
     }
 
@@ -97,7 +102,7 @@ impl Interpreter {
         expr.accept(self)
     }
 
-    fn execute(&mut self, stmt: &Stmt) -> SoxResult<()> {
+    fn execute(&mut self, stmt: &Stmt) -> SoxResult {
         stmt.accept(self)
     }
 
@@ -147,16 +152,15 @@ impl Interpreter {
 }
 
 impl StmtVisitor for &mut Interpreter {
-    type T = SoxResult<()>;
+    type T = SoxResult;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut return_value = Ok(());
+        let mut return_value = Ok(self.none.into_ref());
         if let Stmt::Expression(expr) = stmt {
             let value = self.evaluate(expr);
             return_value = match value {
                 Ok(v) => {
-                    println!("{}", v.repr(&self));
-                    Ok(())
+                    Ok(v)
                 },
                 Err(v) => Err(v.into()),
             };
@@ -170,7 +174,7 @@ impl StmtVisitor for &mut Interpreter {
             match value {
                 Ok(v) => {
                     println!("{}", v.repr(&self));
-                    Ok(())
+                    Ok(self.none.into_ref())
                 }
                 Err(v) => Err(v.into()),
             }
@@ -198,7 +202,7 @@ impl StmtVisitor for &mut Interpreter {
                     .to_string(),
             ));
         };
-        Ok(())
+        Ok(self.none.into_ref())
     }
 
     fn visit_block_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -208,7 +212,7 @@ impl StmtVisitor for &mut Interpreter {
             debug!("statements are {:?}", stmts);
             self.execute_block(stmts, None)?;
 
-            Ok(())
+            Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed - visited non block statement with visit_block_stmt."
@@ -235,7 +239,7 @@ impl StmtVisitor for &mut Interpreter {
                 "Evaluation failed - visited non if statement with visit_if_stmt".to_string(),
             ));
         }
-        Ok(())
+        Ok(self.none.into_ref())
     }
 
     fn visit_while_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -246,7 +250,7 @@ impl StmtVisitor for &mut Interpreter {
                 cond = self.evaluate(&condition)?;
             }
 
-            Ok(())
+            Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed -  visited non while statement with visit_while_stmt."
@@ -275,7 +279,7 @@ impl StmtVisitor for &mut Interpreter {
             let func_env = self.envs.get_mut(env_id).unwrap();
             func_env.namespaces = ns;
 
-            Ok(())
+            Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed -  Calling a visit_function_stmt on non function node."
@@ -367,7 +371,7 @@ impl StmtVisitor for &mut Interpreter {
             let active_env = self.active_env_mut();
             active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
 
-            Ok(())
+            Ok(self.none.into_ref())
         } else {
             let err =
                 Interpreter::runtime_error("Calling a visit_class_stmt on non class type.".into());
@@ -556,7 +560,7 @@ impl ExprVisitor for &mut Interpreter {
                 TokenType::Less => {
                     let exc = Err(Interpreter::runtime_error(
                         "Arguments to the less than operator must both be numbers".into(),
-                    )); 
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value < v2.value).into_ref())
@@ -601,12 +605,12 @@ impl ExprVisitor for &mut Interpreter {
                     };
                     value
                 }
-               
+
                 TokenType::EqualEqual => {
-                    
+
                     let exc =Err(Interpreter::runtime_error(
                         "Arguments to the equals operator must both be numbers".into(),
-                    )); 
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value == v2.value).into_ref())
@@ -627,7 +631,7 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::BangEqual => {
-                    
+
                     let exc =  Err(Interpreter::runtime_error(
                         "Arguments to the not equals operator must both be numbers".into(),
                     ));
@@ -675,11 +679,11 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    
+
                     let exc = Err(Interpreter::runtime_error(
                         "Arguments to the greater than or equals operator must both be numbers"
                             .into(),
-                    )); 
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value >= v2.value).into_ref())
@@ -694,7 +698,7 @@ impl ExprVisitor for &mut Interpreter {
                                 exc
                             }
                         } else {
-                           exc 
+                           exc
                         };
                     value
                 }
