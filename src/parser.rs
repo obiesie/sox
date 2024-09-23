@@ -52,16 +52,16 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 statements.push(val);
             } else {
                 if let Err(e) = stmt {
-                    let err_msg = e.msg.to_string();
+                    println!("[line {}] {}", e.line, e.msg.to_string());
                     errors.push(e);
-                    info!("Error while building parse tree - {:?}", err_msg);
+
                 }
             }
         }
         if errors.is_empty() {
             return Ok(statements);
         }
-        return Err(errors);
+        Err(errors)
     }
 
     fn synchronize(&mut self) {
@@ -264,7 +264,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     fn expression_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let expr = self.expression();
         if let Ok(e) = expr {
-            let _ = self.consume(Semi, "Expect ';' after expression.".into())?;
+            let _ = self.consume(Semi, "Expect ';' after expression".into())?;
             Ok(Stmt::Expression(e))
         } else {
             Err(expr.err().unwrap())
@@ -284,7 +284,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     fn print_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let value = self.expression();
         if let Ok(v) = value {
-            let _ = self.consume(Semi, "Expect ';' after value.".into())?;
+            let _ = self.consume(Semi, "Expect ';' after expression.".into())?;
             Ok(Stmt::Print(v))
         } else {
             Err(value.err().unwrap())
@@ -392,7 +392,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 right: Box::new(right),
             });
         }
-        return self.call();
+        self.call()
     }
 
     fn call(&mut self) -> Result<Expr, SyntaxError> {
@@ -410,7 +410,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 break;
             }
         }
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn finish_call(&mut self, callee: Expr) -> Result<Expr, SyntaxError> {
@@ -430,11 +430,11 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             }
         }
         let paren = self.consume(RightParen, "Expect ')' after arguments.".into())?;
-        return Ok(Expr::Call {
+        Ok(Expr::Call {
             callee: Box::new(callee),
             paren,
             arguments,
-        });
+        })
     }
 
     fn primary(&mut self) -> Result<Expr, SyntaxError> {
@@ -477,10 +477,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         }
         let token = self.tokens.peek();
 
-        return Err(SyntaxError {
-            msg: format!("Failed to parse primary token - {:?}", token),
+        Err(SyntaxError {
+            msg: format!("Error at '{}': Expect an expression.", token.unwrap().lexeme),
             line: token.unwrap().line,
-        });
+        })
     }
 
     fn equality(&mut self) -> Result<Expr, SyntaxError> {
@@ -494,7 +494,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 right: Box::new(right),
             };
         }
-        return Ok(expr);
+        Ok(expr)
     }
 
     fn consume(&mut self, token_type: TokenType, message: String) -> Result<Token, SyntaxError> {
@@ -502,12 +502,11 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             let token = self.advance();
             return Ok(token.unwrap());
         }
-        let prev = self.previous();
-        info!("{:?}", prev);
-        return Err(SyntaxError {
-            msg: format!("{:?}", message),
+        let token_name = self.tokens.peek().map_or("eof".to_string(), |v|v.lexeme.to_string());
+        Err(SyntaxError {
+            msg: format!("Error at '{}': {}.", token_name, message),
             line: self.previous().line,
-        });
+        })
     }
 
     fn match_token(&mut self, token_types: Vec<TokenType>) -> bool {
@@ -517,7 +516,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 return true;
             }
         }
-        return false;
+        false
     }
 
     fn check(&mut self, token_type: TokenType) -> bool {
@@ -534,11 +533,11 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             }
         }
         let peeked_value = self.tokens.peek();
-        return if let Some(t) = peeked_value {
+        if let Some(t) = peeked_value {
             t.token_type == token_type
         } else {
             false
-        };
+        }
     }
 
     fn advance(&mut self) -> Option<Token> {
@@ -548,7 +547,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             self.processed_tokens.push(return_val.clone());
             return Some(return_val);
         }
-        return None;
+        None
     }
 
     fn at_end(&mut self) -> bool {
@@ -571,40 +570,6 @@ mod tests {
     use crate::token::Token;
     use crate::token_type::TokenType::Identifier;
 
-//     #[test]
-//     fn test_assignment() {
-//         let source = "
-// let a = 6;
-// print a;";
-//         let tokens = Lexer::lex(source);
-//         let mut parser = Parser::new(tokens);
-// 
-//         let parse_tree = parser.parse();
-//         assert_eq!(parse_tree.is_ok(), true);
-// 
-//         let expected_stmts = vec![
-//             Var {
-//                 name: Token {
-//                     token_type: Identifier,
-//                     lexeme: "a".into(),
-//                     literal: Literal::None,
-//                     line: 2,
-//                 },
-//                 initializer: Some(Expr::Literal {
-//                     value: Literal::Float(6.0),
-//                 }),
-//             },
-//             Print(Expr::Variable {
-//                 name: Token {
-//                     token_type: Identifier,
-//                     lexeme: "a".into(),
-//                     literal: Literal::None,
-//                     line: 3,
-//                 },
-//             }),
-//         ];
-//         assert_eq!(parse_tree.unwrap(), expected_stmts);
-//     }
 
     #[test]
     fn test_function_statement() {

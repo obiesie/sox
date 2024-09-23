@@ -89,7 +89,6 @@ impl Interpreter {
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         for stmt in statements {
-            info!("Executing statement -- {:?}", stmt);
             self.execute(stmt).expect("Runtime error");
         }
     }
@@ -363,7 +362,7 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
-            
+
             self.active_env_ref = prev_env;
             let active_env = self.active_env_mut();
             active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
@@ -434,133 +433,268 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the minus operator must both be numbers".into(),
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxInt::from(v1.value - v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the minus operator must both be numbers".into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxFloat::from(v1.value - v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxFloat::from(v1.value - (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxFloat::from((v1.value as f64) - v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }else {
+                            exc
                         };
                     value
                 }
                 TokenType::Rem => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the remainder operator must both be numbers".into(),
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxInt::from(v1.value % v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the remainder operator must both be numbers".into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxFloat::from(v1.value % v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxFloat::from(v1.value % (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxFloat::from((v1.value as f64) %     v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                           exc
                         };
                     value
                 }
                 TokenType::Plus => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the plus operator must both be strings or numbers".into(),
+                    ));
                     let value = if let (Some(v1), Some(v2)) =
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxInt::from(v1.value + v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                            Ok(SoxFloat::from(v1.value + v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                            Ok(SoxFloat::from(v1.value + (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                            Ok(SoxFloat::from((v1.value as f64) + v2.value).into_ref())
+                        } else {
+                            exc
+                        }
                     } else if let (Some(v1), Some(v2)) =
                         (left_val.as_string(), right_val.as_string())
                     {
                         Ok(SoxString::from(v1.value.clone() + v2.value.as_str()).into_ref())
                     } else {
-                        Err(Interpreter::runtime_error(
-                            "Arguments to the plus operator must both be strings or numbers".into(),
-                        ))
+                        exc
                     };
 
                     value
                 }
                 TokenType::Star => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the multiplication operator must both be numbers".into(),
+                    ));
                     let value = if let (Some(v1), Some(v2)) =
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxInt::from(v1.value * v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
-                            "Arguments to the multiplication operator must both be numbers".into(),
-                        ))
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                            Ok(SoxFloat::from(v1.value * v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                            Ok(SoxFloat::from(v1.value * (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                            Ok(SoxFloat::from((v1.value as f64) *    v2.value).into_ref())
+                        } else {
+                            exc
+                        }
+                    }
+                    else {
+                        exc
                     };
                     value
                 }
                 TokenType::Slash => {
+                    let exc =  Err(Interpreter::runtime_error(
+                        "Arguments to the division operator must both be numbers".into(),
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+
                             Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the division operator must both be numbers".into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxFloat::from(v1.value / v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxFloat::from(v1.value / (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxFloat::from((v1.value as f64) /    v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                           exc
                         };
                     value
                 }
                 TokenType::Less => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the less than operator must both be numbers".into(),
+                    )); 
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value < v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the less than operator must both be numbers".into(),
-                            ))
+                        }
+                        else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxBool::from(v1.value < v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxBool::from(v1.value < (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxBool::from((v1.value as f64) <    v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                           exc
                         };
                     value
                 }
                 TokenType::Greater => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the greater than operator must both be numbers".into(),
+                    ));
                     let value = if let (Some(v1), Some(v2)) =
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxBool::from(v1.value > v2.value).into_ref())
-                    } else {
-                        Err(Interpreter::runtime_error(
-                            "Arguments to the greater than operator must both be numbers".into(),
-                        ))
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                            Ok(SoxBool::from(v1.value > v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                            Ok(SoxBool::from(v1.value > (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                            Ok(SoxBool::from((v1.value as f64) >  v2.value).into_ref())
+                        } else {
+                            exc
+                        }
+                    }
+                    else {
+                        exc
                     };
                     value
                 }
+               
                 TokenType::EqualEqual => {
+                    
+                    let exc =Err(Interpreter::runtime_error(
+                        "Arguments to the equals operator must both be numbers".into(),
+                    )); 
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the equals operator must both be numbers".into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxBool::from(v1.value == v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                            exc
                         };
                     value
                 }
                 TokenType::BangEqual => {
+                    
+                    let exc =  Err(Interpreter::runtime_error(
+                        "Arguments to the not equals operator must both be numbers".into(),
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the not equals operator must both be numbers".into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxBool::from(v1.value != v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxBool::from((v1.value as f64) !=    v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                           exc
                         };
                     value
                 }
                 TokenType::LessEqual => {
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the less than or equals operator must both be numbers"
+                            .into(),
+                    ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value <= v2.value).into_ref())
-                        } else {
-                            Err(Interpreter::runtime_error(
-                                "Arguments to the less than or equals operator must both be numbers"
-                                    .into(),
-                            ))
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                                Ok(SoxBool::from(v1.value <= v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxBool::from(v1.value <= (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                                Ok(SoxBool::from((v1.value as f64) <=    v2.value).into_ref())
+                            } else {
+                                exc
+                            }
+                        }
+                        else {
+                            exc
                         };
                     value
                 }
                 TokenType::GreaterEqual => {
+                    
+                    let exc = Err(Interpreter::runtime_error(
+                        "Arguments to the greater than or equals operator must both be numbers"
+                            .into(),
+                    )); 
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
                             Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                                Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                                Ok(SoxBool::from(v1.value >= (v2.value as f64)).into_ref())
+                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()) {
+                                Ok(SoxBool::from((v1.value as f64) >= v2.value).into_ref())
+                            } else {
+                                exc
+                            }
                         } else {
-                            Err(Interpreter::runtime_error(
-                            "Arguments to the greater than or equals operator must both be numbers"
-                                .into(),
-                        ))
+                           exc 
                         };
                     value
                 }
