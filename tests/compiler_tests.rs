@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["bool"];
+static TEST_SUITES: [&str; 1] = ["for"];
 
 #[test]
 fn test_compiler(){
@@ -35,9 +35,8 @@ fn test_compiler(){
         }
     }
 
-   println!("Paths are {:?}", test_paths);
     for test_path in test_paths {
-        // if test_path != "tests/assignment/global.sox".to_string(){
+        // if test_path != "tests/for/statement_initializer.sox".to_string(){
         //     continue;
         // } 
         println!("test_path={}", test_path);

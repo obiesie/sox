@@ -1,0 +1,10 @@
+def f() {
+  for (;;) {
+    let i = "i";
+    def g() { print i; }
+    return g;
+  }
+}
+
+let h = f();
+h(); // expect: i
