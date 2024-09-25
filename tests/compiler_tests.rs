@@ -1,10 +1,9 @@
-use std::collections::HashSet;
 use std::fs;
-use std::path::Path;
+use std::iter::zip;
 use std::process::Command;
 
 use regex::Regex;
-
+use walkdir::WalkDir;
 
 lazy_static::lazy_static! {
     static ref EXPECTED_OUTPUT_PATTERN: Regex = Regex::new(r"// expect: ?(.*)").unwrap();
@@ -16,47 +15,63 @@ lazy_static::lazy_static! {
     static ref NON_TEST_PATTERN: Regex = Regex::new(r"// nontest").unwrap();
 }
 
-static PATHS_TESTS_TO_RUN: [&str; 1] = ["tests/while/return_closure.sox"];
 
-fn fetch_all_test_suite() -> Vec<String>{
-    todo!()
-}
+static TEST_SUITES: [&str; 1] = ["while"];
+
 #[test]
 fn test_compiler(){
     let mut test_paths = vec![];
-    if PATHS_TESTS_TO_RUN.is_empty(){
-        test_paths = fetch_all_test_suite();
-    } else{
-        test_paths = PATHS_TESTS_TO_RUN.iter().map(|v| v.to_string()).collect::<Vec<String>>();
+    for suite in TEST_SUITES {
+        for entry in WalkDir::new(format!("tests/{suite}")) {
+            match entry {
+                Ok(entry) => {
+                    if entry.metadata().unwrap().is_file() {
+                        test_paths.push(entry.path().to_string_lossy().to_string());
+                        // println!("{}", entry.path().display())
+                    }
+                },
+                Err(e) => eprintln!("Error: {}", e),
+            }
+        }
     }
+
+   
     for test_path in test_paths {
-        let hay = fs::read_to_string(test_path.as_str())
+        let hay = fs::read_to_string(test_path.to_string())
             .expect("Failed to read file at {test_path}");
         let caps = EXPECTED_OUTPUT_PATTERN.captures_iter(hay.as_str());
         let error_caps = SYNTAX_ERROR_PATTERN.captures_iter(hay.as_str());
 
         let mut expected_outputs = vec![];
-        let mut expected_error_outputs = vec![];
 
         for cap in caps {
             let expected_output = cap.get(1).unwrap().as_str();
-            expected_outputs.push(expected_output);
+            expected_outputs.push(expected_output.to_string());
         }
 
         for error_cap in error_caps{
             let t = error_cap.get(0).unwrap().as_str();
-            expected_error_outputs.push(format!("{}", t));
+            expected_outputs.push(format!("{}", t));
         }
         let run_output = Command::new("target/debug/sox")
             .arg(test_path)
             .output().unwrap();
 
         let output = String::from_utf8_lossy(&run_output.stdout);
-        let output_strs = output.split("\n").filter(|v| *v != "").collect::<Vec<&str>>();
-        if !expected_outputs.is_empty() {
-            assert_eq!(expected_outputs, output_strs);
-        } else if !expected_error_outputs.is_empty() {
-            assert_eq!(expected_error_outputs, output_strs);
+        let output_strs = output.split("\n").filter(|v| *v != "").map(|v| v.to_string()).collect::<Vec<String>>();
+        let failures = validate_outputs(expected_outputs, &output_strs);
+       
+        assert_eq!(failures, vec![]);
+    }
+}
+
+
+fn validate_outputs<T: ToString + PartialEq>(expected_outputs: Vec<T>, outputs: &Vec<T>) -> Vec<(String, String)>{
+    let mut failures = vec![];
+    for (expected_output, output) in zip(expected_outputs, outputs){
+        if expected_output != *output {
+            failures.push((expected_output.to_string(), output.to_string()));
         }
     }
+    failures
 }
