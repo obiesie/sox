@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["for"];
+static TEST_SUITES: [&str; 1] = ["if"];
 
 #[test]
 fn test_compiler(){

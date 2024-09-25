@@ -1,0 +1,2 @@
+// [line 2] Error at 'def': Expect an expression.
+if (true) "ok"; else def foo() {}
