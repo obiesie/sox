@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["while"];
+static TEST_SUITES: [&str; 1] = ["assignment"];
 
 #[test]
 fn test_compiler(){
@@ -35,13 +35,17 @@ fn test_compiler(){
         }
     }
 
-   
+   println!("Paths are {:?}", test_paths);
     for test_path in test_paths {
+        // if test_path != "tests/assignment/global.sox".to_string(){
+        //     continue;
+        // } 
+        println!("test_path={}", test_path);
         let hay = fs::read_to_string(test_path.to_string())
             .expect("Failed to read file at {test_path}");
         let caps = EXPECTED_OUTPUT_PATTERN.captures_iter(hay.as_str());
-        let error_caps = SYNTAX_ERROR_PATTERN.captures_iter(hay.as_str());
-
+        let syntax_error_caps = SYNTAX_ERROR_PATTERN.captures_iter(hay.as_str());
+        let runtime_error_caps = EXPECTED_RUNTIME_ERROR_PATTERN.captures_iter(hay.as_str());
         let mut expected_outputs = vec![];
 
         for cap in caps {
@@ -49,9 +53,14 @@ fn test_compiler(){
             expected_outputs.push(expected_output.to_string());
         }
 
-        for error_cap in error_caps{
+        for error_cap in syntax_error_caps {
             let t = error_cap.get(0).unwrap().as_str();
             expected_outputs.push(format!("{}", t));
+        }
+        
+        for runtime_error_cap in runtime_error_caps {
+            let inst = runtime_error_cap.get(0).unwrap().as_str();
+            expected_outputs.push(format!("{}", inst));
         }
         let run_output = Command::new("target/debug/sox")
             .arg(test_path)

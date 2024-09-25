@@ -15,6 +15,11 @@ class Test {
 
 }
 
-print Test;
+let a = "before";
+print a; // expect: before
 
-print Test();
+a = "after";
+print a; // expect: after
+
+print a = "arg"; // expect: arg
+print a; // expect: arg
