@@ -753,7 +753,7 @@ impl ExprVisitor for &mut Interpreter {
 
                 TokenType::Bang => {
                     let value = right.try_into_rust_bool(self);
-                    Ok(SoxBool::from(value).into_ref())
+                    Ok(SoxBool::from(!value).into_ref())
                 }
                 _ => Err(Interpreter::runtime_error("Unknown unary operator.".into())),
             }

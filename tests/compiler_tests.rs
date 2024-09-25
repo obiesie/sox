@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["assignment"];
+static TEST_SUITES: [&str; 1] = ["bool"];
 
 #[test]
 fn test_compiler(){
