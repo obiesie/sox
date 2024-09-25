@@ -88,14 +88,18 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
-        for stmt in statements {
+        let mut m = statements.iter().peekable();
+        while let Some(stmt) = m.next(){
             let result = self.execute(stmt).expect("Runtime error");
-            if let SoxObject::None(_) = result{
-                
-            } else {
-                println!("{}", result.repr(&self));
+            if m.peek().is_none(){
+                if let SoxObject::None(_) = result{
+
+                } else {
+                    println!("{}", result.repr(&self));
+                } 
             }
         }
+       
     }
 
     fn evaluate(&mut self, expr: &Expr) -> SoxResult {
