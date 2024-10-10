@@ -1,6 +1,6 @@
 use crate::token::{Literal, Token};
 
-#[derive(Clone, Debug, PartialEq)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Expr {
     Assign {
         name: Token,

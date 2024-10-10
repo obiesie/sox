@@ -31,7 +31,6 @@ pub fn run_prompt() {
             interpreter.interpret(&ast);
         } else {
             println!("Error - {:?}", ast.err().unwrap());
-            //io::stdout().flush().unwrap();
         }
     }
 }
@@ -48,8 +47,9 @@ pub fn run(source: String, enable_var_resolution: bool) {
     if ast.is_ok() {
         if enable_var_resolution {
             let resolved_data = var_resolver.resolve(&ast.as_ref().unwrap());
+            
 
-            interpreter.locals = resolved_data.unwrap();
+            interpreter._locals = resolved_data.unwrap();
         }
         interpreter.interpret(&ast.unwrap())
     }

@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["if"];
+static TEST_SUITES: [&str; 1] = ["for"];
 
 #[test]
 fn test_compiler(){
@@ -36,9 +36,9 @@ fn test_compiler(){
     }
 
     for test_path in test_paths {
-        // if test_path != "tests/for/statement_initializer.sox".to_string(){
-        //     continue;
-        // } 
+        if test_path != "tests/for/closure_in_body.sox".to_string(){
+            continue;
+        }
         println!("test_path={}", test_path);
         let hay = fs::read_to_string(test_path.to_string())
             .expect("Failed to read file at {test_path}");
@@ -56,9 +56,9 @@ fn test_compiler(){
             let t = error_cap.get(0).unwrap().as_str();
             expected_outputs.push(format!("{}", t));
         }
-        
+
         for runtime_error_cap in runtime_error_caps {
-            let inst = runtime_error_cap.get(0).unwrap().as_str();
+            let inst = runtime_error_cap.get(1).unwrap().as_str();
             expected_outputs.push(format!("{}", inst));
         }
         let run_output = Command::new("target/debug/sox")

@@ -91,7 +91,7 @@ impl SoxType {
             let error = Exception::Err(RuntimeError {
                 msg: "first argument to this call method should be a type object".to_string(),
             });
-            return Err(error.into_ref());
+            Err(error.into_ref())
         }
     }
 }
@@ -267,6 +267,7 @@ mod tests {
             lexeme: "test".to_string(),
             literal: Literal::String("test".to_string()),
             line: 0,
+            id: 0,
         };
 
         let i = SoxInt::new(65).into_ref();

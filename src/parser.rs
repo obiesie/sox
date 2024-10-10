@@ -230,7 +230,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         if let Some(init) = initializer {
             body = Stmt::Block(vec![init, body])
         }
-        return Ok(body);
+        Ok(body)
     }
 
     fn while_statement(&mut self) -> Result<Stmt, SyntaxError> {
@@ -590,6 +590,7 @@ def hello_world(){
                 lexeme: "hello_world".into(),
                 literal: Literal::None,
                 line: 2,
+                id: 0,
             },
             params: vec![],
             body: vec![Print(Expr::Literal {

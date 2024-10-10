@@ -16,7 +16,7 @@ use crate::catalog::TypeLibrary;
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
 use crate::core::{SoxObject, SoxResult};
-use crate::environment::{Env, Namespace};
+use crate::environment::{Environment, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
 use crate::stmt::{Stmt, StmtVisitor};
@@ -24,28 +24,30 @@ use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 
 pub struct Interpreter {
-    pub envs: SlotMap<DefaultKey, Env>,
-    pub active_env_ref: DefaultKey,
-    pub global_env_ref: DefaultKey,
+    //pub envs: SlotMap<DefaultKey, Env>,
+    pub environment: Environment,
+    //pub active_env_ref: DefaultKey,
+    //pub global_env_ref: DefaultKey,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
-    pub locals: HashMap<(String, usize), (usize, usize)>,
+    pub _locals: HashMap<Token, (usize, usize)>,
 }
 
 impl Interpreter {
     pub fn new() -> Self {
-        let environment = Env::default();
-        let mut envs = SlotMap::new();
-        let active_env_ref = envs.insert(environment);
+        // let environment = Env::default();
+        // let mut envs = SlotMap::new();
+        // let active_env_ref = envs.insert(environment);
         let types = TypeLibrary::init();
         let none = SoxRef::new(SoxNone {});
         let interpreter = Interpreter {
-            envs,
-            active_env_ref,
-            global_env_ref: active_env_ref.clone(),
+            //envs,
+            environment: Environment::new(),
+            //active_env_ref,
+            //global_env_ref: active_env_ref.clone(),
             types,
             none,
-            locals: Default::default(),
+            _locals: Default::default(),
         };
         interpreter
     }
@@ -71,35 +73,37 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-    fn global_env_mut(&mut self) -> &mut Env {
-        self.envs.get_mut(self.global_env_ref).unwrap()
-    }
-
-    fn active_env_mut(&mut self) -> &mut Env {
-        self.envs.get_mut(self.active_env_ref).unwrap()
-    }
-
-    fn active_env(&self) -> &Env {
-        self.envs.get(self.active_env_ref).unwrap()
-    }
-
-    pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
-        self.envs.get_mut(key).unwrap()
-    }
+    // fn global_env_mut(&mut self) -> &mut Env {
+    //     self.envs.get_mut(self.global_env_ref).unwrap()
+    // }
+    // 
+    // fn active_env_mut(&mut self) -> &mut Env {
+    //     self.envs.get_mut(self.active_env_ref).unwrap()
+    // }
+    // 
+    // fn active_env(&self) -> &Env {
+    //     self.envs.get(self.active_env_ref).unwrap()
+    // }
+    // 
+    // pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
+    //     self.envs.get_mut(key).unwrap()
+    // }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         let mut m = statements.iter().peekable();
-        while let Some(stmt) = m.next(){
-            let result = self.execute(stmt).expect("Runtime error");
-            if m.peek().is_none(){
-                if let SoxObject::None(_) = result{
-
-                } else {
-                    println!("{}", result.repr(&self));
-                } 
+        while let Some(stmt) = m.next() {
+            let result = self.execute(stmt);
+            if result.is_err() {
+                println!("{}", result.unwrap_err().repr(&self));
+                break;
+            }
+            let result_value = result.unwrap();
+            if m.peek().is_none() {
+                if let SoxObject::None(_) = result_value {} else {
+                    println!("{}", result_value.repr(&self));
+                }
             }
         }
-       
     }
 
     fn evaluate(&mut self, expr: &Expr) -> SoxResult {
@@ -113,38 +117,46 @@ impl Interpreter {
     pub fn execute_block(
         &mut self,
         statements: Vec<&Stmt>,
-        namespace: Option<Namespace>,
+        ns_ref: Option<DefaultKey>,
     ) -> SoxResult<()> {
-        let active_env = self.active_env_mut();
-        if let Some(ns) = namespace {
-            active_env.push(ns)?;
-            info!("The active env is {:?}", active_env);
-        } else {
-            active_env.new_namespace()?;
+        // let active_env = self.active_env_mut();
+        // if let Some(ns) = namespace {
+        //     active_env.push(ns)?;
+        // } else {
+        //     active_env.new_namespace()?;
+        // }
+        if let Some(ns_ref) = ns_ref {
+            self.environment.active = ns_ref;
+        } else{
+            self.environment.new_local_env();
         }
+        // let e = self.environment.new_local_env(); 
+        // info!("the local env is {:?}", e);
         for statement in statements {
+            // debug!("{:?}", statement);
+
             let res = self.execute(statement);
             if let Err(v) = res {
-                let active_env = self.active_env_mut();
-
-                active_env.pop()?;
+                // let active_env = self.active_env_mut();
+                // active_env.pop()?;
+                
+               self.environment.pop().expect("TODO: panic message");
                 return Err(v);
             }
         }
-        let active_env = self.active_env_mut();
-        active_env.pop()?;
+        // let active_env = self.active_env_mut();
+        // active_env.pop()?;
+        self.environment.pop().expect("TODO: panic message");
         Ok(())
     }
 
-    fn lookup_variable(&mut self, name: &Token, _expr: &Expr) -> SoxResult {
-        if let Some(dist) = self.locals.get(&(name.lexeme.to_string(), name.line)) {
+    fn lookup_variable(&mut self, name: &Token) -> SoxResult {
+        if let Some(dist) = self._locals.get(name) {
             let (dst, binding_idx) = dist;
-            let active_env = self.envs.get_mut(self.active_env_ref).unwrap();
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
-            active_env.get(&key)
+            self.environment.get(key)
         } else {
-            let global_env = self.global_env_mut();
-            let val = global_env.find_and_get(name.lexeme.to_string());
+            let val = self.environment.get_from_global_scope(name.lexeme.to_string());
             val
         }
     }
@@ -194,12 +206,17 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_decl_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let mut value = SoxNone {}.into_ref();
         if let Stmt::Var { name, initializer } = stmt {
+            //let v = self.lookup_variable(name);
+
             if let Some(initializer_stmt) = initializer {
                 value = self.evaluate(initializer_stmt)?;
             }
-            let active_env = self.active_env_mut();
+            // let active_env = self.active_env_mut();
             let name_ident = name.lexeme.to_string();
-            active_env.define(name_ident, value)
+            // 
+            // active_env.define(name_ident, value)
+            
+            self.environment.define(name_ident, value)
         } else {
             return Err(Interpreter::runtime_error(
                 "Evaluation failed - visiting a non declaration statement with visit_decl_stmt."
@@ -213,7 +230,7 @@ impl StmtVisitor for &mut Interpreter {
         if let Stmt::Block(statements) = stmt {
             let stmts = statements.iter().map(|v| v).collect::<Vec<&Stmt>>();
 
-            debug!("statements are {:?}", stmts);
+           
             self.execute_block(stmts, None)?;
 
             Ok(self.none.into_ref())
@@ -270,19 +287,21 @@ impl StmtVisitor for &mut Interpreter {
             body: _body,
         } = stmt
         {
-            let func_env = Env::default();
-            let env_id = self.envs.insert(func_env);
-
+            // let func_env = Env::default();
+            // let env_id = self.envs.insert(func_env);
+           
+            let func_env_ref = self.environment.new_local_env_unused();
             let stmt_clone = stmt.clone();
-            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, env_id);
-            let ns = {
-                let active_env = self.active_env_mut();
-                active_env.define(name.lexeme.clone(), fo.into_ref());
-                active_env.namespaces.clone()
-            };
-            let func_env = self.envs.get_mut(env_id).unwrap();
-            func_env.namespaces = ns;
-
+            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, func_env_ref);
+            self.environment.define(name.lexeme.to_string(), fo.into_ref());
+            // let ns = {
+            //     let active_env = self.active_env_mut();
+            //     active_env.define(name.lexeme.clone(), fo.into_ref());
+            //     active_env.namespaces.clone()
+            // };
+            // let func_env = self.envs.get_mut(env_id).unwrap();
+            // func_env.namespaces = ns;
+            // 
             Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
@@ -322,24 +341,25 @@ impl StmtVisitor for &mut Interpreter {
                 None
             };
             let none_val = self.none.clone().into_ref();
-            let active_env = self.active_env_mut();
-            active_env.define(name.lexeme.to_string(), none_val);
+            // let active_env = self.active_env_mut();
+            self.environment.define(name.lexeme.to_string(), none_val);
 
-            let prev_env = self.active_env_ref.clone();
+            //let prev_env = self.active_env_ref.clone();
             // setup super keyword within namespace
             if sc.is_some() {
-                let env_ref = {
-                    let active_env = self.active_env();
-                    let mut env_copy = active_env.clone();
-                    let namespace = Namespace::default();
-                    env_copy.push(namespace)?;
-                    let env_ref = self.envs.insert(env_copy);
-
-                    env_ref
-                };
-                self.active_env_ref = env_ref;
-                let env = self.referenced_env(env_ref);
-                env.define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
+                // let env_ref = {
+                //     let active_env = self.active_env();
+                //     let mut env_copy = active_env.clone();
+                //     let namespace = Namespace::default();
+                //     env_copy.push(namespace)?;
+                //     let env_ref = self.envs.insert(env_copy);
+                // 
+                //     env_ref
+                // };
+                // self.active_env_ref = env_ref;
+                self.environment.new_local_env();
+                // let env = self.referenced_env(env_ref);
+                self.environment.define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
             }
 
             let mut methods_map = HashMap::new();
@@ -354,7 +374,7 @@ impl StmtVisitor for &mut Interpreter {
                     let func = SoxFunction {
                         name: name.lexeme.to_string(),
                         declaration: Box::new(method.clone()),
-                        environment_ref: self.active_env_ref.clone(),
+                        environment_ref: self.environment.active.clone(),
                         is_initializer: name.lexeme == "init".to_string(),
                     };
                     methods_map.insert(name.lexeme.clone().into(), func.into_ref());
@@ -370,11 +390,12 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
-
-            self.active_env_ref = prev_env;
-            let active_env = self.active_env_mut();
-            active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
-
+            self.environment.pop();
+            self.environment.find_and_assign(name.lexeme.to_string(), class.into_ref());
+            // self.active_env_ref = prev_env;
+            // let active_env = self.active_env_mut();
+            // active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
+            // 
             Ok(self.none.into_ref())
         } else {
             let err =
@@ -391,17 +412,19 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
-            let dist = self.locals.get(&(name.lexeme.to_string(), name.line));
+            let dist = self._locals.get(&name);
             if dist.is_some() {
                 let (dst, idx) = dist.unwrap();
                 // info!("Distance found from resolution is {dst}");
                 let key = (name.lexeme.to_string(), *dst, *idx);
 
-                let env = self.active_env_mut();
-                env.assign(&key, eval_val.clone())?;
+                // let env = self.active_env_mut();
+                // env.assign(&key, eval_val.clone())?;
+                // 
+                self.environment.assign(&key, eval_val.clone())?;
             } else {
-                let global_env = self.global_env_mut();
-                global_env.find_and_assign(name.lexeme.to_string(), eval_val.clone())?;
+                // let env = self.active_env_mut();
+                self.environment.find_and_assign(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
         } else {
@@ -415,7 +438,7 @@ impl ExprVisitor for &mut Interpreter {
             let obj = match value {
                 Literal::String(s) => self.new_string(s.clone()),
                 Literal::Integer(i) => self.new_int(i.clone()),
-                Literal::Float(f) => self.new_float(f.clone()),
+                Literal::Float(f) => self.new_float(f.0.clone()),
                 Literal::Boolean(b) => self.new_bool(b.clone()),
                 Literal::None => self.new_none(),
             };
@@ -442,7 +465,7 @@ impl ExprVisitor for &mut Interpreter {
             match operator.token_type {
                 TokenType::Minus => {
                     let exc = Err(Interpreter::runtime_error(
-                        "Arguments to the minus operator must both be numbers".into(),
+                        "Operands must be two numbers or two strings".into(),
                     ));
                     let value =
                         if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
@@ -487,7 +510,7 @@ impl ExprVisitor for &mut Interpreter {
                 }
                 TokenType::Plus => {
                     let exc = Err(Interpreter::runtime_error(
-                        "Arguments to the plus operator must both be strings or numbers".into(),
+                        "Operands must be two numbers or two strings.".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
                         (left_val.as_int(), right_val.as_int())
@@ -794,7 +817,7 @@ impl ExprVisitor for &mut Interpreter {
 
     fn visit_variable_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Variable { name } = expr {
-            self.lookup_variable(name, expr)
+            self.lookup_variable(name)
         } else {
             Err(Interpreter::runtime_error(
                 "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
@@ -817,6 +840,7 @@ impl ExprVisitor for &mut Interpreter {
             }
             let call_args = FuncArgs::new(args);
             let callee_type = callee_.sox_type(self);
+            // info!("Callee type: {:?}", callee_type);
             let ret_val = match callee_type.slots.call {
                 Some(fo) => {
                     let val = (fo)(callee_, call_args, self);
@@ -880,7 +904,7 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_this_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::This { keyword } = expr {
-            let value = self.lookup_variable(keyword, expr);
+            let value = self.lookup_variable(keyword);
             value
         } else {
             Err(Interpreter::runtime_error(
@@ -891,20 +915,21 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
             let (dist_to_ns, binding_idx) = self
-                .locals
-                .get(&("super".to_string(), keyword.line))
+                ._locals
+                .get(&keyword)
                 .unwrap();
+            let this_token = Token::new(TokenType::This, "this".to_string(), Literal::None, 0);
             let (dist_to_ns2, binding_idx2) = self
-                .locals
-                .get(&("this".to_string(), keyword.line))
+                ._locals
+                .get(&this_token)
                 .unwrap();
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);
 
-            let env = self.active_env_mut();
-            let super_type = env.get(&key)?;
-            let instance = env.get(&key2)?;
+            //let env = self.active_env_mut();
+            let super_type = self.environment.get(key)?;
+            let instance = self.environment.get(key2)?;
 
             let method = if let SoxObject::Type(v) = super_type {
                 let c = v;

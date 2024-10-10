@@ -2,7 +2,7 @@ use std::ops::Range;
 
 use log::debug;
 
-use crate::token::{Literal, Token};
+use crate::token::{Float, Literal, Token};
 use crate::token_type::TokenType;
 use crate::token_type::TokenType::{
     And, Bang, BangEqual, Class, Colon, Comma, Def, Dot, Else, Equal, EqualEqual, False, For,
@@ -118,7 +118,7 @@ impl<'source> Lexer<'source> {
             let value: &str = &self.source[start..end];
             if value.contains(".") {
                 let parsed_value = value.parse::<f64>().unwrap();
-                Ok(self.yield_literal_token(Number, Literal::Float(parsed_value)))
+                Ok(self.yield_literal_token(Number, Literal::Float(Float(parsed_value))))
             } else {
                 let parsed_value = value.parse::<i64>().unwrap();
                 Ok(self.yield_literal_token(Number, Literal::Integer(parsed_value)))

@@ -1,7 +1,7 @@
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-
+use log::info;
 use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
 
@@ -12,7 +12,6 @@ use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
 use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
-use crate::environment::Namespace;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
 
@@ -36,15 +35,16 @@ impl SoxFunction {
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         if let SoxObject::TypeInstance(_) = instance {
-            let environment = interp.referenced_env(self.environment_ref); 
-            let mut new_env = environment.clone();
-            let namespace = Namespace::default();
-            new_env
-                .push(namespace)
-                .expect("Failed to push namespace into env.");
-            new_env.define("this", instance);
+            // let environment = interp.referenced_env(self.environment_ref); 
+            // let mut new_env = environment.clone();
+            // let namespace = Namespace::default();
+            // new_env
+            //     .push(namespace)
+            //     .expect("Failed to push namespace into env."); 
+            let env_ref = interp.environment.new_local_env_at(self.environment_ref);
+            interp.environment.define_at("this", instance, env_ref);
 
-            let env_ref = interp.envs.insert(new_env);
+            //let env_ref = interp.envs.insert(new_env);
             let new_func = SoxFunction {
                 name: self.name.to_string(),
                 declaration: self.declaration.clone(),
@@ -61,11 +61,10 @@ impl SoxFunction {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
-            let previous_env_ref = interpreter.active_env_ref;
+            let previous_env_ref = interpreter.environment.active;
 
-            interpreter.active_env_ref = fo.environment_ref.clone();
-
-            let mut namespace = Namespace::default();
+            interpreter.environment.active = fo.environment_ref;
+            // info!("The function env is {:?}-{:?}", interpreter.environment.active, interpreter.environment.env_link);
             let mut return_value = Ok(SoxNone {}.into_ref());
             if let Stmt::Function {
                 name: _,
@@ -74,9 +73,9 @@ impl SoxFunction {
             } = *fo.declaration.clone()
             {
                 for (param, arg) in zip(params, args.args.clone()) {
-                    namespace.define(param.lexeme, arg)?;
+                    interpreter.environment.define(param.lexeme, arg);
                 }
-                let ret = interpreter.execute_block(body.iter().collect(), Some(namespace));
+                let ret = interpreter.execute_block(body.iter().collect(), Option::from(interpreter.environment.active));
 
                 if ret.is_err() {
                     let exc = ret.err().unwrap().as_exception();
@@ -93,7 +92,7 @@ impl SoxFunction {
                     }
                 }
             }
-            interpreter.active_env_ref = previous_env_ref;
+            interpreter.environment.active = previous_env_ref;
 
             return_value
         } else {
