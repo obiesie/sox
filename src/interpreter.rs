@@ -73,22 +73,7 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-    // fn global_env_mut(&mut self) -> &mut Env {
-    //     self.envs.get_mut(self.global_env_ref).unwrap()
-    // }
-    // 
-    // fn active_env_mut(&mut self) -> &mut Env {
-    //     self.envs.get_mut(self.active_env_ref).unwrap()
-    // }
-    // 
-    // fn active_env(&self) -> &Env {
-    //     self.envs.get(self.active_env_ref).unwrap()
-    // }
-    // 
-    // pub fn referenced_env(&mut self, key: DefaultKey) -> &mut Env {
-    //     self.envs.get_mut(key).unwrap()
-    // }
-
+    
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         let mut m = statements.iter().peekable();
         while let Some(stmt) = m.next() {

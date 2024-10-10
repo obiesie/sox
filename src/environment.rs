@@ -89,19 +89,26 @@ impl Environment {
         let new_env = Namespace::new();
         let new_env_ref = self.envs.insert(new_env);
         self.env_link.insert(new_env_ref, enclosing_env_ref);
-        let entry = self.env_rc.entry(enclosing_env_ref).unwrap().or_insert(0);
-        *entry += 1;
+        if self.env_rc.contains_key(enclosing_env_ref) {
+            self.env_rc.entry(enclosing_env_ref).unwrap().and_modify(|v| *v += 1);
+        } else{
+            self.env_rc.insert(enclosing_env_ref, 1);
+        }
+        
         new_env_ref
     }
     pub fn new_local_env(&mut self) -> DefaultKey {
+        // info!("env links: {:?}", self.env_link);
         let new_env = Namespace::new();
         let new_env_ref = self.envs.insert(new_env);
         self.env_link.insert(new_env_ref, self.active);
-        let entry = self.env_rc.entry(self.active).unwrap().or_insert(0);
-        *entry += 1;
-
+        
+        if self.env_rc.contains_key(self.active) {
+            self.env_rc.entry(self.active).unwrap().and_modify(|v| *v += 1);
+        } else{
+            self.env_rc.insert(self.active, 1);
+        }
         self.active = new_env_ref;
-
         new_env_ref
     }
 
@@ -109,9 +116,13 @@ impl Environment {
         let new_env = Namespace::new();
         let new_env_ref = self.envs.insert(new_env);
         self.env_link.insert(new_env_ref, self.active);
-        let entry = self.env_rc.entry(self.active).unwrap().or_insert(1);
-        *entry += 1;
-
+        // let entry = self.env_rc.entry(self.active).unwrap().or_insert(0);
+        // *entry += 1;
+        if self.env_rc.contains_key(self.active) {
+            self.env_rc.entry(self.active).unwrap().and_modify(|v| *v += 1);
+        } else{
+            self.env_rc.insert(self.active, 1);
+        }
         new_env_ref
     }
     pub fn define<T: ToString + Display>(&mut self, key: T, value: SoxObject) {
@@ -140,10 +151,13 @@ impl Environment {
         let mut namespace = self.envs.get_mut(self.active).unwrap();
         let mut namespace_ref = self.active;
         let mut dist = 0;
+        // info!("env links: {:?}", self.env_link);
         while dist < dist_to_ns {
             match self.env_link.get(&namespace_ref) {
                 Some(&parent_ns) => {
                     namespace_ref = parent_ns;
+
+                    // info!("parent ns: {:?}", parent_ns);
                     namespace = self.envs.get_mut(parent_ns).unwrap();
                 }
                 None => {
@@ -222,14 +236,14 @@ impl Environment {
 
     pub fn pop(&mut self) -> SoxResult<()> {
         let (active, parent) = (self.active, self.env_link.get(&self.active).unwrap());
-
-        self.env_rc.entry(*parent).unwrap().and_modify(|v| *v -= 1);
         self.active = *parent;
 
         if self.env_rc.entry(active).unwrap().or_default() == &0 {
             self.envs.remove(active);
+            self.env_rc.entry(*parent).unwrap().and_modify(|v| *v -= 1);
             self.env_link.remove(&active);
         }
+
         Ok(())
     }
 }
