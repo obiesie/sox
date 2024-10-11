@@ -123,28 +123,28 @@ impl<I: Iterator<Item = Token>> Parser<I> {
     fn function(&mut self, _kind: String) -> Result<Stmt, SyntaxError> {
         let name = self.consume(Identifier, "Expect function name.".into())?;
         let _ = self.consume(LeftParen, "Expect '(' after function name.".into())?;
-        let mut params = vec![];
+        let mut params: Vec<Token> = vec![];
         if !self.check(RightParen) {
             loop {
-                if params.len() >= 255 {
+                let param = self.consume(Identifier, "Expect parameter name.".into())?;
+                params.push(param);
+                if params.len() > 255 {
                     return Err(SyntaxError {
-                        msg: "Cannot have more than 255 parameters.".into(),
+                        msg: format!("Error at '{}'. Can't have more than 255 parameters.", params.last().unwrap().lexeme),
                         line: name.line,
                     });
                 }
-                let param = self.consume(Identifier, "Expect parameter name.".into())?;
-                params.push(param);
                 if !self.match_token(vec![Comma]) {
                     break;
                 }
             }
         }
         let _ = self.consume(RightParen, "Expect ')' after function parameters.".into())?;
-        let _ = self.consume(LeftBrace, "Expect '{' before function body.".into())?;
+        let _ = self.consume(LeftBrace, "Expect '{' before function body".into())?;
 
         let body = self.block()?;
         let stmt = Stmt::Function { name, params, body };
-        return Ok(stmt);
+        Ok(stmt)
     }
 
     fn var_declaration(&mut self) -> Result<Stmt, SyntaxError> {
@@ -154,7 +154,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             initializer = Some(self.expression()?);
         }
         let _ = self.consume(Semi, "Expect ';' after variable declaration".into())?;
-        return Ok(Stmt::Var { name, initializer });
+        Ok(Stmt::Var { name, initializer })
     }
 
     fn statement(&mut self) -> Result<Stmt, SyntaxError> {

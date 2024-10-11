@@ -16,7 +16,7 @@ lazy_static::lazy_static! {
 }
 
 
-static TEST_SUITES: [&str; 1] = ["for"];
+static TEST_SUITES: [&str; 1] = ["function"];
 
 #[test]
 fn test_compiler(){
@@ -36,9 +36,9 @@ fn test_compiler(){
     }
 
     for test_path in test_paths {
-        if test_path != "tests/for/closure_in_body.sox".to_string(){
-            continue;
-        }
+        // if test_path != "tests/for/closure_in_body.sox".to_string(){
+        //     continue;
+        // }
         println!("test_path={}", test_path);
         let hay = fs::read_to_string(test_path.to_string())
             .expect("Failed to read file at {test_path}");
