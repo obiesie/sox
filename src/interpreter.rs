@@ -16,7 +16,7 @@ use crate::catalog::TypeLibrary;
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
 use crate::core::{SoxObject, SoxResult};
-use crate::environment::{Environment, Namespace};
+use crate::environment::{EnvRef, Environment, Namespace};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
 use crate::stmt::{Stmt, StmtVisitor};
@@ -73,7 +73,7 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-    
+
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         let mut m = statements.iter().peekable();
         while let Some(stmt) = m.next() {
@@ -102,7 +102,7 @@ impl Interpreter {
     pub fn execute_block(
         &mut self,
         statements: Vec<&Stmt>,
-        ns_ref: Option<DefaultKey>,
+        ns_ref: Option<EnvRef>,
     ) -> SoxResult<()> {
         // let active_env = self.active_env_mut();
         // if let Some(ns) = namespace {
@@ -111,26 +111,19 @@ impl Interpreter {
         //     active_env.new_namespace()?;
         // }
         if let Some(ns_ref) = ns_ref {
-            self.environment.active = ns_ref;
+            self.environment.active = ns_ref.clone();
         } else{
             self.environment.new_local_env();
         }
-        // let e = self.environment.new_local_env(); 
-        // info!("the local env is {:?}", e);
         for statement in statements {
-            // debug!("{:?}", statement);
 
             let res = self.execute(statement);
             if let Err(v) = res {
-                // let active_env = self.active_env_mut();
-                // active_env.pop()?;
                 
                self.environment.pop().expect("TODO: panic message");
                 return Err(v);
             }
         }
-        // let active_env = self.active_env_mut();
-        // active_env.pop()?;
         self.environment.pop().expect("TODO: panic message");
         Ok(())
     }
@@ -139,7 +132,9 @@ impl Interpreter {
         if let Some(dist) = self._locals.get(name) {
             let (dst, binding_idx) = dist;
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
-            self.environment.get(key)
+            let val = self.environment.get(key);
+            // debug!("The value of {:?} is {:?}", name.lexeme, val);
+            val
         } else {
             let val = self.environment.get_from_global_scope(name.lexeme.to_string());
             val
@@ -268,25 +263,13 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_function_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if let Stmt::Function {
             name,
-            params: _params,
+            params: params,
             body: _body,
         } = stmt
         {
-            // let func_env = Env::default();
-            // let env_id = self.envs.insert(func_env);
-           
-            let func_env_ref = self.environment.new_local_env_unused();
             let stmt_clone = stmt.clone();
-            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, func_env_ref);
+            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, self.environment.active.clone(), params.len() as i8);
             self.environment.define(name.lexeme.to_string(), fo.into_ref());
-            // let ns = {
-            //     let active_env = self.active_env_mut();
-            //     active_env.define(name.lexeme.clone(), fo.into_ref());
-            //     active_env.namespaces.clone()
-            // };
-            // let func_env = self.envs.get_mut(env_id).unwrap();
-            // func_env.namespaces = ns;
-            // 
             Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
@@ -332,18 +315,8 @@ impl StmtVisitor for &mut Interpreter {
             //let prev_env = self.active_env_ref.clone();
             // setup super keyword within namespace
             if sc.is_some() {
-                // let env_ref = {
-                //     let active_env = self.active_env();
-                //     let mut env_copy = active_env.clone();
-                //     let namespace = Namespace::default();
-                //     env_copy.push(namespace)?;
-                //     let env_ref = self.envs.insert(env_copy);
-                // 
-                //     env_ref
-                // };
-                // self.active_env_ref = env_ref;
+
                 self.environment.new_local_env();
-                // let env = self.referenced_env(env_ref);
                 self.environment.define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
             }
 
@@ -361,6 +334,7 @@ impl StmtVisitor for &mut Interpreter {
                         declaration: Box::new(method.clone()),
                         environment_ref: self.environment.active.clone(),
                         is_initializer: name.lexeme == "init".to_string(),
+                        arity: _params.len() as i8,
                     };
                     methods_map.insert(name.lexeme.clone().into(), func.into_ref());
                 }
@@ -825,7 +799,6 @@ impl ExprVisitor for &mut Interpreter {
             }
             let call_args = FuncArgs::new(args);
             let callee_type = callee_.sox_type(self);
-            // info!("Callee type: {:?}", callee_type);
             let ret_val = match callee_type.slots.call {
                 Some(fo) => {
                     let val = (fo)(callee_, call_args, self);

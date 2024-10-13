@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-use log::info;
+use std::rc::Rc;
+use log::{debug, info};
 use once_cell::sync::OnceCell;
 use slotmap::DefaultKey;
 
@@ -12,44 +13,43 @@ use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
 use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
+
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SoxFunction {
     pub name: String,
     pub declaration: Box<Stmt>,
-    pub environment_ref: DefaultKey,
+    pub environment_ref: EnvRef,
     pub is_initializer: bool,
+    pub arity: i8,
 }
 
 impl SoxFunction {
-    pub fn new(name: String, declaration: Stmt, environment_ref: DefaultKey) -> Self {
+    pub fn new(name: String, declaration: Stmt, environment_ref: EnvRef, arity: i8) -> Self {
         Self {
             name,
             declaration: Box::new(declaration),
             environment_ref,
             is_initializer: false,
+            arity
         }
     }
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         if let SoxObject::TypeInstance(_) = instance {
-            // let environment = interp.referenced_env(self.environment_ref); 
-            // let mut new_env = environment.clone();
-            // let namespace = Namespace::default();
-            // new_env
-            //     .push(namespace)
-            //     .expect("Failed to push namespace into env."); 
-            let env_ref = interp.environment.new_local_env_at(self.environment_ref);
-            interp.environment.define_at("this", instance, env_ref);
+            
+            let env_ref = interp.environment.new_local_env_at(self.environment_ref.clone());
+            interp.environment.define_at("this", instance, env_ref.clone());
 
-            //let env_ref = interp.envs.insert(new_env);
             let new_func = SoxFunction {
                 name: self.name.to_string(),
                 declaration: self.declaration.clone(),
                 environment_ref: env_ref,
                 is_initializer: false,
+                arity: self.arity,
             };
             Ok(new_func.into_ref())
         } else {
@@ -61,10 +61,16 @@ impl SoxFunction {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
-            let previous_env_ref = interpreter.environment.active;
+            if args.args.len() > fo.arity as usize {
+                let error = Exception::Err(RuntimeError {
+                    msg: format!("Expected {} arguments but got {}", fo.arity, args.args.len()),
+                });
+                return Err(error.into_ref()) 
+            }
+            let previous_env_ref = interpreter.environment.active.clone();
 
-            interpreter.environment.active = fo.environment_ref;
-            // info!("The function env is {:?}-{:?}", interpreter.environment.active, interpreter.environment.env_link);
+            interpreter.environment.active = fo.environment_ref.clone();
+            // debug!("The closure env[{:?}] is {:#?}", fo.environment_ref, interpreter.environment.envs.get(interpreter.environment.active));
             let mut return_value = Ok(SoxNone {}.into_ref());
             if let Stmt::Function {
                 name: _,
@@ -72,10 +78,12 @@ impl SoxFunction {
                 body,
             } = *fo.declaration.clone()
             {
+                let exec_ns = interpreter.environment.new_local_env_at(fo.environment_ref.clone());
+                let env = interpreter.environment.envs.get_mut(*exec_ns).unwrap();
                 for (param, arg) in zip(params, args.args.clone()) {
-                    interpreter.environment.define(param.lexeme, arg);
+                    env.define(param.lexeme, arg).expect("TODO: panic message");
                 }
-                let ret = interpreter.execute_block(body.iter().collect(), Option::from(interpreter.environment.active));
+                let ret = interpreter.execute_block(body.iter().collect(), Option::from(exec_ns));
 
                 if ret.is_err() {
                     let exc = ret.err().unwrap().as_exception();
@@ -101,6 +109,12 @@ impl SoxFunction {
             });
             Err(error.into_ref())
         }
+    }
+}
+
+impl Drop for SoxFunction {
+    fn drop(&mut self) {
+       info!("Dropping function {}", self.name); 
     }
 }
 

@@ -56,7 +56,7 @@ impl Resolver {
     pub fn resolve(
         &mut self,
         statements: &Vec<Stmt>,
-    ) -> Result<HashMap<Token,(usize, usize)>, ResolverError> {
+    ) -> Result<HashMap<Token, (usize, usize)>, ResolverError> {
         for stmt in statements {
             self.resolve_stmt(stmt.clone())?;
         }
@@ -103,7 +103,10 @@ impl Resolver {
 
     pub fn define(&mut self, name: Token) -> Result<(), ResolverError> {
         if let Some(scope) = self.scopes.last_mut() {
-            if let Some(entry) = scope.iter_mut().find(|e| e.0.lexeme == name.lexeme.as_str()) {
+            if let Some(entry) = scope
+                .iter_mut()
+                .find(|e| e.0.lexeme == name.lexeme.as_str())
+            {
                 entry.1 = true;
             }
         }
@@ -245,7 +248,8 @@ impl StmtVisitor for &mut Resolver {
                 self.resolve_expr(sc)?;
 
                 self.begin_scope();
-                let super_token = Token::new(TokenType::Super, "super".to_string(), Literal::None, 0);
+                let super_token =
+                    Token::new(TokenType::Super, "super".to_string(), Literal::None, 0);
                 self.scopes.last_mut().unwrap().push((super_token, true));
             }
 

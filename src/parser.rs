@@ -126,14 +126,18 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let mut params: Vec<Token> = vec![];
         if !self.check(RightParen) {
             loop {
-                let param = self.consume(Identifier, "Expect parameter name.".into())?;
-                params.push(param);
-                if params.len() > 255 {
+                if params.len() >= 255 {
+                    while self.tokens.peek().unwrap().lexeme == " "  {
+                        self.tokens.next();
+                    }
                     return Err(SyntaxError {
-                        msg: format!("Error at '{}'. Can't have more than 255 parameters.", params.last().unwrap().lexeme),
+                        msg: format!("Error at '{}'. Can't have more than 255 parameters.", self.tokens.peek().unwrap().lexeme),
                         line: name.line,
                     });
                 }
+                let param = self.consume(Identifier, "Expect parameter name.".into())?;
+                params.push(param);
+                
                 if !self.match_token(vec![Comma]) {
                     break;
                 }
@@ -417,7 +421,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let mut arguments = vec![];
         if !self.check(RightParen) {
             loop {
-                if arguments.len() > 255 {
+                if arguments.len() >= 255 {
                     return Err(SyntaxError {
                         msg: "Function cannot have more than 255 arguments".to_string(),
                         line: self.previous().line,
