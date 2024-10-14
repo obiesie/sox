@@ -1,21 +1,13 @@
-let closure;
 {
-  let a = "a";
-
-  {
-    let b = "b";
-    def returnA() {
-      return a;
-    }
-
-    closure = returnA;
-
-    if (false) {
-      def returnB() {
-        return b;
-      }
-    }
+  def isEven(n) {
+    if (n == 0) return true;
+    return isOdd(n - 1); // expect runtime error: NameError: name 'isOdd' is not defined.
   }
 
-  print closure(); // expect: a
+  def isOdd(n) {
+    if (n == 0) return false;
+    return isEven(n - 1);
+  }
+
+  isEven(4);
 }

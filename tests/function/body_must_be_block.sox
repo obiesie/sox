@@ -1,2 +1,2 @@
-// [line 3] Error at '123': Expect '{' before function body.
-fun f() 123;
+// [line 2] Error at '123': Expect '{' before function body.
+def f() 123;

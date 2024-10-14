@@ -143,7 +143,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 }
             }
         }
-        let _ = self.consume(RightParen, "Expect ')' after function parameters.".into())?;
+        let _ = self.consume(RightParen, "Expect ')' after function parameters".into())?;
         let _ = self.consume(LeftBrace, "Expect '{' before function body".into())?;
 
         let body = self.block()?;

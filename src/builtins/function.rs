@@ -63,7 +63,7 @@ impl SoxFunction {
         if let Some(fo) = fo.as_func() {
             if (args.args.len() != fo.arity as usize) {
                 let error = Exception::Err(RuntimeError {
-                    msg: format!("Expected {} arguments but got {}", fo.arity, args.args.len()),
+                    msg: format!("Expected {} arguments but got {}.", fo.arity, args.args.len()),
                 });
                 return Err(error.into_ref()) 
             }
@@ -112,11 +112,6 @@ impl SoxFunction {
     }
 }
 
-impl Drop for SoxFunction {
-    fn drop(&mut self) {
-       info!("Dropping function {}", self.name); 
-    }
-}
 
 impl SoxObjectPayload for SoxFunction {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {

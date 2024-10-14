@@ -133,7 +133,6 @@ impl Interpreter {
             let (dst, binding_idx) = dist;
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
             let val = self.environment.get(key);
-            // debug!("The value of {:?} is {:?}", name.lexeme, val);
             val
         } else {
             let val = self.environment.get_from_global_scope(name.lexeme.to_string());
