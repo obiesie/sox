@@ -194,7 +194,6 @@ impl<'source> Iterator for Lexer<'source> {
             self.start = self.current;
             let character = self.advance();
             let token = if let Some(character) = character {
-                
                 match character {
                     '(' => Some(self.yield_token(LeftParen)),
                     ')' => Some(self.yield_token(RightParen)),

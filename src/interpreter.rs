@@ -73,7 +73,6 @@ impl Interpreter {
         SoxNone {}.into_ref()
     }
 
-
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
         let mut m = statements.iter().peekable();
         while let Some(stmt) = m.next() {
@@ -84,7 +83,8 @@ impl Interpreter {
             }
             let result_value = result.unwrap();
             if m.peek().is_none() {
-                if let SoxObject::None(_) = result_value {} else {
+                if let SoxObject::None(_) = result_value {
+                } else {
                     println!("{}", result_value.repr(&self));
                 }
             }
@@ -112,15 +112,13 @@ impl Interpreter {
         // }
         if let Some(ns_ref) = ns_ref {
             self.environment.active = ns_ref.clone();
-        } else{
+        } else {
             self.environment.new_local_env();
         }
         for statement in statements {
-
             let res = self.execute(statement);
             if let Err(v) = res {
-                
-               self.environment.pop().expect("TODO: panic message");
+                self.environment.pop().expect("TODO: panic message");
                 return Err(v);
             }
         }
@@ -135,7 +133,9 @@ impl Interpreter {
             let val = self.environment.get(key);
             val
         } else {
-            let val = self.environment.get_from_global_scope(name.lexeme.to_string());
+            let val = self
+                .environment
+                .get_from_global_scope(name.lexeme.to_string());
             val
         }
     }
@@ -154,9 +154,7 @@ impl StmtVisitor for &mut Interpreter {
         if let Stmt::Expression(expr) = stmt {
             let value = self.evaluate(expr);
             return_value = match value {
-                Ok(v) => {
-                    Ok(v)
-                },
+                Ok(v) => Ok(v),
                 Err(v) => Err(v.into()),
             };
         }
@@ -192,9 +190,9 @@ impl StmtVisitor for &mut Interpreter {
             }
             // let active_env = self.active_env_mut();
             let name_ident = name.lexeme.to_string();
-            // 
+            //
             // active_env.define(name_ident, value)
-            
+
             self.environment.define(name_ident, value)
         } else {
             return Err(Interpreter::runtime_error(
@@ -209,7 +207,6 @@ impl StmtVisitor for &mut Interpreter {
         if let Stmt::Block(statements) = stmt {
             let stmts = statements.iter().map(|v| v).collect::<Vec<&Stmt>>();
 
-           
             self.execute_block(stmts, None)?;
 
             Ok(self.none.into_ref())
@@ -267,8 +264,14 @@ impl StmtVisitor for &mut Interpreter {
         } = stmt
         {
             let stmt_clone = stmt.clone();
-            let fo = SoxFunction::new(name.lexeme.to_string(), stmt_clone, self.environment.active.clone(), params.len() as i8);
-            self.environment.define(name.lexeme.to_string(), fo.into_ref());
+            let fo = SoxFunction::new(
+                name.lexeme.to_string(),
+                stmt_clone,
+                self.environment.active.clone(),
+                params.len() as i8,
+            );
+            self.environment
+                .define(name.lexeme.to_string(), fo.into_ref());
             Ok(self.none.into_ref())
         } else {
             Err(Interpreter::runtime_error(
@@ -314,9 +317,9 @@ impl StmtVisitor for &mut Interpreter {
             //let prev_env = self.active_env_ref.clone();
             // setup super keyword within namespace
             if sc.is_some() {
-
                 self.environment.new_local_env();
-                self.environment.define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
+                self.environment
+                    .define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
             }
 
             let mut methods_map = HashMap::new();
@@ -349,7 +352,8 @@ impl StmtVisitor for &mut Interpreter {
                 methods_map,
             );
             self.environment.active = prev_env_ref;
-            self.environment.find_and_assign(name.lexeme.to_string(), class.into_ref());
+            self.environment
+                .find_and_assign(name.lexeme.to_string(), class.into_ref());
             // self.active_env_ref = prev_env;
             // let active_env = self.active_env_mut();
             // active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
@@ -378,11 +382,12 @@ impl ExprVisitor for &mut Interpreter {
 
                 // let env = self.active_env_mut();
                 // env.assign(&key, eval_val.clone())?;
-                // 
+                //
                 self.environment.assign(&key, eval_val.clone())?;
             } else {
                 // let env = self.active_env_mut();
-                self.environment.assign_in_global(name.lexeme.to_string(), eval_val.clone())?;
+                self.environment
+                    .assign_in_global(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
         } else {
@@ -425,45 +430,54 @@ impl ExprVisitor for &mut Interpreter {
                     let exc = Err(Interpreter::runtime_error(
                         "Operands must be two numbers or two strings".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-                            Ok(SoxInt::from(v1.value - v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxFloat::from(v1.value - v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxFloat::from(v1.value - (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxFloat::from((v1.value as f64) - v2.value).into_ref())
-                            } else {
-                                exc
-                            }
-                        }else {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxInt::from(v1.value - v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                            Ok(SoxFloat::from(v1.value - v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxFloat::from(v1.value - (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxFloat::from((v1.value as f64) - v2.value).into_ref())
+                        } else {
                             exc
-                        };
+                        }
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::Rem => {
                     let exc = Err(Interpreter::runtime_error(
                         "Arguments to the remainder operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-                            Ok(SoxInt::from(v1.value % v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxFloat::from(v1.value % v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxFloat::from(v1.value % (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxFloat::from((v1.value as f64) %     v2.value).into_ref())
-                            } else {
-                                exc
-                            }
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxInt::from(v1.value % v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                            Ok(SoxFloat::from(v1.value % v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxFloat::from(v1.value % (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxFloat::from((v1.value as f64) % v2.value).into_ref())
+                        } else {
+                            exc
                         }
-                        else {
-                           exc
-                        };
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::Plus => {
@@ -474,12 +488,16 @@ impl ExprVisitor for &mut Interpreter {
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxInt::from(v1.value + v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxFloat::from(v1.value + v2.value).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
                             Ok(SoxFloat::from(v1.value + (v2.value as f64)).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
                             Ok(SoxFloat::from((v1.value as f64) + v2.value).into_ref())
                         } else {
                             exc
@@ -502,68 +520,77 @@ impl ExprVisitor for &mut Interpreter {
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxInt::from(v1.value * v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxFloat::from(v1.value * v2.value).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
                             Ok(SoxFloat::from(v1.value * (v2.value as f64)).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                            Ok(SoxFloat::from((v1.value as f64) *    v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxFloat::from((v1.value as f64) * v2.value).into_ref())
                         } else {
                             exc
                         }
-                    }
-                    else {
+                    } else {
                         exc
                     };
                     value
                 }
                 TokenType::Slash => {
-                    let exc =  Err(Interpreter::runtime_error(
+                    let exc = Err(Interpreter::runtime_error(
                         "Arguments to the division operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
-
-                            Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxFloat::from(v1.value / v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxFloat::from(v1.value / (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxFloat::from((v1.value as f64) /    v2.value).into_ref())
-                            } else {
-                                exc
-                            }
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                            Ok(SoxFloat::from(v1.value / v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxFloat::from(v1.value / (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxFloat::from((v1.value as f64) / v2.value).into_ref())
+                        } else {
+                            exc
                         }
-                        else {
-                           exc
-                        };
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::Less => {
                     let exc = Err(Interpreter::runtime_error(
                         "Arguments to the less than operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value < v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value < v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxBool::from(v1.value < (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) < v2.value).into_ref())
+                        } else {
+                            exc
                         }
-                        else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxBool::from(v1.value < v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxBool::from(v1.value < (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxBool::from((v1.value as f64) <    v2.value).into_ref())
-                            } else {
-                                exc
-                            }
-                        }
-                        else {
-                           exc
-                        };
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::Greater => {
@@ -574,117 +601,133 @@ impl ExprVisitor for &mut Interpreter {
                         (left_val.as_int(), right_val.as_int())
                     {
                         Ok(SoxBool::from(v1.value > v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value > v2.value).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
                             Ok(SoxBool::from(v1.value > (v2.value as f64)).into_ref())
-                        } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                            Ok(SoxBool::from((v1.value as f64) >  v2.value).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) > v2.value).into_ref())
                         } else {
                             exc
                         }
-                    }
-                    else {
+                    } else {
                         exc
                     };
                     value
                 }
 
                 TokenType::EqualEqual => {
-
-                    let exc =Err(Interpreter::runtime_error(
+                    let exc = Err(Interpreter::runtime_error(
                         "Arguments to the equals operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value == v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
-                            } else {
-                                exc
-                            }
-                        }
-                        else {
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
+                        } else {
                             exc
-                        };
+                        }
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::BangEqual => {
-
-                    let exc =  Err(Interpreter::runtime_error(
+                    let exc = Err(Interpreter::runtime_error(
                         "Arguments to the not equals operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value != v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxBool::from((v1.value as f64) !=    v2.value).into_ref())
-                            } else {
-                                exc
-                            }
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) != v2.value).into_ref())
+                        } else {
+                            exc
                         }
-                        else {
-                           exc
-                        };
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::LessEqual => {
                     let exc = Err(Interpreter::runtime_error(
-                        "Arguments to the less than or equals operator must both be numbers"
-                            .into(),
+                        "Arguments to the less than or equals operator must both be numbers".into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value <= v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value <= v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some(){
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()){
-                                Ok(SoxBool::from(v1.value <= v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxBool::from(v1.value <= (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()){
-                                Ok(SoxBool::from((v1.value as f64) <=    v2.value).into_ref())
-                            } else {
-                                exc
-                            }
-                        }
-                        else {
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxBool::from(v1.value <= (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) <= v2.value).into_ref())
+                        } else {
                             exc
-                        };
+                        }
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::GreaterEqual => {
-
                     let exc = Err(Interpreter::runtime_error(
                         "Arguments to the greater than or equals operator must both be numbers"
                             .into(),
                     ));
-                    let value =
-                        if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_int()) {
+                    let value = if let (Some(v1), Some(v2)) =
+                        (left_val.as_int(), right_val.as_int())
+                    {
+                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
                             Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                        } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                            if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                                Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_int()) {
-                                Ok(SoxBool::from(v1.value >= (v2.value as f64)).into_ref())
-                            } else if let (Some(v1), Some(v2)) = (left_val.as_int(), right_val.as_float()) {
-                                Ok(SoxBool::from((v1.value as f64) >= v2.value).into_ref())
-                            } else {
-                                exc
-                            }
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_float(), right_val.as_int())
+                        {
+                            Ok(SoxBool::from(v1.value >= (v2.value as f64)).into_ref())
+                        } else if let (Some(v1), Some(v2)) =
+                            (left_val.as_int(), right_val.as_float())
+                        {
+                            Ok(SoxBool::from((v1.value as f64) >= v2.value).into_ref())
                         } else {
-                           exc
-                        };
+                            exc
+                        }
+                    } else {
+                        exc
+                    };
                     value
                 }
                 TokenType::Bang => {
@@ -871,15 +914,9 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
-            let (dist_to_ns, binding_idx) = self
-                ._locals
-                .get(&keyword)
-                .unwrap();
+            let (dist_to_ns, binding_idx) = self._locals.get(&keyword).unwrap();
             let this_token = Token::new(TokenType::This, "this".to_string(), Literal::None, 0);
-            let (dist_to_ns2, binding_idx2) = self
-                ._locals
-                .get(&this_token)
-                .unwrap();
+            let (dist_to_ns2, binding_idx2) = self._locals.get(&this_token).unwrap();
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);

@@ -1,6 +1,6 @@
-use std::hash::{Hash, Hasher};
 use crate::token_type::TokenType;
 use rand::Rng;
+use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Literal {
@@ -24,13 +24,12 @@ impl PartialEq for Float {
 impl Hash for Float {
     fn hash<H: Hasher>(&self, state: &mut H) {
         if self.0.is_nan() {
-            state.write_u64( f64::NAN.to_bits());
+            state.write_u64(f64::NAN.to_bits());
         } else {
             state.write_u64(self.0.to_bits());
         }
     }
 }
-
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Token {
@@ -38,7 +37,7 @@ pub struct Token {
     pub lexeme: String,
     pub literal: Literal,
     pub line: usize,
-    pub id: u32
+    pub id: u32,
 }
 
 impl Token {
@@ -49,7 +48,7 @@ impl Token {
             lexeme,
             literal,
             line,
-            id: rng.gen()
+            id: rng.gen(),
         }
     }
 }

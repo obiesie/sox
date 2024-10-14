@@ -66,8 +66,8 @@ impl From<f64> for SoxFloat {
     }
 }
 
-impl Representable for SoxFloat{
+impl Representable for SoxFloat {
     fn repr(&self, i: &Interpreter) -> String {
-       self.value.to_string()
+        self.value.to_string()
     }
 }

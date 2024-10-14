@@ -2,7 +2,9 @@ use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-use crate::core::{Representable, SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};
+use crate::core::{
+    Representable, SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject,
+};
 use crate::interpreter::Interpreter;
 
 pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;

@@ -65,9 +65,9 @@ impl From<String> for SoxString {
     }
 }
 
-impl Representable for SoxString{
+impl Representable for SoxString {
     fn repr(&self, i: &Interpreter) -> String {
-       self.value.to_string()
+        self.value.to_string()
     }
 }
 #[cfg(test)]

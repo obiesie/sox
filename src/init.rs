@@ -48,16 +48,15 @@ pub fn run(source: String, enable_var_resolution: bool) {
         if enable_var_resolution {
             let resolved_data = var_resolver.resolve(&ast.as_ref().unwrap());
             match resolved_data {
-                Ok(data)  => {
+                Ok(data) => {
                     interpreter._locals = data;
                     interpreter.interpret(&ast.unwrap())
                 }
                 Err(e) => {
                     println!("Error - {:?}", e);
-                },
+                }
             }
             //interpreter._locals = resolved_data.unwrap();
         }
-        
     }
 }

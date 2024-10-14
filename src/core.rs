@@ -163,7 +163,7 @@ pub trait StaticType {
         let typ: SoxType = Self::create_static_type();
         let cell = Self::static_cell();
         cell.set(typ)
-            .unwrap_or_else(|_| print!("Double initialization") );
+            .unwrap_or_else(|_| print!("Double initialization"));
         let v = cell.get().unwrap();
         v
     }
@@ -268,6 +268,6 @@ pub trait SoxObjectPayload: Any + Sized + 'static {
     fn class(&self, i: &Interpreter) -> &SoxType;
 }
 
-pub trait Representable{
+pub trait Representable {
     fn repr(&self, i: &Interpreter) -> String;
 }

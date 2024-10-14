@@ -7,7 +7,9 @@ use once_cell::sync::OnceCell;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
 use crate::builtins::method::{FuncArgs, SoxMethod};
-use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType};
+use crate::core::{
+    Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType,
+};
 use crate::interpreter::Interpreter;
 use crate::token::Token;
 
@@ -96,9 +98,9 @@ impl SoxType {
     }
 }
 
-impl Representable for SoxType{
+impl Representable for SoxType {
     fn repr(&self, i: &Interpreter) -> String {
-       format!("<Type {}>", self.name.as_ref().unwrap().to_string()) 
+        format!("<Type {}>", self.name.as_ref().unwrap().to_string())
     }
 }
 impl SoxObjectPayload for SoxType {
@@ -185,9 +187,16 @@ impl SoxInstance {
     }
 }
 
-impl Representable for SoxInstance{
+impl Representable for SoxInstance {
     fn repr(&self, i: &Interpreter) -> String {
-       format!("<{} instance>", self.typ.name.as_ref().unwrap_or(&"Unknown type".to_string()).to_string())
+        format!(
+            "<{} instance>",
+            self.typ
+                .name
+                .as_ref()
+                .unwrap_or(&"Unknown type".to_string())
+                .to_string()
+        )
     }
 }
 impl SoxObjectPayload for SoxInstance {

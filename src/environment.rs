@@ -22,13 +22,16 @@ impl Default for Namespace {
     }
 }
 impl Namespace {
-
     pub(crate) fn new() -> Self {
         let bindings = vec![];
         Self { bindings }
     }
 
-    pub(crate) fn define<T: ToString + Display>(&mut self, key: T, value: SoxObject) -> SoxResult<()> {
+    pub(crate) fn define<T: ToString + Display>(
+        &mut self,
+        key: T,
+        value: SoxObject,
+    ) -> SoxResult<()> {
         self.bindings.push((key.to_string(), value));
         Ok(())
     }
@@ -55,7 +58,8 @@ impl Namespace {
             debug!("Bindings are {:#?}", self.bindings);
             Err(Exception::Err(RuntimeError {
                 msg: format!("NameError: name '{}' is not defined", name),
-            }).into_ref())
+            })
+            .into_ref())
         }
     }
 
@@ -63,7 +67,6 @@ impl Namespace {
         self.bindings.get(idx)
     }
 }
-
 
 impl Display for Namespace {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
@@ -81,8 +84,7 @@ pub struct Environment {
 }
 
 impl Environment {
-    
-    pub fn stack_new_env(&mut self, ns: Namespace) -> EnvRef{
+    pub fn stack_new_env(&mut self, ns: Namespace) -> EnvRef {
         let env_ref = self.envs.insert(ns);
         let env_ref = Rc::new(env_ref);
         env_ref
@@ -102,7 +104,7 @@ impl Environment {
         }
     }
 
-    pub fn define_at<T: ToString + Display>(&mut self, key: T, value: SoxObject, ns_ref: EnvRef)  {
+    pub fn define_at<T: ToString + Display>(&mut self, key: T, value: SoxObject, ns_ref: EnvRef) {
         let ns = self.envs.get_mut(*ns_ref).unwrap();
         let _ = ns.define(key, value);
     }
@@ -111,7 +113,6 @@ impl Environment {
         let new_env = Namespace::new();
         let new_env_ref = self.stack_new_env(new_env);
         self.env_link.insert(new_env_ref.clone(), enclosing_env_ref);
-        
 
         new_env_ref
     }
@@ -141,7 +142,8 @@ impl Environment {
             Some(v) => Ok(v.1.clone()),
             None => Err(Exception::Err(RuntimeError {
                 msg: format!("NameError: name '{key_string}' is not defined."),
-            }).into_ref())
+            })
+            .into_ref()),
         }
     }
 
@@ -158,9 +160,12 @@ impl Environment {
                     // info!("Fetching parent namespace {:?}", namespace_ref);
                     namespace = self.envs.get_mut(**parent_ns).unwrap();
                 }
-                None => return Err(Exception::Err(RuntimeError {
-                    msg: format!("NameError: name '{:?}' is not defined", name),
-                }).into_ref())
+                None => {
+                    return Err(Exception::Err(RuntimeError {
+                        msg: format!("NameError: name '{:?}' is not defined", name),
+                    })
+                    .into_ref())
+                }
             }
             dist += 1;
         }
@@ -176,7 +181,11 @@ impl Environment {
         while let Some(namespace_key) = current_ns_key {
             let namespace = self.envs.get_mut(*namespace_key).unwrap();
             if let Some(value) = namespace.bindings.iter_mut().find_map(|(k, v)| {
-                if *k == key_string { Some(v.clone()) } else { None }
+                if *k == key_string {
+                    Some(v.clone())
+                } else {
+                    None
+                }
             }) {
                 return Ok(value);
             }
@@ -184,7 +193,8 @@ impl Environment {
         }
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{key_string}' is not defined"),
-        }).into_ref())
+        })
+        .into_ref())
     }
 
     pub fn find_and_assign<T: ToString + Display>(
@@ -204,7 +214,8 @@ impl Environment {
         }
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{key_string}' is not defined."),
-        }).into_ref())
+        })
+        .into_ref())
     }
 
     pub fn assign_in_global<T: ToString + Display>(
@@ -218,12 +229,13 @@ impl Environment {
             v.1 = value;
             return Ok(());
         }
-       
+
         Err(Exception::Err(RuntimeError {
             msg: format!("NameError: name '{key_string}' is not defined."),
-        }).into_ref())
+        })
+        .into_ref())
     }
-    
+
     pub fn assign(&mut self, key: &EnvKey, value: SoxObject) -> SoxResult<()> {
         let (_, mut dist_to_ns, _) = key;
         let mut ns_key = Some(self.active.clone());
@@ -234,19 +246,21 @@ impl Environment {
         let ns = self.envs.get_mut(*ns_key.unwrap()).unwrap();
         ns.assign(&key, value)?;
         Ok(())
-    }  
+    }
 
     pub fn pop(&mut self) -> SoxResult<()> {
-        let (active, parent) = (self.active.clone(), self.env_link.get(&self.active).unwrap());
+        let (active, parent) = (
+            self.active.clone(),
+            self.env_link.get(&self.active).unwrap(),
+        );
         self.active = parent.clone();
         // check that strong reference count is just from the assignment above and self.envs in which case we can drop the env
         if Rc::strong_count(&active) == 2 {
             self.envs.remove(*active);
             self.env_link.remove(&active);
             // info!("Removed {active:?} from environment - {:?}", self.env_link);
-
         }
-        
+
         Ok(())
     }
 }

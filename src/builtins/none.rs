@@ -54,7 +54,7 @@ impl StaticType for SoxNone {
     }
 }
 
-impl Representable for SoxNone{
+impl Representable for SoxNone {
     fn repr(&self, i: &Interpreter) -> String {
         "None".to_string()
     }

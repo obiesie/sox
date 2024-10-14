@@ -54,7 +54,6 @@ impl<I: Iterator<Item = Token>> Parser<I> {
                 if let Err(e) = stmt {
                     println!("[line {}] {}", e.line, e.msg.to_string());
                     errors.push(e);
-
                 }
             }
         }
@@ -127,17 +126,20 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         if !self.check(RightParen) {
             loop {
                 if params.len() >= 255 {
-                    while self.tokens.peek().unwrap().lexeme == " "  {
+                    while self.tokens.peek().unwrap().lexeme == " " {
                         self.tokens.next();
                     }
                     return Err(SyntaxError {
-                        msg: format!("Error at '{}'. Can't have more than 255 parameters.", self.tokens.peek().unwrap().lexeme),
+                        msg: format!(
+                            "Error at '{}'. Can't have more than 255 parameters.",
+                            self.tokens.peek().unwrap().lexeme
+                        ),
                         line: name.line,
                     });
                 }
                 let param = self.consume(Identifier, "Expect parameter name.".into())?;
                 params.push(param);
-                
+
                 if !self.match_token(vec![Comma]) {
                     break;
                 }
@@ -482,7 +484,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         let token = self.tokens.peek();
 
         Err(SyntaxError {
-            msg: format!("Error at '{}': Expect an expression.", token.unwrap().lexeme),
+            msg: format!(
+                "Error at '{}': Expect an expression.",
+                token.unwrap().lexeme
+            ),
             line: token.unwrap().line,
         })
     }
@@ -506,7 +511,10 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             let token = self.advance();
             return Ok(token.unwrap());
         }
-        let token_name = self.tokens.peek().map_or("eof".to_string(), |v|v.lexeme.to_string());
+        let token_name = self
+            .tokens
+            .peek()
+            .map_or("eof".to_string(), |v| v.lexeme.to_string());
         Err(SyntaxError {
             msg: format!("Error at '{}': {}.", token_name, message),
             line: self.previous().line,
@@ -573,7 +581,6 @@ mod tests {
     use crate::token::Literal;
     use crate::token::Token;
     use crate::token_type::TokenType::Identifier;
-
 
     #[test]
     fn test_function_statement() {

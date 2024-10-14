@@ -1,10 +1,10 @@
+use log::{debug, info};
+use once_cell::sync::OnceCell;
+use slotmap::DefaultKey;
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
 use std::rc::Rc;
-use log::{debug, info};
-use once_cell::sync::OnceCell;
-use slotmap::DefaultKey;
 
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
@@ -12,11 +12,13 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
-use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::core::{
+    Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType,
+    ToSoxResult, TryFromSoxObject,
+};
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::stmt::Stmt;
-
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SoxFunction {
@@ -34,15 +36,18 @@ impl SoxFunction {
             declaration: Box::new(declaration),
             environment_ref,
             is_initializer: false,
-            arity
+            arity,
         }
     }
 
     pub fn bind(&self, instance: SoxObject, interp: &mut Interpreter) -> SoxResult {
         if let SoxObject::TypeInstance(_) = instance {
-            
-            let env_ref = interp.environment.new_local_env_at(self.environment_ref.clone());
-            interp.environment.define_at("this", instance, env_ref.clone());
+            let env_ref = interp
+                .environment
+                .new_local_env_at(self.environment_ref.clone());
+            interp
+                .environment
+                .define_at("this", instance, env_ref.clone());
 
             let new_func = SoxFunction {
                 name: self.name.to_string(),
@@ -63,9 +68,13 @@ impl SoxFunction {
         if let Some(fo) = fo.as_func() {
             if (args.args.len() != fo.arity as usize) {
                 let error = Exception::Err(RuntimeError {
-                    msg: format!("Expected {} arguments but got {}.", fo.arity, args.args.len()),
+                    msg: format!(
+                        "Expected {} arguments but got {}.",
+                        fo.arity,
+                        args.args.len()
+                    ),
                 });
-                return Err(error.into_ref()) 
+                return Err(error.into_ref());
             }
             let previous_env_ref = interpreter.environment.active.clone();
 
@@ -78,7 +87,9 @@ impl SoxFunction {
                 body,
             } = *fo.declaration.clone()
             {
-                let exec_ns = interpreter.environment.new_local_env_at(fo.environment_ref.clone());
+                let exec_ns = interpreter
+                    .environment
+                    .new_local_env_at(fo.environment_ref.clone());
                 let env = interpreter.environment.envs.get_mut(*exec_ns).unwrap();
                 for (param, arg) in zip(params, args.args.clone()) {
                     env.define(param.lexeme, arg).expect("TODO: panic message");
@@ -111,7 +122,6 @@ impl SoxFunction {
         }
     }
 }
-
 
 impl SoxObjectPayload for SoxFunction {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
@@ -175,9 +185,9 @@ impl ToSoxResult for SoxFunction {
     }
 }
 
-impl Representable for SoxFunction{
+impl Representable for SoxFunction {
     fn repr(&self, i: &Interpreter) -> String {
         let func_name = self.name.to_string();
-        format!("<Function {func_name}>") 
+        format!("<Function {func_name}>")
     }
 }

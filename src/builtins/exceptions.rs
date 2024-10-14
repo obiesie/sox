@@ -13,11 +13,11 @@ pub enum Exception {
     Return(SoxObject),
 }
 
-impl Representable for Exception{
+impl Representable for Exception {
     fn repr(&self, i: &Interpreter) -> String {
         match &self {
             Exception::Err(v) => v.repr(i),
-            Exception::Return(_) => "Return".to_string()
+            Exception::Return(_) => "Return".to_string(),
         }
     }
 }
@@ -42,9 +42,9 @@ impl From<Exception> for RuntimeError {
     }
 }
 
-impl Representable for RuntimeError{
+impl Representable for RuntimeError {
     fn repr(&self, i: &Interpreter) -> String {
-       self.msg.to_string()
+        self.msg.to_string()
     }
 }
 
