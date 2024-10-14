@@ -166,7 +166,8 @@ impl Environment {
         }
         // info!("The env link is {:?} and dist is {:?}", self.env_link, dist_to_ns);
 
-        namespace.get(&key)
+        let val = namespace.get(&key);
+        val
     }
 
     pub fn find_and_get<T: ToString + Display>(&mut self, key: T) -> SoxResult {
@@ -206,6 +207,23 @@ impl Environment {
         }).into_ref())
     }
 
+    pub fn assign_in_global<T: ToString + Display>(
+        &mut self,
+        key: T,
+        value: SoxObject,
+    ) -> SoxResult<()> {
+        let key_string = key.to_string();
+        let global_ns = self.envs.get_mut(*self.global).unwrap();
+        if let Some(v) = global_ns.bindings.iter_mut().find(|v| v.0 == key_string) {
+            v.1 = value;
+            return Ok(());
+        }
+       
+        Err(Exception::Err(RuntimeError {
+            msg: format!("NameError: name '{key_string}' is not defined."),
+        }).into_ref())
+    }
+    
     pub fn assign(&mut self, key: &EnvKey, value: SoxObject) -> SoxResult<()> {
         let (_, mut dist_to_ns, _) = key;
         let mut ns_key = Some(self.active.clone());
@@ -225,7 +243,7 @@ impl Environment {
         if Rc::strong_count(&active) == 2 {
             self.envs.remove(*active);
             self.env_link.remove(&active);
-            info!("Removed {active:?} from environment - {:?}", self.env_link);
+            // info!("Removed {active:?} from environment - {:?}", self.env_link);
 
         }
         

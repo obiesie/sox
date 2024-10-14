@@ -1,0 +1,10 @@
+def f() {
+  let a = "a";
+  let b = "b";
+  def g() {
+    print b; // expect: b
+    print a; // expect: a
+  }
+  g();
+}
+f()

@@ -311,7 +311,7 @@ impl StmtVisitor for &mut Interpreter {
             let none_val = self.none.clone().into_ref();
             // let active_env = self.active_env_mut();
             self.environment.define(name.lexeme.to_string(), none_val);
-
+            let prev_env_ref = self.environment.active.clone();
             //let prev_env = self.active_env_ref.clone();
             // setup super keyword within namespace
             if sc.is_some() {
@@ -349,12 +349,12 @@ impl StmtVisitor for &mut Interpreter {
                 Default::default(),
                 methods_map,
             );
-            self.environment.pop();
+            self.environment.active = prev_env_ref;
             self.environment.find_and_assign(name.lexeme.to_string(), class.into_ref());
             // self.active_env_ref = prev_env;
             // let active_env = self.active_env_mut();
             // active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
-            // 
+            //
             Ok(self.none.into_ref())
         } else {
             let err =
@@ -383,7 +383,7 @@ impl ExprVisitor for &mut Interpreter {
                 self.environment.assign(&key, eval_val.clone())?;
             } else {
                 // let env = self.active_env_mut();
-                self.environment.find_and_assign(name.lexeme.to_string(), eval_val.clone())?;
+                self.environment.assign_in_global(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
         } else {

@@ -1,0 +1,7 @@
+{
+  let local = "local";
+  def f() {
+    print local; // expect: local
+  }
+  f();
+}

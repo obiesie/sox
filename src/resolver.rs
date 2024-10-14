@@ -105,7 +105,7 @@ impl Resolver {
         if let Some(scope) = self.scopes.last_mut() {
             if let Some(entry) = scope
                 .iter_mut()
-                .find(|e| e.0.lexeme == name.lexeme.as_str())
+                .find(|e| e.0.lexeme == name.lexeme.as_str() && e.0.line == name.line)
             {
                 entry.1 = true;
             }
@@ -355,7 +355,6 @@ impl ExprVisitor for &mut Resolver {
                     .1
                     == false
             {
-                info!("The scopes are {:?}", self.scopes);
                 ret_val = Err(ResolverError::SyntaxError(format!(
                     "Can't read local variable[{:?}] in its own initializer",
                     name.lexeme

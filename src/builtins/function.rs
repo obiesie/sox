@@ -61,7 +61,7 @@ impl SoxFunction {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
-            if args.args.len() > fo.arity as usize {
+            if (args.args.len() != fo.arity as usize) {
                 let error = Exception::Err(RuntimeError {
                     msg: format!("Expected {} arguments but got {}", fo.arity, args.args.len()),
                 });

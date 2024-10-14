@@ -1,0 +1,11 @@
+let f;
+
+def foo(param) {
+  def f_() {
+    print param;
+  }
+  f = f_;
+}
+foo("param");
+
+f(); // expect: param
