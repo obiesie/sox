@@ -66,6 +66,14 @@ impl SoxType {
         typ
     }
 
+    pub fn arity(&self) -> i32 {
+        let init_method = self.find_method("init".into());
+        if init_method.is_none(){
+            return 0;
+        }
+        return init_method.unwrap().as_func().unwrap().arity as i32;
+    }
+
     pub fn find_method(&self, name: &str) -> Option<SoxObject> {
         self.attributes
             .get(name)
@@ -74,7 +82,18 @@ impl SoxType {
     }
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
+        
         if let Some(to) = fo.as_type() {
+            if (args.args.len() != to.arity() as usize) {
+                let error = Exception::Err(RuntimeError {
+                    msg: format!(
+                        "Expected {} arguments but got {}.",
+                        to.arity(),
+                        args.args.len()
+                    ),
+                });
+                return Err(error.into_ref());
+            }
             let instance = SoxInstance::new(to.clone());
             let initializer = to.find_method("init".into());
             let instance = instance.into_ref();
@@ -162,6 +181,7 @@ impl SoxInstance {
     pub fn set(&self, name: Token, value: SoxObject) {
         self.fields.borrow_mut().insert(name.lexeme.into(), value);
     }
+
 
     pub fn get(inst: SoxRef<SoxInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
         if let Some(field_value) = inst.fields.borrow().get(name.lexeme.as_str()) {

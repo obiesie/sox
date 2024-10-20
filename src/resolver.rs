@@ -212,12 +212,16 @@ impl StmtVisitor for &mut Resolver {
             ));
         }
         if let Stmt::Return { keyword, value } = stmt {
-            if self.current_function == FunctionType::Initializer {
-                return Err(ResolverError::SyntaxError(
-                    "Cannot return value from initializer.".into(),
-                ));
+            if value.is_some() {
+                
+                if self.current_function == FunctionType::Initializer  {
+                    
+                    return Err(ResolverError::SyntaxError(
+                        "Cannot return value from initializer.".into(),
+                    ));
+                }
+                self.resolve_expr(&value.clone().unwrap())?;
             }
-            self.resolve_expr(value)?;
         }
         Ok(())
     }

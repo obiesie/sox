@@ -188,11 +188,9 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
     fn return_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let keyword = self.previous();
-        let mut value = Expr::Literal {
-            value: Literal::None,
-        };
+        let mut value =None; 
         if !self.check(Semi) {
-            value = self.expression()?
+            value = Some(self.expression()?);
         }
         let _ = self.consume(Semi, "Expect ';' after return value.".into())?;
         let return_stmt = Stmt::Return { keyword, value };

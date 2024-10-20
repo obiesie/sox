@@ -55,7 +55,6 @@ impl Namespace {
         if let Some(v) = binding {
             Ok(v.1.clone())
         } else {
-            debug!("Bindings are {:#?}", self.bindings);
             Err(Exception::Err(RuntimeError {
                 msg: format!("NameError: name '{}' is not defined", name),
             })
@@ -169,8 +168,6 @@ impl Environment {
             }
             dist += 1;
         }
-        // info!("The env link is {:?} and dist is {:?}", self.env_link, dist_to_ns);
-
         let val = namespace.get(&key);
         val
     }

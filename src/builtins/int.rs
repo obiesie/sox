@@ -46,8 +46,8 @@ impl SoxObjectPayload for SoxInt {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, _i: &Interpreter) -> &'static SoxType {
-        todo!()
+    fn class(&self, i: &Interpreter) -> &'static SoxType {
+        i.types.int_type
     }
 }
 

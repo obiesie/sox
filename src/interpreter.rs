@@ -269,6 +269,7 @@ impl StmtVisitor for &mut Interpreter {
                 stmt_clone,
                 self.environment.active.clone(),
                 params.len() as i8,
+                false
             );
             self.environment
                 .define(name.lexeme.to_string(), fo.into_ref());
@@ -284,7 +285,9 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
         let mut return_value = self.none.into_ref();
         if let Stmt::Return { keyword: _, value } = stmt {
-            return_value = self.evaluate(value)?;
+            if let Some(value) = value {
+                return_value = self.evaluate(value)?;
+            }
         }
         Err(Exception::Return(return_value).into_ref())
     }
@@ -353,7 +356,7 @@ impl StmtVisitor for &mut Interpreter {
             );
             self.environment.active = prev_env_ref;
             self.environment
-                .find_and_assign(name.lexeme.to_string(), class.into_ref());
+                .find_and_assign(name.lexeme.to_string(), class.into_ref()).expect("TODO: panic message");
             // self.active_env_ref = prev_env;
             // let active_env = self.active_env_mut();
             // active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
@@ -861,7 +864,7 @@ impl ExprVisitor for &mut Interpreter {
         let ret_val = if let Expr::Get { name, object } = expr {
             let object = self.evaluate(object)?;
             if let SoxObject::TypeInstance(inst) = object {
-                info!("Instance of type {:?}", inst.class(self));
+                //info!("Instance of type {:?}", inst.class(self));
 
                 SoxInstance::get(inst, name.clone(), self)
             } else {

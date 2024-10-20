@@ -30,12 +30,12 @@ pub struct SoxFunction {
 }
 
 impl SoxFunction {
-    pub fn new(name: String, declaration: Stmt, environment_ref: EnvRef, arity: i8) -> Self {
+    pub fn new(name: String, declaration: Stmt, environment_ref: EnvRef, arity: i8, is_initializer: bool) -> Self {
         Self {
             name,
             declaration: Box::new(declaration),
             environment_ref,
-            is_initializer: false,
+            is_initializer,
             arity,
         }
     }
@@ -53,7 +53,7 @@ impl SoxFunction {
                 name: self.name.to_string(),
                 declaration: self.declaration.clone(),
                 environment_ref: env_ref,
-                is_initializer: false,
+                is_initializer: self.is_initializer,
                 arity: self.arity,
             };
             Ok(new_func.into_ref())
@@ -79,7 +79,6 @@ impl SoxFunction {
             let previous_env_ref = interpreter.environment.active.clone();
 
             interpreter.environment.active = fo.environment_ref.clone();
-            // debug!("The closure env[{:?}] is {:#?}", fo.environment_ref, interpreter.environment.envs.get(interpreter.environment.active));
             let mut return_value = Ok(SoxNone {}.into_ref());
             if let Stmt::Function {
                 name: _,
@@ -111,8 +110,15 @@ impl SoxFunction {
                     }
                 }
             }
-            interpreter.environment.active = previous_env_ref;
+            if (fo.is_initializer) {
 
+                let v = interpreter.environment.find_and_get( "this");
+                interpreter.environment.active = previous_env_ref;
+                return v;
+
+            }
+            interpreter.environment.active = previous_env_ref;
+           
             return_value
         } else {
             let error = Exception::Err(RuntimeError {

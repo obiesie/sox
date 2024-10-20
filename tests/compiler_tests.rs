@@ -17,7 +17,7 @@ lazy_static::lazy_static! {
     static ref NON_TEST_PATTERN: Regex = Regex::new(r"// nontest").unwrap();
 }
 
-static ALL_TEST_SUITES: [&str; 13] = [
+static ALL_TEST_SUITES: [&str; 17] = [
     "assignment",
     "block",
     "bool",
@@ -31,9 +31,14 @@ static ALL_TEST_SUITES: [&str; 13] = [
     "operator",
     "print",
     "while",
+    "closure",
+    "comments",
+    "constructors",
+    "logical_operator",
+    
 ];
 
-static TEST_SUITES: [&str; 1] = ["function"];
+static TEST_SUITES: [&str; 0] = [];
 
 #[test]
 fn test_compiler() {
