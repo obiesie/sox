@@ -1,10 +1,10 @@
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-
-use crate::core::{
-    Representable, SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject,
-};
+use std::ops::Deref;
+use crate::builtins::bool_::SoxBool;
+use crate::builtins::string::SoxString;
+use crate::core::{Representable, SoxObject, SoxObjectPayload, SoxRef, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 
 pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;
@@ -63,6 +63,15 @@ impl FuncArgs {
         let bound = T::from_args(i, self);
         bound
     }
+
+    pub fn take_positional(&mut self) -> Option<SoxObject> {
+        if self.args.is_empty() {
+            None
+        } else {
+            Some(self.args.remove(0))
+        }
+    }
+
 }
 
 pub trait FromArgs: Sized {
@@ -73,8 +82,10 @@ pub trait FromArgs: Sized {
 pub struct ArgumentError;
 
 impl<T: TryFromSoxObject> FromArgs for T {
+    
     fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
-        let val = if let Some(v) = args.args.iter().take(1).next() {
+        
+        let val = if let Some(v) = args.take_positional() {
             T::try_from_sox_object(i, v.clone())
         } else {
             Err(Exception::Err(RuntimeError {
@@ -83,6 +94,13 @@ impl<T: TryFromSoxObject> FromArgs for T {
             .into_ref())
         };
         val
+    }
+}
+
+
+impl TryFromSoxObject for SoxObject {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+       return Ok(obj); 
     }
 }
 
@@ -155,19 +173,6 @@ where
     fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
         let (zelf, s1) = (args.bind::<(S, S1)>(i)).expect("Failed to bind function arguments.");
         (self)(&zelf, s1).to_sox_result(i)
-    }
-}
-
-impl<F, S, T, R> NativeFn<(BorrowedParam<S>, OwnedParam<T>), R> for F
-where
-    F: Fn(&S, T) -> R + 'static,
-    S: FromArgs,
-    T: FromArgs,
-    R: ToSoxResult,
-{
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
-        let (zelf, v1) = (args.bind::<(S, T)>(i)).expect("Failed to bind function arguments.");
-        (self)(&zelf, v1).to_sox_result(i)
     }
 }
 

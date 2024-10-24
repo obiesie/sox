@@ -1,1 +1,1 @@
-nil(); // expect runtime error: Can only call functions and classes.
+None(); // expect runtime error: none object is not callable.

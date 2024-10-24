@@ -27,7 +27,7 @@ impl From<RuntimeError> for Exception {
     }
 }
 
-#[derive(Clone, Debug, Default)]
+#[derive(Clone, Debug, Default, PartialEq)]
 pub struct RuntimeError {
     pub msg: String,
 }
@@ -75,7 +75,8 @@ impl StaticType for Exception {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None }
+        SoxTypeSlot { call: None,             methods: Self::METHOD_DEFS,
+        }
     }
 }
 

@@ -3,8 +3,8 @@ use std::any::Any;
 use once_cell::sync::OnceCell;
 
 use macros::soxtype;
-
-use crate::builtins::method::SoxMethod;
+use crate::builtins::bool_::SoxBool;
+use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
@@ -19,10 +19,25 @@ impl SoxFloat {
     pub fn new(val: f64) -> Self {
         SoxFloat { value: val }
     }
+
+    pub fn equals(&self, other: &SoxObject) -> SoxBool {
+        if let Some(other_float) = other.as_float() {
+           SoxBool::from(other_float.value == self.value) 
+        } else {
+            SoxBool::from(false)
+        }
+    }
+    
+    
 }
 
 impl SoxClassImpl for SoxFloat {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+        "equals",
+        SoxMethod {
+            func: static_func(SoxBool::equals),
+        },
+    )];
 }
 
 impl SoxObjectPayload for SoxFloat {
@@ -56,7 +71,8 @@ impl StaticType for SoxFloat {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None }
+        SoxTypeSlot { call: None,             methods: Self::METHOD_DEFS,
+        }
     }
 }
 

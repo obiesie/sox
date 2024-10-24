@@ -5,9 +5,9 @@ use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
 use std::rc::Rc;
-
+use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::builtins::method::{FuncArgs, SoxMethod};
+use crate::builtins::method::{static_func, FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
@@ -127,6 +127,18 @@ impl SoxFunction {
             Err(error.into_ref())
         }
     }
+
+    pub fn equals(&self, other: &SoxObject) -> SoxBool {
+        if let Some(other_func) = other.as_func() {
+            SoxBool::from(self.name == other_func.name
+                && self.declaration == other_func.declaration
+                && self.environment_ref == other_func.environment_ref
+                && self.is_initializer == other_func.is_initializer
+                && self.arity == other_func.arity)
+        } else {
+            SoxBool::from(false)
+        }
+    }
 }
 
 impl SoxObjectPayload for SoxFunction {
@@ -152,7 +164,12 @@ impl SoxObjectPayload for SoxFunction {
 }
 
 impl SoxClassImpl for SoxFunction {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+        "equals",
+        SoxMethod {
+            func: static_func(SoxBool::equals),
+        },
+    )];
 }
 
 impl StaticType for SoxFunction {
@@ -166,6 +183,9 @@ impl StaticType for SoxFunction {
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot {
             call: Some(Self::call),
+            //eq: None
+            methods: Self::METHOD_DEFS,
+
         }
     }
 }

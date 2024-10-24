@@ -18,6 +18,9 @@ pub type GenericMethod = fn(SoxObject, FuncArgs, &mut Interpreter) -> SoxResult;
 #[derive(Clone, Debug, Default)]
 pub struct SoxTypeSlot {
     pub call: Option<GenericMethod>,
+    pub methods: &'static [(&'static str, SoxMethod)],
+
+    //pub eq: Option<GenericMethod>
 }
 
 pub type SoxAttributes = HashMap<String, SoxObject>;
@@ -30,6 +33,7 @@ pub struct SoxType {
     pub attributes: SoxAttributes,
     pub name: Option<String>,
 }
+
 
 impl SoxType {
     pub fn new_static_type<T: ToString>(
@@ -119,7 +123,7 @@ impl SoxType {
 
 impl Representable for SoxType {
     fn repr(&self, i: &Interpreter) -> String {
-        format!("<Type {}>", self.name.as_ref().unwrap().to_string())
+        format!("<type '{}'>", self.name.as_ref().unwrap().to_string())
     }
 }
 impl SoxObjectPayload for SoxType {
@@ -155,6 +159,7 @@ impl StaticType for SoxType {
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot {
             call: Some(Self::call),
+            methods: Self::METHOD_DEFS,
         }
     }
 }
@@ -241,76 +246,3 @@ impl SoxObjectPayload for SoxInstance {
     }
 }
 
-#[cfg(test)]
-mod tests {
-    use std::cell::RefCell;
-    use std::collections::HashMap;
-    use std::ops::Deref;
-
-    use crate::builtins::int::SoxInt;
-    use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
-    use crate::core::{SoxObjectPayload, SoxRef, StaticType};
-    use crate::interpreter::Interpreter;
-    use crate::token::{Literal, Token};
-    use crate::token_type::TokenType;
-
-    #[test]
-    fn test_class_instance() {
-        let class = SoxType::new(
-            "TEST",
-            None,
-            HashMap::default(),
-            SoxTypeSlot::default(),
-            HashMap::default(),
-        );
-
-        let class_b = SoxType::new(
-            "TEST",
-            None,
-            HashMap::default(),
-            SoxTypeSlot::default(),
-            HashMap::default(),
-        )
-        .into_ref();
-
-        let class_a = SoxType::new(
-            "TEST",
-            None,
-            HashMap::default(),
-            SoxTypeSlot::default(),
-            HashMap::default(),
-        )
-        .into_ref();
-
-        let class_ref = SoxRef::new(class);
-        let fields = HashMap::new();
-        let ci = SoxInstance {
-            typ: class_ref,
-            fields: RefCell::new(fields),
-        };
-        let a = SoxRef::new(ci);
-        let b = a.clone();
-        let token1 = Token {
-            token_type: TokenType::SoxString,
-
-            lexeme: "test".to_string(),
-            literal: Literal::String("test".to_string()),
-            line: 0,
-            id: 0,
-        };
-
-        let i = SoxInt::new(65).into_ref();
-        a.set(token1.clone(), class_b);
-        b.set(token1.clone(), i);
-
-        let mut interp = Interpreter::new();
-        println!(
-            "Value is {:?}",
-            SoxInstance::get(b, token1.clone(), &mut interp)
-        );
-        println!("Value is {:?}", SoxInstance::get(a, token1, &mut interp));
-        let t = class_a.as_type().unwrap().val.deref();
-        let t1 = SoxType::NAME;
-        println!("Class a type is {}", t1);
-    }
-}

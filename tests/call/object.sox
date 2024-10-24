@@ -1,4 +1,4 @@
 class Foo {}
 
 let foo = Foo();
-foo(); // expect runtime error: Can only call functions and classes.
+foo(); // expect runtime error: Foo object is not callable.

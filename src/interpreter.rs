@@ -625,58 +625,74 @@ impl ExprVisitor for &mut Interpreter {
                 }
 
                 TokenType::EqualEqual => {
-                    let exc = Err(Interpreter::runtime_error(
-                        "Arguments to the equals operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
-                        {
-                            Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
-                        {
-                            Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
-                        } else {
-                            exc
-                        }
+                    let left_type = left_val.sox_type(self);
+                    let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
+                    if let Some(entry) = eq {
+                        let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
+                        (entry.1.func)(self, call_args)
                     } else {
-                        exc
-                    };
-                    value
+                        Ok(SoxBool::from(false).into_ref())
+                    }
+                   // let eq_slot_func = left_type.
+
+                    // let value = if let (Some(v1), Some(v2)) =
+                    //     (left_val.as_int(), right_val.as_int())
+                    // {
+                    //     Ok(SoxBool::from(v1.value == v2.value).into_ref())
+                    // } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                    //     if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                    //         Ok(SoxBool::from(v1.value == v2.value).into_ref())
+                    //     } else if let (Some(v1), Some(v2)) =
+                    //         (left_val.as_float(), right_val.as_int())
+                    //     {
+                    //         Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
+                    //     } else if let (Some(v1), Some(v2)) =
+                    //         (left_val.as_int(), right_val.as_float())
+                    //     {
+                    //         Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
+                    //     } else {
+                    //         Ok(SoxBool::from(false).into_ref())
+                    //     }
+                    // } else {
+                    //     Ok(SoxBool::from(false).into_ref())
+                    // };
+                    // value
+
                 }
                 TokenType::BangEqual => {
-                    let exc = Err(Interpreter::runtime_error(
-                        "Arguments to the not equals operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
-                    {
-                        Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
-                        {
-                            Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
-                        {
-                            Ok(SoxBool::from((v1.value as f64) != v2.value).into_ref())
-                        } else {
-                            exc
-                        }
+                    // let exc = Err(Interpreter::runtime_error(
+                    //     "Arguments to the not equals operator must both be numbers".into(),
+                    // ));
+                    // let value = if let (Some(v1), Some(v2)) =
+                    //     (left_val.as_int(), right_val.as_int())
+                    // {
+                    //     Ok(SoxBool::from(v1.value != v2.value).into_ref())
+                    // } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
+                    //     if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
+                    //         Ok(SoxBool::from(v1.value != v2.value).into_ref())
+                    //     } else if let (Some(v1), Some(v2)) =
+                    //         (left_val.as_float(), right_val.as_int())
+                    //     {
+                    //         Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
+                    //     } else if let (Some(v1), Some(v2)) =
+                    //         (left_val.as_int(), right_val.as_float())
+                    //     {
+                    //         Ok(SoxBool::from((v1.value as f64) != v2.value).into_ref())
+                    //     } else {
+                    //         exc
+                    //     }
+                    // } else {
+                    //     exc
+                    // };
+                    let left_type = left_val.sox_type(self);
+                    let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
+                    let value = if let Some(entry) = eq {
+                        let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
+                        (entry.1.func)(self, call_args)
                     } else {
-                        exc
+                        Ok(SoxBool::from(false).into_ref())
                     };
-                    value
+                    Ok(SoxBool::from(!value?.try_into_rust_bool(self)).into_ref())
                 }
                 TokenType::LessEqual => {
                     let exc = Err(Interpreter::runtime_error(
@@ -844,13 +860,14 @@ impl ExprVisitor for &mut Interpreter {
             }
             let call_args = FuncArgs::new(args);
             let callee_type = callee_.sox_type(self);
+            let callee_type_name = callee_type.name.clone().unwrap();
             let ret_val = match callee_type.slots.call {
                 Some(fo) => {
                     let val = (fo)(callee_, call_args, self);
                     val
                 }
                 _ => Err(Interpreter::runtime_error(
-                    "Callee evaluated to an object that is not callable.".into(),
+                    format!("{} object is not callable.", callee_type_name),
                 )),
             };
             ret_val

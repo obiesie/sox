@@ -1,8 +1,8 @@
 use std::any::Any;
-
+use std::ops::Deref;
 pub use once_cell::sync::{Lazy, OnceCell};
-
-use crate::builtins::method::SoxMethod;
+use crate::builtins::bool_::SoxBool;
+use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::core::{Representable, SoxClassImpl};
 use crate::core::{SoxObject, SoxObjectPayload, SoxRef, StaticType};
@@ -18,10 +18,22 @@ impl SoxString {
     pub fn new<T: Into<String>>(val: T) -> Self {
         SoxString { value: val.into() }
     }
+
+    pub fn equals(&self, rhs: SoxObject) -> SoxBool {
+        match rhs.as_string() {
+            Some(other) => SoxBool::new(self.value == other.value),
+            None => SoxBool::new(false),
+        }
+    }
 }
 
 impl SoxClassImpl for SoxString {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+        "equals",
+        SoxMethod {
+            func: static_func(SoxBool::equals),
+        },
+    )];
 }
 impl StaticType for SoxString {
     const NAME: &'static str = "string";
@@ -32,7 +44,11 @@ impl StaticType for SoxString {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None }
+        SoxTypeSlot { 
+            call: None,
+            methods: Self::METHOD_DEFS,
+            
+        }
     }
 }
 

@@ -176,7 +176,7 @@ pub trait StaticType {
         let methods = Self::METHOD_DEFS;
         let slots = Self::create_slots();
         SoxType::new_static_type(
-            "".to_string(),
+            Self::NAME,
             None,
             methods
                 .iter()

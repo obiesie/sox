@@ -1,6 +1,6 @@
 class A {}
 
-fun f() {
+def f() {
   class B: A {}
   return B;
 }

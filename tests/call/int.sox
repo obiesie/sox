@@ -1,0 +1,1 @@
+123(); // expect runtime error: int object is not callable.

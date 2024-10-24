@@ -25,6 +25,15 @@ impl SoxBool {
     pub fn bool(&self) -> Self {
         self.clone()
     }
+    
+    pub fn equals(&self, rhs: SoxObject) -> Self {
+        let other = rhs.as_bool();
+        if let Some(other) = other {
+            SoxBool::new(self.value == other.value)
+        } else {
+            SoxBool::new(false)
+        }
+    }
 }
 
 impl Representable for SoxBool {
@@ -38,7 +47,14 @@ impl SoxClassImpl for SoxBool {
         SoxMethod {
             func: static_func(SoxBool::bool),
         },
-    )];
+    ),
+        (
+        "equals",
+        SoxMethod {
+            func: static_func(SoxBool::equals),
+        },
+    )
+    ];
 }
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
@@ -84,7 +100,7 @@ impl SoxObjectPayload for SoxBool {
 }
 
 impl StaticType for SoxBool {
-    const NAME: &'static str = "bool";
+    const NAME: &'static str = "boolean";
 
     fn static_cell() -> &'static OnceCell<SoxType> {
         static CELL: OnceCell<SoxType> = OnceCell::new();
@@ -92,7 +108,10 @@ impl StaticType for SoxBool {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None }
+        SoxTypeSlot { call: None,
+            methods: Self::METHOD_DEFS,
+
+            }
     }
 }
 

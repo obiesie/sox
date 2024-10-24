@@ -5,6 +5,7 @@ use regex::Regex;
 use std::fs;
 use std::iter::zip;
 use std::process::Command;
+use log::info;
 use walkdir::WalkDir;
 
 lazy_static::lazy_static! {
@@ -38,7 +39,7 @@ static ALL_TEST_SUITES: [&str; 17] = [
     
 ];
 
-static TEST_SUITES: [&str; 0] = [];
+static TEST_SUITES: [&str; 1] = ["class"];
 
 #[test]
 fn test_compiler() {
@@ -97,7 +98,7 @@ fn test_compiler() {
             .map(|v| v.to_string())
             .collect::<Vec<String>>();
         let failures = validate_outputs(&expected_outputs, &output_strs);
-
+        println!("failures are {:?}",  failures);
         // assert_eq!(failures, vec![]);
         test_results.push(failures.is_empty())
     }

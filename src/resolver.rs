@@ -245,7 +245,8 @@ impl StmtVisitor for &mut Resolver {
                 if let Expr::Variable { name } = sc {
                     if name.lexeme == class_name.lexeme {
                         return Err(ResolverError::SyntaxError(
-                            "A class cannot inherit from itself.".into(),
+                            format!("Error at '{}': A class cannot inherit from itself.", name.lexeme),
+                            
                         ));
                     }
                 }
