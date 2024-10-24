@@ -15,6 +15,20 @@ pub enum ResolverError {
     SyntaxError(String),
 }
 
+
+impl std::fmt::Display for ResolverError {
+    fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
+        match self {
+            ResolverError::NoScope => write!(f, "No scope"),
+            ResolverError::DuplicateVariable(name) => {
+                write!(f, "Duplicate variable '{}'", name)
+            }
+            ResolverError::NotFound(name) => write!(f, "Not found '{}'", name),
+            ResolverError::SyntaxError(msg) => write!(f, "{}", msg),
+        }
+    }
+}
+
 pub struct Resolver {
     scopes: Vec<Vec<(Token, bool)>>,
     current_function: FunctionType,

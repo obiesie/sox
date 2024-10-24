@@ -53,7 +53,7 @@ pub fn run(source: String, enable_var_resolution: bool) {
                     interpreter.interpret(&ast.unwrap())
                 }
                 Err(e) => {
-                    println!("Error - {:?}", e);
+                    println!("{}", e.to_string());
                 }
             }
             //interpreter._locals = resolved_data.unwrap();

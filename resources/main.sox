@@ -1,3 +1,9 @@
 {
-  class Foo: Foo {} // Error at 'Foo': A class can't inherit from itself.
+  class Foo {
+    returnSelf() {
+      return Foo;
+    }
+  }
+
+  print Foo().returnSelf(); // expect: <type 'Foo'>
 }
