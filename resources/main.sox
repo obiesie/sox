@@ -1,3 +1,4 @@
+let closure;
 {
   let a = "a";
 
