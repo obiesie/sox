@@ -1,9 +1,20 @@
 {
-  class Foo {
-    returnSelf() {
-      return Foo;
+  let a = "a";
+
+  {
+    let b = "b";
+    def returnA() {
+      return a;
+    }
+
+    closure = returnA;
+
+    if (false) {
+      def returnB() {
+        return b;
+      }
     }
   }
 
-  print Foo().returnSelf(); // expect: <type 'Foo'>
+  print closure(); // expect: a
 }

@@ -39,7 +39,7 @@ static ALL_TEST_SUITES: [&str; 17] = [
     
 ];
 
-static TEST_SUITES: [&str; 1] = ["class"];
+static TEST_SUITES: [&str; 0] = [];
 
 #[test]
 fn test_compiler() {

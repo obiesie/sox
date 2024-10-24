@@ -1,13 +1,14 @@
-use std::any::Any;
-
 use once_cell::sync::OnceCell;
+use std::any::Any;
+use std::ops::Deref;
 
-use macros::soxtype;
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::builtins::string::SoxString;
+use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
+use macros::soxtype;
 
 #[soxtype]
 #[derive(Debug, Clone, Copy)]
@@ -20,22 +21,20 @@ impl SoxFloat {
         SoxFloat { value: val }
     }
 
-    pub fn equals(&self, other: &SoxObject) -> SoxBool {
+    pub fn equals(&self, other: SoxObject) -> SoxBool {
         if let Some(other_float) = other.as_float() {
-           SoxBool::from(other_float.value == self.value) 
+            SoxBool::from(other_float.value == self.value)
         } else {
             SoxBool::from(false)
         }
     }
-    
-    
 }
 
 impl SoxClassImpl for SoxFloat {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[(
         "equals",
         SoxMethod {
-            func: static_func(SoxBool::equals),
+            func: static_func(SoxFloat::equals),
         },
     )];
 }
@@ -71,10 +70,34 @@ impl StaticType for SoxFloat {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None,             methods: Self::METHOD_DEFS,
+        SoxTypeSlot {
+            call: None,
+            methods: Self::METHOD_DEFS,
         }
     }
 }
+
+impl TryFromSoxObject for SoxFloat {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+        if let Some(val) = obj.as_float() {
+            Ok(val.val.deref().clone())
+        } else {
+            let err_msg = SoxString {
+                value: String::from("failed to get boolean from supplied object"),
+            };
+            let ob = SoxRef::new(err_msg);
+            Err(SoxObject::String(ob))
+        }
+    }
+}
+
+impl ToSoxResult for SoxFloat {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
+        let obj = self.into_ref();
+        Ok(obj)
+    }
+}
+
 
 impl From<f64> for SoxFloat {
     fn from(f: f64) -> Self {
