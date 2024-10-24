@@ -1,8 +1,6 @@
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::core::{SoxObject, SoxObjectPayload, SoxResult};
-use log::{debug, info};
-use slotmap::secondary::Entry;
-use slotmap::{DefaultKey, SecondaryMap, SlotMap};
+use slotmap::{DefaultKey, SlotMap};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;

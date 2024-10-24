@@ -88,7 +88,7 @@ impl SoxType {
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         
         if let Some(to) = fo.as_type() {
-            if (args.args.len() != to.arity() as usize) {
+            if args.args.len() != to.arity() as usize {
                 let error = Exception::Err(RuntimeError {
                     msg: format!(
                         "Expected {} arguments but got {}.",

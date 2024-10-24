@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-use log::info;
 
 use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};

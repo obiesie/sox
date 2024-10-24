@@ -1,6 +1,5 @@
 use std::iter::Peekable;
 
-use log::info;
 
 use crate::expr::Expr;
 use crate::stmt::Stmt;
@@ -575,7 +574,7 @@ mod tests {
     use crate::expr::Expr;
     use crate::lexer::Lexer;
     use crate::parser::Parser;
-    use crate::stmt::Stmt::{Function, Print, Var};
+    use crate::stmt::Stmt::{Function, Print};
     use crate::token::Literal;
     use crate::token::Token;
     use crate::token_type::TokenType::Identifier;

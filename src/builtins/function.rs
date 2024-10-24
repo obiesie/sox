@@ -1,10 +1,7 @@
-use log::{debug, info};
 use once_cell::sync::OnceCell;
-use slotmap::DefaultKey;
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-use std::rc::Rc;
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{static_func, FuncArgs, SoxMethod};
@@ -66,7 +63,7 @@ impl SoxFunction {
 
     pub fn call(fo: SoxObject, args: FuncArgs, interpreter: &mut Interpreter) -> SoxResult {
         if let Some(fo) = fo.as_func() {
-            if (args.args.len() != fo.arity as usize) {
+            if args.args.len() != fo.arity as usize {
                 let error = Exception::Err(RuntimeError {
                     msg: format!(
                         "Expected {} arguments but got {}.",
@@ -110,7 +107,7 @@ impl SoxFunction {
                     }
                 }
             }
-            if (fo.is_initializer) {
+            if fo.is_initializer {
 
                 let v = interpreter.environment.find_and_get( "this");
                 interpreter.environment.active = previous_env_ref;

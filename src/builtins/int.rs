@@ -1,5 +1,4 @@
 use std::any::Any;
-use std::io::Repeat;
 use std::ops::Deref;
 use std::rc::Rc;
 
@@ -7,7 +6,6 @@ use once_cell::sync::OnceCell;
 
 use macros::soxtype;
 use crate::builtins::bool_::SoxBool;
-use crate::builtins::float::SoxFloat;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;

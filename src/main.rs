@@ -1,5 +1,5 @@
 use std::io::Write;
-use std::{env, process};
+use std::env;
 
 use log::LevelFilter;
 

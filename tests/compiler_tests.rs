@@ -5,7 +5,6 @@ use regex::Regex;
 use std::fs;
 use std::iter::zip;
 use std::process::Command;
-use log::info;
 use walkdir::WalkDir;
 
 lazy_static::lazy_static! {

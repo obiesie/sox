@@ -1,7 +1,6 @@
 use std::collections::HashMap;
 
-use log::{debug, info};
-use slotmap::{DefaultKey, SlotMap};
+use log::info;
 
 use crate::builtins::bool_::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
@@ -16,7 +15,7 @@ use crate::catalog::TypeLibrary;
 use crate::core::SoxObjectPayload;
 use crate::core::SoxRef;
 use crate::core::{SoxObject, SoxResult};
-use crate::environment::{EnvRef, Environment, Namespace};
+use crate::environment::{EnvRef, Environment};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
 use crate::stmt::{Stmt, StmtVisitor};
@@ -259,7 +258,7 @@ impl StmtVisitor for &mut Interpreter {
     fn visit_function_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if let Stmt::Function {
             name,
-            params: params,
+            params,
             body: _body,
         } = stmt
         {
