@@ -37,7 +37,7 @@ impl SoxBool {
 }
 
 impl Representable for SoxBool {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         self.value.to_string()
     }
 }

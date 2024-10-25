@@ -9,7 +9,7 @@ use crate::proc::soxtypeimpl;
 mod proc;
 
 #[proc_macro_attribute]
-pub fn show_streams(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn show_streams(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }
 
@@ -20,12 +20,12 @@ pub fn trace(_attr: TokenStream, item: TokenStream) -> TokenStream {
 }
 
 #[proc_macro_attribute]
-pub fn soxtype(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn soxtype(_attr: TokenStream, item: TokenStream) -> TokenStream {
     let p_item = parse_macro_input!(item as Item);
     soxtypeimpl(p_item).into()
 }
 
 #[proc_macro_attribute]
-pub fn soxmethod(attr: TokenStream, item: TokenStream) -> TokenStream {
+pub fn soxmethod(_attr: TokenStream, item: TokenStream) -> TokenStream {
     item
 }

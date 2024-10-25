@@ -102,7 +102,7 @@ impl ToSoxResult for SoxNone {
 
 
 impl Representable for SoxNone {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         "None".to_string()
     }
 }

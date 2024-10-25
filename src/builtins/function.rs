@@ -209,7 +209,7 @@ impl ToSoxResult for SoxFunction {
 }
 
 impl Representable for SoxFunction {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         let func_name = self.name.to_string();
         format!("<Function {func_name}>")
     }

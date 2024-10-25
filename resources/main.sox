@@ -1,21 +1,7 @@
-let closure;
-{
-  let a = "a";
-
-  {
-    let b = "b";
-    def returnA() {
-      return a;
-    }
-
-    closure = returnA;
-
-    if (false) {
-      def returnB() {
-        return b;
-      }
-    }
-  }
-
-  print closure(); // expect: a
+// Block body.
+for (let a = 0; a < 3; a = a + 1) {
+  print a;
 }
+// expect: 0
+// expect: 1
+// expect: 2

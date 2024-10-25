@@ -122,7 +122,7 @@ impl SoxType {
 }
 
 impl Representable for SoxType {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         format!("<type '{}'>", self.name.as_ref().unwrap().to_string())
     }
 }
@@ -213,7 +213,7 @@ impl SoxInstance {
 }
 
 impl Representable for SoxInstance {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         format!(
             "<{} instance>",
             self.typ
@@ -241,7 +241,7 @@ impl SoxObjectPayload for SoxInstance {
         SoxRef::new(self).to_sox_object()
     }
 
-    fn class(&self, i: &Interpreter) -> &SoxType {
+    fn class(&self, _i: &Interpreter) -> &SoxType {
         self.typ.val.as_ref()
     }
 }

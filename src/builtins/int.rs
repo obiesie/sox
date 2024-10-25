@@ -110,7 +110,7 @@ impl From<i64> for SoxInt {
 }
 
 impl Representable for SoxInt {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         self.value.to_string()
     }
 }

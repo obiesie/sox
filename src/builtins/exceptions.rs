@@ -43,7 +43,7 @@ impl From<Exception> for RuntimeError {
 }
 
 impl Representable for RuntimeError {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         self.msg.to_string()
     }
 }

@@ -23,10 +23,7 @@ use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 
 pub struct Interpreter {
-    //pub envs: SlotMap<DefaultKey, Env>,
     pub environment: Environment,
-    //pub active_env_ref: DefaultKey,
-    //pub global_env_ref: DefaultKey,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
     pub _locals: HashMap<Token, (usize, usize)>,
@@ -34,16 +31,11 @@ pub struct Interpreter {
 
 impl Interpreter {
     pub fn new() -> Self {
-        // let environment = Env::default();
-        // let mut envs = SlotMap::new();
-        // let active_env_ref = envs.insert(environment);
+        
         let types = TypeLibrary::init();
         let none = SoxRef::new(SoxNone {});
         let interpreter = Interpreter {
-            //envs,
             environment: Environment::new(),
-            //active_env_ref,
-            //global_env_ref: active_env_ref.clone(),
             types,
             none,
             _locals: Default::default(),

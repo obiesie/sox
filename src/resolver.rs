@@ -32,8 +32,7 @@ pub struct Resolver {
     scopes: Vec<Vec<(Token, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
-    resolved_data: HashMap<(String, usize), (usize, usize)>,
-    _resolved_data: HashMap<Token, (usize, usize)>,
+    resolved_data: HashMap<Token, (usize, usize)>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
 
@@ -58,7 +57,6 @@ impl Resolver {
             current_function: FunctionType::None,
             current_class: ClassType::None,
             resolved_data: Default::default(),
-            _resolved_data: Default::default(),
         }
     }
 
@@ -73,16 +71,16 @@ impl Resolver {
         for stmt in statements {
             self.resolve_stmt(stmt.clone())?;
         }
-        Ok(self._resolved_data.clone())
+        Ok(self.resolved_data.clone())
     }
 
-    pub fn resolve_local(&mut self, expr: Expr, name: Token) -> Result<(), ResolverError> {
+    pub fn resolve_local(&mut self, _expr: Expr, name: Token) -> Result<(), ResolverError> {
         for (dist_index, scope) in self.scopes.iter_mut().rev().enumerate() {
             let mut found = false;
             for idx in 0..scope.len() {
                 let val = scope.get_mut(idx);
-                if val.as_ref().unwrap().0.lexeme == name.lexeme.as_str() {
-                    self._resolved_data.insert(name.clone(), (dist_index, idx));
+                if val.as_ref().unwrap().0 == name {
+                    self.resolved_data.insert(name.clone(), (dist_index, idx));
                     found = true;
                 }
             }
@@ -118,7 +116,7 @@ impl Resolver {
         if let Some(scope) = self.scopes.last_mut() {
             if let Some(entry) = scope
                 .iter_mut()
-                .find(|e| e.0.lexeme == name.lexeme.as_str() && e.0.line == name.line)
+                .find(|e| e.0 == name)
             {
                 entry.1 = true;
             }
@@ -131,7 +129,7 @@ impl Resolver {
         stmt: Stmt,
         func_type: FunctionType,
     ) -> Result<(), ResolverError> {
-        if let Stmt::Function { name, params, body } = stmt {
+        if let Stmt::Function {  params, body, .. } = stmt {
             let enclosing_function = self.current_function.clone();
             self.current_function = func_type;
             self.begin_scope();
@@ -210,7 +208,7 @@ impl StmtVisitor for &mut Resolver {
     }
 
     fn visit_function_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        if let Stmt::Function { name, params, body } = stmt {
+        if let Stmt::Function { name, .. } = stmt {
             self.declare(name.clone())?;
             self.define(name.clone())?;
             self.resolve_function(stmt.clone(), FunctionType::Function)?;
@@ -224,7 +222,7 @@ impl StmtVisitor for &mut Resolver {
                 "Return not allowed at top-level code.".into(),
             ));
         }
-        if let Stmt::Return { keyword, value } = stmt {
+        if let Stmt::Return { value, .. } = stmt {
             if value.is_some() {
                 
                 if self.current_function == FunctionType::Initializer  {
@@ -276,7 +274,7 @@ impl StmtVisitor for &mut Resolver {
 
             self.scopes.last_mut().unwrap().push((this_token, true));
             for method in methods.iter() {
-                let dec = if let Stmt::Function { name, params, body } = method {
+                let dec = if let Stmt::Function { name, .. } = method {
                     if name.lexeme == "init" {
                         FunctionType::Initializer
                     } else {
@@ -307,7 +305,7 @@ impl ExprVisitor for &mut Resolver {
         Ok(())
     }
 
-    fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
+    fn visit_literal_expr(&mut self, _expr: &Expr) -> Self::T {
         Ok(())
     }
 
@@ -315,7 +313,8 @@ impl ExprVisitor for &mut Resolver {
         if let Expr::Binary {
             left,
             right,
-            operator,
+            //operator,
+            ..
         } = expr
         {
             self.resolve_expr(left.as_ref())?;
@@ -332,7 +331,7 @@ impl ExprVisitor for &mut Resolver {
     }
 
     fn visit_unary_expr(&mut self, expr: &Expr) -> Self::T {
-        if let Expr::Unary { right, operator } = expr {
+        if let Expr::Unary { right, .. } = expr {
             self.resolve_expr(right.as_ref())?;
         }
         Ok(())
@@ -342,7 +341,8 @@ impl ExprVisitor for &mut Resolver {
         if let Expr::Logical {
             left,
             right,
-            operator,
+            ..
+            //operator,
         } = expr
         {
             self.resolve_expr(left.as_ref())?;
@@ -361,14 +361,14 @@ impl ExprVisitor for &mut Resolver {
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v| v.0.lexeme == name.lexeme.as_str())
+                    .find(|v| v.0 == *name)
                     .is_some()
                 && self
                     .scopes
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v| v.0.lexeme == name.lexeme.as_str())
+                    .find(|v| v.0 == *name)
                     .unwrap()
                     .1
                     == false
@@ -387,8 +387,9 @@ impl ExprVisitor for &mut Resolver {
     fn visit_call_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Call {
             callee,
-            paren,
+            //paren,
             arguments,
+            ..
         } = expr
         {
             self.resolve_expr(callee.as_ref())?;
@@ -400,7 +401,7 @@ impl ExprVisitor for &mut Resolver {
     }
 
     fn visit_get_expr(&mut self, expr: &Expr) -> Self::T {
-        if let Expr::Get { name, object } = expr {
+        if let Expr::Get { object, .. } = expr {
             self.resolve_expr(object)?;
         }
         Ok(())
@@ -408,9 +409,10 @@ impl ExprVisitor for &mut Resolver {
 
     fn visit_set_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Set {
-            name,
+            //name,
             object,
             value,
+            ..
         } = expr
         {
             self.resolve_expr(value)?;
@@ -438,7 +440,7 @@ impl ExprVisitor for &mut Resolver {
     }
 
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
-        if let Expr::Super { keyword, method } = expr {
+        if let Expr::Super { keyword, .. } = expr {
             let res = if self.current_class == ClassType::None {
                 Err(ResolverError::SyntaxError(
                     "Can't use 'super' outside of a class".into(),

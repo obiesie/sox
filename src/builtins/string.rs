@@ -105,7 +105,7 @@ impl ToSoxResult for SoxString {
 
 
 impl Representable for SoxString {
-    fn repr(&self, i: &Interpreter) -> String {
+    fn repr(&self, _i: &Interpreter) -> String {
         self.value.to_string()
     }
 }

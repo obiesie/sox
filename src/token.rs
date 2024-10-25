@@ -1,5 +1,5 @@
 use crate::token_type::TokenType;
-use rand::Rng;
+// use rand::Rng;
 use std::hash::{Hash, Hasher};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
@@ -37,18 +37,18 @@ pub struct Token {
     pub lexeme: String,
     pub literal: Literal,
     pub line: usize,
-    pub id: u32,
+    //pub id: u32,
 }
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: usize) -> Self {
-        let mut rng = rand::thread_rng();
+        // let mut rng = rand::thread_rng();
         Self {
             token_type,
             lexeme,
             literal,
             line,
-            id: rng.gen(),
+            //id: rng.gen(),
         }
     }
 }
