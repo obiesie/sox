@@ -49,7 +49,7 @@ pub fn run(source: String, enable_var_resolution: bool) {
             let resolved_data = var_resolver.resolve(&ast.as_ref().unwrap());
             match resolved_data {
                 Ok(data) => {
-                    interpreter._locals = data;
+                    interpreter.locals = data;
                     interpreter.interpret(&ast.unwrap())
                 }
                 Err(e) => {

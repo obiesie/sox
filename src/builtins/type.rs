@@ -3,7 +3,7 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 
 use once_cell::sync::OnceCell;
-
+use macros::soxtype;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
 use crate::builtins::method::{FuncArgs, SoxMethod};
@@ -35,6 +35,7 @@ pub struct SoxType {
 }
 
 
+#[soxtype]
 impl SoxType {
     pub fn new_static_type<T: ToString>(
         name: T,
@@ -164,9 +165,9 @@ impl StaticType for SoxType {
     }
 }
 
-impl SoxClassImpl for SoxType {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
-}
+// impl SoxClassImpl for SoxType {
+//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[];
+// }
 
 #[derive(Clone, Debug)]
 pub struct SoxInstance {

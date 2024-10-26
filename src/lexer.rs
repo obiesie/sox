@@ -1,5 +1,4 @@
 use std::ops::Range;
-
 use log::debug;
 
 use crate::token::{Float, Literal, Token};

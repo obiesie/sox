@@ -2,7 +2,7 @@ use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::iter::zip;
 use std::ops::Deref;
-use crate::builtins::bool_::SoxBool;
+use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{static_func, FuncArgs, SoxMethod};
 use crate::builtins::none::SoxNone;

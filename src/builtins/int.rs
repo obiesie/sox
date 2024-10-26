@@ -3,9 +3,8 @@ use std::ops::Deref;
 use std::rc::Rc;
 
 use once_cell::sync::OnceCell;
-
-use macros::soxtype;
-use crate::builtins::bool_::SoxBool;
+use macros::{soxmethod, soxtype};
+use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
@@ -14,17 +13,18 @@ use crate::interpreter::Interpreter;
 
 pub type SoxIntRef = Rc<SoxInt>;
 
-#[soxtype]
 #[derive(Debug, Clone, Copy)]
 pub struct SoxInt {
     pub value: i64,
 }
 
+#[soxtype]
 impl SoxInt {
     pub fn new(val: i64) -> Self {
         SoxInt { value: val }
     }
 
+    #[soxmethod]
     pub fn equals(&self, rhs: SoxObject) -> SoxBool {
         if let Some(rhs_int) = rhs.as_int() {
             SoxBool::new(self.value == rhs_int.value)
@@ -35,14 +35,14 @@ impl SoxInt {
        
 }
 
-impl SoxClassImpl for SoxInt {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
-        "equals",
-        SoxMethod {
-            func: static_func(SoxInt::equals),
-        },
-    )];
-}
+// impl SoxClassImpl for SoxInt {
+//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+//         "equals",
+//         SoxMethod {
+//             func: static_func(SoxInt::equals),
+//         },
+//     )];
+// }
 
 impl SoxObjectPayload for SoxInt {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {

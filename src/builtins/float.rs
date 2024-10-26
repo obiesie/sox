@@ -1,26 +1,27 @@
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::ops::Deref;
-
-use crate::builtins::bool_::SoxBool;
+use macros::{soxmethod, soxtype};
+use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
-use macros::soxtype;
 
-#[soxtype]
+
 #[derive(Debug, Clone, Copy)]
 pub struct SoxFloat {
     pub value: f64,
 }
 
+#[soxtype]
 impl SoxFloat {
     pub fn new(val: f64) -> Self {
         SoxFloat { value: val }
     }
 
+    #[soxmethod]
     pub fn equals(&self, other: SoxObject) -> SoxBool {
         if let Some(other_float) = other.as_float() {
             SoxBool::from(other_float.value == self.value)
@@ -30,14 +31,6 @@ impl SoxFloat {
     }
 }
 
-impl SoxClassImpl for SoxFloat {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[(
-        "equals",
-        SoxMethod {
-            func: static_func(SoxFloat::equals),
-        },
-    )];
-}
 
 impl SoxObjectPayload for SoxFloat {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {

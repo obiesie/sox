@@ -6,5 +6,5 @@ pub mod method;
 pub mod none;
 pub mod string;
 
-pub mod bool_;
+pub mod bool;
 pub mod r#type;

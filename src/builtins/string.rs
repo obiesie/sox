@@ -1,7 +1,8 @@
 use std::any::Any;
 use std::ops::Deref;
 pub use once_cell::sync::{Lazy, OnceCell};
-use crate::builtins::bool_::SoxBool;
+use macros::{soxmethod, soxtype};
+use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::core::{Representable, SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
@@ -14,11 +15,13 @@ pub struct SoxString {
     pub value: String,
 }
 
+#[soxtype]
 impl SoxString {
     pub fn new<T: Into<String>>(val: T) -> Self {
         SoxString { value: val.into() }
     }
 
+    #[soxmethod]
     pub fn equals(&self, rhs: SoxObject) -> SoxBool {
         match rhs.as_string() {
             Some(other) => SoxBool::new(self.value == other.value),
@@ -27,14 +30,14 @@ impl SoxString {
     }
 }
 
-impl SoxClassImpl for SoxString {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
-        "equals",
-        SoxMethod {
-            func: static_func(SoxString::equals),
-        },
-    )];
-}
+// impl SoxClassImpl for SoxString {
+//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
+//         "equals",
+//         SoxMethod {
+//             func: static_func(SoxString::equals),
+//         },
+//     )];
+// }
 impl StaticType for SoxString {
     const NAME: &'static str = "string";
 

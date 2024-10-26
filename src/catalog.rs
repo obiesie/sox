@@ -1,5 +1,5 @@
 use crate::builtins::r#type::SoxType;
-use crate::builtins::{bool_, exceptions, float, function, int, none, r#type, string};
+use crate::builtins::{bool, exceptions, float, function, int, none, r#type, string};
 use crate::core::StaticType;
 
 #[derive(Debug)]
@@ -17,7 +17,7 @@ pub struct TypeLibrary {
 impl TypeLibrary {
     pub fn init() -> Self {
         Self {
-            bool_type: bool_::SoxBool::init_builtin_type(),
+            bool_type: bool::SoxBool::init_builtin_type(),
             float_type: float::SoxFloat::init_builtin_type(),
             int_type: int::SoxInt::init_builtin_type(),
             str_type: string::SoxString::init_builtin_type(),

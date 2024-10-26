@@ -2,7 +2,7 @@ use std::collections::HashMap;
 
 use log::info;
 
-use crate::builtins::bool_::SoxBool;
+use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::float::SoxFloat;
 use crate::builtins::function::SoxFunction;
@@ -26,7 +26,7 @@ pub struct Interpreter {
     pub environment: Environment,
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
-    pub _locals: HashMap<Token, (usize, usize)>,
+    pub locals: HashMap<Token, (usize, usize)>,
 }
 
 impl Interpreter {
@@ -38,7 +38,7 @@ impl Interpreter {
             environment: Environment::new(),
             types,
             none,
-            _locals: Default::default(),
+            locals: Default::default(),
         };
         interpreter
     }
@@ -95,12 +95,7 @@ impl Interpreter {
         statements: Vec<&Stmt>,
         ns_ref: Option<EnvRef>,
     ) -> SoxResult<()> {
-        // let active_env = self.active_env_mut();
-        // if let Some(ns) = namespace {
-        //     active_env.push(ns)?;
-        // } else {
-        //     active_env.new_namespace()?;
-        // }
+        
         if let Some(ns_ref) = ns_ref {
             self.environment.active = ns_ref.clone();
         } else {
@@ -118,7 +113,7 @@ impl Interpreter {
     }
 
     fn lookup_variable(&mut self, name: &Token) -> SoxResult {
-        if let Some(dist) = self._locals.get(name) {
+        if let Some(dist) = self.locals.get(name) {
             let (dst, binding_idx) = dist;
             let key = (name.lexeme.to_string(), *dst, *binding_idx);
             let val = self.environment.get(key);
@@ -368,7 +363,7 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Assign { name, value } = expr {
             let eval_val = self.evaluate(value)?;
-            let dist = self._locals.get(&name);
+            let dist = self.locals.get(&name);
             if dist.is_some() {
                 let (dst, idx) = dist.unwrap();
                 // info!("Distance found from resolution is {dst}");
@@ -925,9 +920,9 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
-            let (dist_to_ns, binding_idx) = self._locals.get(&keyword).unwrap();
+            let (dist_to_ns, binding_idx) = self.locals.get(&keyword).unwrap();
             let this_token = Token::new(TokenType::This, "this".to_string(), Literal::None, 0);
-            let (dist_to_ns2, binding_idx2) = self._locals.get(&this_token).unwrap();
+            let (dist_to_ns2, binding_idx2) = self.locals.get(&this_token).unwrap();
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);

@@ -1,21 +1,26 @@
 use std::any::Any;
 use std::ops::Deref;
-use crate::builtins::bool_::SoxBool;
+use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 use once_cell::sync::OnceCell;
+use macros::{soxmethod, soxtype};
 use crate::builtins::string::SoxString;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SoxNone;
 
+#[soxtype]
 impl SoxNone {
+    
+    #[soxmethod]
     pub fn bool(&self) -> SoxBool {
         SoxBool::new(false)
     }
 
+    #[soxmethod]
     pub fn equals(&self, rhs: SoxObject) -> SoxBool {
         match rhs.as_none() {
             Some(_) => SoxBool::new(true),
@@ -24,21 +29,21 @@ impl SoxNone {
     }
 }
 
-impl SoxClassImpl for SoxNone {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[
-        (
-            "bool",
-            SoxMethod {
-                func: static_func(SoxNone::bool),
-            },
-        ),
-        (
-            "equals",
-            SoxMethod {
-                func: static_func(SoxNone::equals),
-            },
-        )];
-}
+// impl SoxClassImpl for SoxNone {
+//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[
+//         (
+//             "bool",
+//             SoxMethod {
+//                 func: static_func(SoxNone::bool),
+//             },
+//         ),
+//         (
+//             "equals",
+//             SoxMethod {
+//                 func: static_func(SoxNone::equals),
+//             },
+//         )];
+// }
 impl SoxObjectPayload for SoxNone {
     fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
         obj.as_none().unwrap()

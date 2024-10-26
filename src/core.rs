@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 pub use once_cell::sync::{Lazy, OnceCell};
 
-use crate::builtins::bool_::SoxBool;
+use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::Exception;
 use crate::builtins::float::SoxFloat;
 use crate::builtins::function::SoxFunction;

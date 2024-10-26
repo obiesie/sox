@@ -10,12 +10,15 @@ pub fn soxtypeimpl(item: Item) -> TokenStream {
             let ident = item_impl.self_ty.as_ref().into_token_stream();
 
             for i in item_impl.items.iter() {
+
                 match i {
                     ImplItem::Fn(v) => {
                         let fn_name = v.sig.ident.clone();
 
-                        if v.attrs.len() > 0 {
-                            methods.push((fn_name.to_string(), fn_name));
+                        for attr in v.attrs.iter() {
+                            if attr.path().is_ident("soxmethod") {
+                                methods.push((fn_name.to_string(), fn_name.clone()));
+                            }
                         }
                     }
 
@@ -27,7 +30,6 @@ pub fn soxtypeimpl(item: Item) -> TokenStream {
             for (method_name, method) in methods {
                 inner_tokens.extend(quote! [
                     (#method_name, SoxMethod{
-
                         func: static_func(#ident::#method)
                     }),
                 ]);

@@ -2,7 +2,7 @@ use std::any::Any;
 use std::ops::Deref;
 
 use once_cell::sync::OnceCell;
-
+use macros::{soxmethod, soxtype};
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
@@ -12,20 +12,28 @@ use crate::core::{
 };
 use crate::interpreter::Interpreter;
 
+
 #[derive(Debug, Clone, Copy)]
 pub struct SoxBool {
     pub value: bool,
 }
 
+#[soxtype]
 impl SoxBool {
     pub fn new(val: bool) -> Self {
         SoxBool { value: val }
     }
-
+    
+    pub fn not(&self) -> Self {
+        SoxBool::new(!self.value)
+    }
+    
+    #[soxmethod]
     pub fn bool(&self) -> Self {
         self.clone()
     }
     
+    #[soxmethod]
     pub fn equals(&self, rhs: SoxObject) -> Self {
         let other = rhs.as_bool();
         if let Some(other) = other {
@@ -41,21 +49,8 @@ impl Representable for SoxBool {
         self.value.to_string()
     }
 }
-impl SoxClassImpl for SoxBool {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[(
-        "bool",
-        SoxMethod {
-            func: static_func(SoxBool::bool),
-        },
-    ),
-        (
-        "equals",
-        SoxMethod {
-            func: static_func(SoxBool::equals),
-        },
-    )
-    ];
-}
+
+
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
         if let Some(bool_val) = obj.as_bool() {

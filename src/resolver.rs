@@ -32,6 +32,7 @@ pub struct Resolver {
     scopes: Vec<Vec<(Token, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
+    //resolved_data: HashMap<(String, usize), (usize, usize)>, 
     resolved_data: HashMap<Token, (usize, usize)>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]
@@ -79,7 +80,7 @@ impl Resolver {
             let mut found = false;
             for idx in 0..scope.len() {
                 let val = scope.get_mut(idx);
-                if val.as_ref().unwrap().0 == name {
+                if val.as_ref().unwrap().0.lexeme == name.lexeme.as_str() {
                     self.resolved_data.insert(name.clone(), (dist_index, idx));
                     found = true;
                 }
@@ -116,7 +117,7 @@ impl Resolver {
         if let Some(scope) = self.scopes.last_mut() {
             if let Some(entry) = scope
                 .iter_mut()
-                .find(|e| e.0 == name)
+                .find(|e| e.0.lexeme == name.lexeme.as_str() && e.0.line == name.line)
             {
                 entry.1 = true;
             }
@@ -361,14 +362,14 @@ impl ExprVisitor for &mut Resolver {
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v| v.0 == *name)
+                    .find(|v| v.0.lexeme == name.lexeme.as_str())
                     .is_some()
                 && self
                     .scopes
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v| v.0 == *name)
+                    .find(|v|v.0.lexeme == name.lexeme.as_str())
                     .unwrap()
                     .1
                     == false
