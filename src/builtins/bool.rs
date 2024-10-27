@@ -1,8 +1,6 @@
 use std::any::Any;
 use std::ops::Deref;
 
-use once_cell::sync::OnceCell;
-use macros::{soxmethod, soxtype};
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
@@ -11,6 +9,8 @@ use crate::core::{
     ToSoxResult, TryFromSoxObject,
 };
 use crate::interpreter::Interpreter;
+use macros::{soxmethod, soxtype};
+use once_cell::sync::OnceCell;
 
 
 #[derive(Debug, Clone, Copy)]
@@ -23,16 +23,16 @@ impl SoxBool {
     pub fn new(val: bool) -> Self {
         SoxBool { value: val }
     }
-    
+
     pub fn not(&self) -> Self {
         SoxBool::new(!self.value)
     }
-    
+
     #[soxmethod]
     pub fn bool(&self) -> Self {
         self.clone()
     }
-    
+
     #[soxmethod]
     pub fn equals(&self, rhs: SoxObject) -> Self {
         let other = rhs.as_bool();
@@ -103,10 +103,10 @@ impl StaticType for SoxBool {
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None,
+        SoxTypeSlot {
+            call: None,
             methods: Self::METHOD_DEFS,
-
-            }
+        }
     }
 }
 
