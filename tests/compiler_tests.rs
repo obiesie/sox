@@ -1,6 +1,6 @@
-use polars::df;
+use polars::{df};
 use polars::frame::DataFrame;
-use polars::prelude::{CsvWriter, SerWriter};
+use polars::prelude::*;
 use regex::Regex;
 use std::fs;
 use std::iter::zip;
@@ -98,7 +98,6 @@ fn test_compiler() {
             .collect::<Vec<String>>();
         let failures = validate_outputs(&expected_outputs, &output_strs);
         println!("failures are {:?}",  failures);
-        // assert_eq!(failures, vec![]);
         test_results.push(failures.is_empty())
     }
     let mut res_df: DataFrame = df!(
@@ -110,6 +109,15 @@ fn test_compiler() {
 
     let mut file = std::fs::File::create("result.csv").unwrap();
     CsvWriter::new(&mut file).finish(&mut res_df).unwrap();
+
+    let failed_df = res_df
+        .lazy()
+        .filter(col("Test Passed?").eq(lit(false)))
+        .collect().unwrap();
+
+    println!("failed tests: \n {}", failed_df);
+    assert_eq!(failed_df.shape().0, 0);
+
 }
 
 fn validate_outputs<T: ToString + PartialEq>(

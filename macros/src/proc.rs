@@ -2,7 +2,7 @@ use proc_macro2::{Delimiter, Group, TokenStream, TokenTree};
 use quote::{quote, ToTokens};
 use syn::{ImplItem, Item};
 
-pub fn soxtypeimpl(item: Item) -> TokenStream {
+pub fn soxtype_impl(item: Item) -> TokenStream {
     let mut methods = Vec::new();
 
     let tokens = match item.clone() {

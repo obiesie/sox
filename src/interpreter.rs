@@ -619,57 +619,9 @@ impl ExprVisitor for &mut Interpreter {
                     } else {
                         Ok(SoxBool::from(false).into_ref())
                     }
-                   // let eq_slot_func = left_type.
-
-                    // let value = if let (Some(v1), Some(v2)) =
-                    //     (left_val.as_int(), right_val.as_int())
-                    // {
-                    //     Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                    // } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                    //     if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                    //         Ok(SoxBool::from(v1.value == v2.value).into_ref())
-                    //     } else if let (Some(v1), Some(v2)) =
-                    //         (left_val.as_float(), right_val.as_int())
-                    //     {
-                    //         Ok(SoxBool::from(v1.value == (v2.value as f64)).into_ref())
-                    //     } else if let (Some(v1), Some(v2)) =
-                    //         (left_val.as_int(), right_val.as_float())
-                    //     {
-                    //         Ok(SoxBool::from((v1.value as f64) == v2.value).into_ref())
-                    //     } else {
-                    //         Ok(SoxBool::from(false).into_ref())
-                    //     }
-                    // } else {
-                    //     Ok(SoxBool::from(false).into_ref())
-                    // };
-                    // value
 
                 }
                 TokenType::BangEqual => {
-                    // let exc = Err(Interpreter::runtime_error(
-                    //     "Arguments to the not equals operator must both be numbers".into(),
-                    // ));
-                    // let value = if let (Some(v1), Some(v2)) =
-                    //     (left_val.as_int(), right_val.as_int())
-                    // {
-                    //     Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                    // } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                    //     if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                    //         Ok(SoxBool::from(v1.value != v2.value).into_ref())
-                    //     } else if let (Some(v1), Some(v2)) =
-                    //         (left_val.as_float(), right_val.as_int())
-                    //     {
-                    //         Ok(SoxBool::from(v1.value != (v2.value as f64)).into_ref())
-                    //     } else if let (Some(v1), Some(v2)) =
-                    //         (left_val.as_int(), right_val.as_float())
-                    //     {
-                    //         Ok(SoxBool::from((v1.value as f64) != v2.value).into_ref())
-                    //     } else {
-                    //         exc
-                    //     }
-                    // } else {
-                    //     exc
-                    // };
                     let left_type = left_val.sox_type(self);
                     let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
                     let value = if let Some(entry) = eq {
