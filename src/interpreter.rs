@@ -65,15 +65,15 @@ impl Interpreter {
     }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
-        let mut m = statements.iter().peekable();
-        while let Some(stmt) = m.next() {
+        let mut stmts_iter = statements.iter().peekable();
+        while let Some(stmt) = stmts_iter.next() {
             let result = self.execute(stmt);
             if result.is_err() {
                 println!("{}", result.unwrap_err().repr(&self));
                 break;
             }
             let result_value = result.unwrap();
-            if m.peek().is_none() {
+            if stmts_iter.peek().is_none() {
                 if let SoxObject::None(_) = result_value {
                 } else {
                     println!("{}", result_value.repr(&self));

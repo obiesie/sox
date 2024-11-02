@@ -1,6 +1,6 @@
 use crate::token_type::TokenType;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicU32};
+use std::sync::atomic::{AtomicUsize, Ordering};
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Literal {
@@ -37,10 +37,10 @@ pub struct Token {
     pub lexeme: String,
     pub literal: Literal,
     pub line: usize,
-    pub id: u32,
+    pub id: usize,
 }
 
-static TOKEN_ATOMIC: AtomicU32 = AtomicU32::new(0); // acts like a unique salt for tokens due to how structs are compared when they are used in something like a hashmap
+static TOKEN_ATOMIC: AtomicUsize = AtomicUsize::new(0); // acts like a unique salt for tokens due to how structs are compared when they are used in something like a hashmap
 
 impl Token {
     pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: usize) -> Self {
