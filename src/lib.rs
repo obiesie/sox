@@ -7,8 +7,12 @@ pub mod token_type;
 
 pub mod builtins;
 pub mod catalog;
-pub mod core;
 pub mod environment;
 pub mod init;
 pub mod interpreter;
 pub mod resolver;
+pub mod heap;
+mod chunk;
+mod vm;
+mod slots;
+mod object;

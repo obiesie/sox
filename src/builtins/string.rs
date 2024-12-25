@@ -1,13 +1,15 @@
 use std::any::Any;
-use std::ops::Deref;
+use std::fmt;
 pub use once_cell::sync::{Lazy, OnceCell};
 use macros::{soxmethod, soxtype};
 use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::core::{Representable, SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
-use crate::core::{SoxObject, SoxObjectPayload, SoxRef, StaticType};
+use crate::builtins::core::{SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
+use crate::builtins::core::{SoxObjectPayload, StaticType};
 use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::slots::repr::Representable;
 
 //
 #[derive(Clone, Debug)]
@@ -22,33 +24,31 @@ impl SoxString {
     }
 
     #[soxmethod]
-    pub fn equals(&self, rhs: SoxObject) -> SoxBool {
-        match rhs.as_string() {
+    pub fn equals(&self, rhs: SoxObjectRef) -> SoxBool {
+        match rhs.payload::<SoxString>() {
             Some(other) => SoxBool::new(self.value == other.value),
             None => SoxBool::new(false),
         }
     }
+    
+    pub fn as_str(&self) -> &str {
+        self.value.as_str()
+    }
 }
 
-// impl SoxClassImpl for SoxString {
-//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
-//         "equals",
-//         SoxMethod {
-//             func: static_func(SoxString::equals),
-//         },
-//     )];
-// }
+
 impl StaticType for SoxString {
     const NAME: &'static str = "string";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
+    fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
+        static CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
         &CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
         SoxTypeSlot { 
             call: None,
+            repr: Some(Self::slot_repr),
             methods: Self::METHOD_DEFS,
             
         }
@@ -56,25 +56,11 @@ impl StaticType for SoxString {
 }
 
 impl SoxObjectPayload for SoxString {
-    fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-        obj.as_string().unwrap()
-    }
-
-    fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::String(ref_type)
-    }
 
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn into_ref(self) -> SoxObject {
-        SoxRef::new(self).to_sox_object()
-    }
-
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
-        i.types.str_type
-    }
 }
 
 impl From<String> for SoxString {
@@ -85,31 +71,38 @@ impl From<String> for SoxString {
 }
 
 impl TryFromSoxObject for SoxString {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
-        if let Some(val) = obj.as_string() {
-            Ok(val.val.deref().clone())
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+        if let Some(val) = obj.payload::<SoxString>() {
+            Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get boolean from supplied object"),
             };
-            let ob = SoxRef::new(err_msg);
-            Err(SoxObject::String(ob))
+            let ob = SoxRef::new_ref(err_msg, _i.types.str_type.to_owned());
+            Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxString {
     fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = self.into_ref();
-        Ok(obj)
+        let obj = SoxRef::new_ref(self, _i.types.str_type.to_owned());
+        Ok(obj.into())
     }
 }
 
 
+impl fmt::Display for SoxString {
+    #[inline]
+    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
+        fmt::Display::fmt(self.as_str(), f)
+    }
+}
+
 
 impl Representable for SoxString {
-    fn repr(&self, _i: &Interpreter) -> String {
-        self.value.to_string()
+    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+        zelf.value.to_string()
     }
 }
 #[cfg(test)]

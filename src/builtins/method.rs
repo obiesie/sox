@@ -1,7 +1,8 @@
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use crate::core::{SoxObject, SoxObjectPayload, SoxResult, ToSoxResult, TryFromSoxObject};
+use crate::builtins::core::{SoxResult, ToSoxResult, TryFromSoxObject};
+use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::interpreter::Interpreter;
 
 pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;
@@ -48,20 +49,20 @@ pub const fn static_func<K, R, F: NativeFn<K, R>>(f: F) -> &'static SoxNativeFun
 
 #[derive(Clone, Debug)]
 pub struct FuncArgs {
-    pub args: Vec<SoxObject>,
+    pub args: Vec<SoxObjectRef>,
 }
 
 impl FuncArgs {
-    pub fn new(args: Vec<SoxObject>) -> Self {
+    pub fn new(args: Vec<SoxObjectRef>) -> Self {
         Self { args }
     }
 
-    fn bind<T: FromArgs>(&mut self, i: &Interpreter) -> SoxResult<T> {
+    pub(crate) fn bind<T: FromArgs>(&mut self, i: &Interpreter) -> SoxResult<T> {
         let bound = T::from_args(i, self);
         bound
     }
 
-    pub fn take_positional(&mut self) -> Option<SoxObject> {
+    pub fn take_positional(&mut self) -> Option<SoxObjectRef> {
         if self.args.is_empty() {
             None
         } else {
@@ -85,18 +86,18 @@ impl<T: TryFromSoxObject> FromArgs for T {
         let val = if let Some(v) = args.take_positional() {
             T::try_from_sox_object(i, v.clone())
         } else {
-            Err(Exception::Err(RuntimeError {
+            let exc = Exception::Err(RuntimeError {
                 msg: "Too few argument supplied to function".into(),
-            })
-            .into_ref())
+            }); 
+            Err(SoxRef::new_ref(exc, i.types.exception_type.to_owned()).into())
         };
         val
     }
 }
 
 
-impl TryFromSoxObject for SoxObject {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
+impl TryFromSoxObject for SoxObjectRef {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
        return Ok(obj); 
     }
 }

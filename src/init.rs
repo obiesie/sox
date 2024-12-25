@@ -8,55 +8,55 @@ use std::{fs, io};
 pub fn run_file(file_path: String) {
     let contents =
         fs::read_to_string(file_path).expect("Failed to read content of provided file path");
-    run(contents, true)
+    run(contents)
 }
 
 pub fn run_prompt() {
     let stdin = io::stdin();
     let mut interpreter = Interpreter::new();
+    let mut resolver = Resolver::new();
     println!("Welcome to sox");
 
     loop {
         print!(">>> ");
-        let _ = io::stdout().flush();
+        io::stdout().flush().expect("Failed to flush stdout");
         let mut buffer = String::new();
-        stdin.read_line(&mut buffer).unwrap();
-        if buffer.is_empty() {
+
+        if stdin.read_line(&mut buffer).expect("Failed to read line") == 0 {
             break;
         }
-        let tokens = Lexer::lex(buffer.as_str());
-        let mut parser = Parser::new(tokens);
-        let ast = parser.parse();
-        if let Ok(ast) = ast {
-            interpreter.interpret(&ast);
-        } else {
-            println!("Error - {:?}", ast.err().unwrap());
-        }
+
+        parse_and_interpret_with_resolver(buffer.trim(), &mut resolver, &mut interpreter);
     }
 }
 
-pub fn run(source: String, enable_var_resolution: bool) {
-    let tokens = Lexer::lex(source.as_str());
-    let mut parser = Parser::new(tokens);
+pub fn run(source: String) {
     let mut var_resolver = Resolver::new();
+    let mut interpreter = Interpreter::new();
+    parse_and_interpret_with_resolver(source.as_str(), &mut var_resolver, &mut interpreter);
+}
 
+fn parse_and_interpret_with_resolver(
+    source: &str,
+    resolver: &mut Resolver,
+    interpreter: &mut Interpreter,
+) {
+    let tokens = Lexer::lex(source);
+    let mut parser = Parser::new(tokens);
     let ast = parser.parse();
 
-    let mut interpreter = Interpreter::new();
-
-    if ast.is_ok() {
-        if enable_var_resolution {
-            let resolved_data = var_resolver.resolve(&ast.as_ref().unwrap());
-            match resolved_data {
-                Ok(data) => {
-                    interpreter.locals = data;
-                    interpreter.interpret(&ast.unwrap())
-                }
-                Err(e) => {
-                    println!("{}", e.to_string());
-                }
+    match ast {
+        Ok(ast) => match resolver.resolve(&ast) {
+            Ok(data) => {
+                interpreter.locals = data;
+                interpreter.interpret(&ast);
             }
-            //interpreter._locals = resolved_data.unwrap();
+            Err(e) => {
+                println!("Resolution error: {}", e);
+            }
+        },
+        Err(e) => {
+            println!("Parsing error: {:?}", e);
         }
     }
 }

@@ -1,5 +1,4 @@
 use std::collections::HashMap;
-
 use log::info;
 
 use crate::builtins::bool::SoxBool;
@@ -12,12 +11,12 @@ use crate::builtins::none::SoxNone;
 use crate::builtins::r#type::{SoxInstance, SoxType};
 use crate::builtins::string::SoxString;
 use crate::catalog::TypeLibrary;
-use crate::core::SoxObjectPayload;
-use crate::core::SoxRef;
-use crate::core::{SoxObject, SoxResult};
+use crate::builtins::core::ToSoxResult;
+use crate::builtins::core::SoxResult;
 use crate::environment::{EnvRef, Environment};
 use crate::expr::Expr;
 use crate::expr::ExprVisitor;
+use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
@@ -27,13 +26,14 @@ pub struct Interpreter {
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
     pub locals: HashMap<Token, (usize, usize)>,
+    //pub exception: ExceptionLibrary
 }
 
 impl Interpreter {
     pub fn new() -> Self {
         
         let types = TypeLibrary::init();
-        let none = SoxRef::new(SoxNone {});
+        let none = SoxRef::new_ref(SoxNone {}, types.none_type.to_owned());
         let interpreter = Interpreter {
             environment: Environment::new(),
             types,
@@ -43,25 +43,25 @@ impl Interpreter {
         interpreter
     }
 
-    pub fn new_string(&self, s: String) -> SoxObject {
-        let str = SoxRef::new(SoxString::from(s));
-        str.to_sox_object()
+    pub fn new_string(&self, s: String) -> SoxRef<SoxString> {
+        let s = SoxRef::new_ref(SoxString::from(s), self.types.str_type.to_owned());
+        s
     }
 
-    pub fn new_int(&self, i: i64) -> SoxObject {
-        SoxInt::from(i).into_ref()
+    pub fn new_int(&self, i: i64) -> SoxRef<SoxInt> {
+        SoxRef::new_ref(SoxInt::from(i), self.types.int_type.to_owned())
     }
 
-    pub fn new_float(&self, f: f64) -> SoxObject {
-        SoxFloat::from(f).into_ref()
+    pub fn new_float(&self, f: f64) -> SoxRef<SoxFloat> {
+        SoxRef::new_ref(SoxFloat::from(f), self.types.float_type.to_owned())
     }
 
-    pub fn new_bool(&self, b: bool) -> SoxObject {
-        SoxBool::from(b).into_ref()
+    pub fn new_bool(&self, b: bool) -> SoxRef<SoxBool> {
+        SoxRef::new_ref(SoxBool::from(b), self.types.bool_type.to_owned())
     }
 
-    pub fn new_none(&self) -> SoxObject {
-        SoxNone {}.into_ref()
+    pub fn new_none(&self) -> SoxRef<SoxNone> {
+        SoxRef::new_ref(SoxNone {}, self.types.none_type.to_owned())
     }
 
     pub fn interpret(&mut self, statements: &Vec<Stmt>) {
@@ -69,14 +69,18 @@ impl Interpreter {
         while let Some(stmt) = stmts_iter.next() {
             let result = self.execute(stmt);
             if result.is_err() {
-                println!("{}", result.unwrap_err().repr(&self));
+                let obj = result.unwrap_err();
+                
+                    let repr_str = obj.repr(self);
+                    println!("{}", repr_str.unwrap().as_str()); ;
+               
                 break;
             }
             let result_value = result.unwrap();
             if stmts_iter.peek().is_none() {
-                if let SoxObject::None(_) = result_value {
-                } else {
-                    println!("{}", result_value.repr(&self));
+                if !result_value.payload_is::<SoxNone>(){
+                    let repr_str = result_value.repr(self);
+                    println!("{}", repr_str.unwrap().as_str()); ;
                 }
             }
         }
@@ -121,14 +125,14 @@ impl Interpreter {
         } else {
             let val = self
                 .environment
-                .get_from_global_scope(name.lexeme.to_string());
+                .get_from_global_scope(name.lexeme.to_string(), self);
             val
         }
     }
 
-    pub fn runtime_error(msg: String) -> SoxObject {
+    pub fn runtime_error(&self, msg: String) -> SoxObjectRef {
         let error = Exception::Err(RuntimeError { msg });
-        error.into_ref()
+        SoxObjectRef::from(SoxRef::new_ref(error, self.types.exception_type.to_owned()))
     }
 }
 
@@ -136,15 +140,14 @@ impl StmtVisitor for &mut Interpreter {
     type T = SoxResult;
 
     fn visit_expression_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut return_value = Ok(self.none.into_ref());
+
         if let Stmt::Expression(expr) = stmt {
             let value = self.evaluate(expr);
-            return_value = match value {
-                Ok(v) => Ok(v),
-                Err(v) => Err(v.into()),
-            };
+            value
+
+        } else {
+            SoxObjectRef::from(self.none.clone()).to_sox_result(self)
         }
-        return_value
     }
 
     fn visit_print_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -152,52 +155,44 @@ impl StmtVisitor for &mut Interpreter {
             let value = self.evaluate(expr);
             match value {
                 Ok(v) => {
-                    println!("{}", v.repr(&self));
-                    Ok(self.none.into_ref())
+                    println!("{}", v.repr(&self)?.as_str());
+                    Ok(SoxObjectRef::from(self.none.clone()))
                 }
-                Err(v) => Err(v.into()),
+                Err(v) => Err(v),
             }
         } else {
-            Err(Interpreter::runtime_error(
-                "Evaluation failed - visited non print statement with visit_print_stmt."
-                    .to_string(),
-            ))
+            let err = SoxObjectRef::from(self.runtime_error("Evaluation failed - visited non print statement with visit_print_stmt."
+                .to_string()));
+            Err(err)
         };
         return_value
     }
 
     fn visit_decl_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut value = SoxNone {}.into_ref();
+        let mut value = SoxObjectRef::from(self.new_none());
         if let Stmt::Var { name, initializer } = stmt {
-            //let v = self.lookup_variable(name);
 
             if let Some(initializer_stmt) = initializer {
                 value = self.evaluate(initializer_stmt)?;
             }
-            // let active_env = self.active_env_mut();
             let name_ident = name.lexeme.to_string();
-            //
-            // active_env.define(name_ident, value)
 
             self.environment.define(name_ident, value)
         } else {
-            return Err(Interpreter::runtime_error(
-                "Evaluation failed - visiting a non declaration statement with visit_decl_stmt."
-                    .to_string(),
-            ));
+            let err = SoxObjectRef::from(self.runtime_error("Evaluation failed - visiting a non declaration statement with visit_decl_stmt.".to_string()));
+            return Err(err);
         };
-        Ok(self.none.into_ref())
+        Ok(value)
     }
 
     fn visit_block_stmt(&mut self, stmt: &Stmt) -> Self::T {
         if let Stmt::Block(statements) = stmt {
             let stmts = statements.iter().map(|v| v).collect::<Vec<&Stmt>>();
-
             self.execute_block(stmts, None)?;
-
-            Ok(self.none.into_ref())
+            Ok(SoxObjectRef::from(self.none.clone()))
         } else {
-            Err(Interpreter::runtime_error(
+
+            Err(self.runtime_error(
                 "Evaluation failed - visited non block statement with visit_block_stmt."
                     .to_string(),
             ))
@@ -218,11 +213,11 @@ impl StmtVisitor for &mut Interpreter {
                 self.execute(else_branch_stmt)?;
             }
         } else {
-            return Err(Interpreter::runtime_error(
+            return Err(self.runtime_error(
                 "Evaluation failed - visited non if statement with visit_if_stmt".to_string(),
             ));
         }
-        Ok(self.none.into_ref())
+        Ok(SoxObjectRef::from(self.none.clone()))
     }
 
     fn visit_while_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -233,9 +228,9 @@ impl StmtVisitor for &mut Interpreter {
                 cond = self.evaluate(&condition)?;
             }
 
-            Ok(self.none.into_ref())
+            Ok(SoxObjectRef::from(self.none.clone()))
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed -  visited non while statement with visit_while_stmt."
                     .to_string(),
             ))
@@ -258,10 +253,10 @@ impl StmtVisitor for &mut Interpreter {
                 false
             );
             self.environment
-                .define(name.lexeme.to_string(), fo.into_ref());
-            Ok(self.none.into_ref())
+                .define(name.lexeme.to_string(), SoxObjectRef::from(SoxRef::new_ref(fo, self.types.func_type.to_owned())));
+            Ok(SoxObjectRef::from(self.none.clone()))
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed -  Calling a visit_function_stmt on non function node."
                     .to_string(),
             ))
@@ -269,13 +264,14 @@ impl StmtVisitor for &mut Interpreter {
     }
 
     fn visit_return_stmt(&mut self, stmt: &Stmt) -> Self::T {
-        let mut return_value = self.none.into_ref();
+        let mut return_value = SoxObjectRef::from(self.none.clone());
         if let Stmt::Return { keyword: _, value } = stmt {
             if let Some(value) = value {
                 return_value = self.evaluate(value)?;
             }
         }
-        Err(Exception::Return(return_value).into_ref())
+        let exc = SoxRef::new_ref(Exception::Return(return_value), self.types.exception_type.to_owned());
+        Err(SoxObjectRef::from(exc))
     }
 
     fn visit_class_stmt(&mut self, stmt: &Stmt) -> Self::T {
@@ -289,26 +285,28 @@ impl StmtVisitor for &mut Interpreter {
             let sc = if superclass.is_some() {
                 let sc = self.evaluate(superclass.as_ref().unwrap());
 
-                if let Ok(SoxObject::Type(v)) = sc {
+                // TODO fix check returned value is a class
+                if let Ok(v) = sc {
                     info!("Evaluated to a class");
                     Some(v)
                 } else {
-                    let re = Interpreter::runtime_error("Superclass must be a class.".to_string());
+                    let re = self.runtime_error("Superclass must be a class.".to_string());
                     return Err(re);
                 }
             } else {
                 None
             };
-            let none_val = self.none.clone().into_ref();
-            // let active_env = self.active_env_mut();
-            self.environment.define(name.lexeme.to_string(), none_val);
+            
+            let none_val = self.none.clone().clone();
+            let obj_ref = SoxObjectRef::from(none_val);
+            self.environment.define(name.lexeme.to_string(), obj_ref);
             let prev_env_ref = self.environment.active.clone();
-            //let prev_env = self.active_env_ref.clone();
-            // setup super keyword within namespace
-            if sc.is_some() {
+
+            if let Some(sc) =  sc{
+                //let obj_ref = SoxObjectRef::from(sc.as_ref().unwrap().clone());
                 self.environment.new_local_env();
                 self.environment
-                    .define("super", SoxObject::Type(sc.as_ref().unwrap().clone()))
+                    .define("super", sc)
             }
 
             let mut methods_map = HashMap::new();
@@ -327,38 +325,39 @@ impl StmtVisitor for &mut Interpreter {
                         is_initializer: name.lexeme == "init".to_string(),
                         arity: _params.len() as i8,
                     };
-                    methods_map.insert(name.lexeme.clone().into(), func.into_ref());
+                    let func_ref = SoxRef::new_ref(func, self.types.func_type.to_owned());
+                    methods_map.insert(name.lexeme.clone().into(), SoxObjectRef::from(func_ref));
                 }
             }
 
             // set up class in environment
             let class_name = name.lexeme.to_string();
+            let t = sc.clone().unwrap().payload::<SoxType>().clone().unwrap().clone();  
             let class = SoxType::new(
                 class_name.to_string(),
-                sc,
+                Some(SoxRef::new_ref(t, self.types.type_type.to_owned())),
                 Default::default(),
                 Default::default(),
                 methods_map,
             );
             self.environment.active = prev_env_ref;
+            let cls_obj = SoxRef::new_ref(class, self.types.type_type.to_owned());
             self.environment
-                .find_and_assign(name.lexeme.to_string(), class.into_ref()).expect("TODO: panic message");
-            // self.active_env_ref = prev_env;
-            // let active_env = self.active_env_mut();
-            // active_env.find_and_assign(name.lexeme.clone(), class.into_ref())?;
-            //
-            Ok(self.none.into_ref())
+                .find_and_assign(name.lexeme.to_string(), SoxObjectRef::from(cls_obj)).expect("TODO: panic message");
+
+            Ok(SoxObjectRef::from(self.none.clone()))
         } else {
             let err =
-                Interpreter::runtime_error("Calling a visit_class_stmt on non class type.".into());
+                self.runtime_error("Calling a visit_class_stmt on non class type.".into());
             return Err(err);
         };
         ret_val
     }
 }
 
+
 impl ExprVisitor for &mut Interpreter {
-    type T = Result<SoxObject, SoxObject>;
+    type T = Result<SoxObjectRef, SoxObjectRef>;
 
     fn visit_assign_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Assign { name, value } = expr {
@@ -366,37 +365,33 @@ impl ExprVisitor for &mut Interpreter {
             let dist = self.locals.get(&name);
             if dist.is_some() {
                 let (dst, idx) = dist.unwrap();
-                // info!("Distance found from resolution is {dst}");
                 let key = (name.lexeme.to_string(), *dst, *idx);
-
-                // let env = self.active_env_mut();
-                // env.assign(&key, eval_val.clone())?;
-                //
+                
                 self.environment.assign(&key, eval_val.clone())?;
             } else {
-                // let env = self.active_env_mut();
                 self.environment
                     .assign_in_global(name.lexeme.to_string(), eval_val.clone())?;
             };
             Ok(eval_val)
         } else {
-            Err(Interpreter::runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
+            Err(self.runtime_error("Evaluation failed -  called visit_assign_expr to process non assignment statement.".to_string()))
         };
         ret_val
     }
 
     fn visit_literal_expr(&mut self, expr: &Expr) -> Self::T {
         let value = if let Expr::Literal { value } = expr {
+            
             let obj = match value {
-                Literal::String(s) => self.new_string(s.clone()),
-                Literal::Integer(i) => self.new_int(i.clone()),
-                Literal::Float(f) => self.new_float(f.0.clone()),
-                Literal::Boolean(b) => self.new_bool(b.clone()),
-                Literal::None => self.new_none(),
+                Literal::String(s) => SoxObjectRef::from(self.new_string(s.clone())),
+                Literal::Integer(i) => SoxObjectRef::from(self.new_int(i.clone())),
+                Literal::Float(f) => SoxObjectRef::from(self.new_float(f.0.clone())),
+                Literal::Boolean(b) => SoxObjectRef::from(self.new_bool(b.clone())),
+                Literal::None => SoxObjectRef::from(self.new_none()),
             };
             Ok(obj)
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed - called visit_literal_expr on a non literal expression"
                     .to_string(),
             ))
@@ -416,24 +411,24 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Operands must be two numbers or two strings".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxInt::from(v1.value - v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxFloat::from(v1.value - v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxInt::from(v1.value - v2.value), self.types.int_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value - v2.value), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxFloat::from(v1.value - (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value - (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxFloat::from((v1.value as f64) - v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) - v2.value), self.types.float_type.to_owned())))
                         } else {
                             exc
                         }
@@ -443,24 +438,24 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Rem => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the remainder operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxInt::from(v1.value % v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxFloat::from(v1.value % v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxInt::from(v1.value % v2.value), self.types.int_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value % v2.value), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxFloat::from(v1.value % (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value % (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxFloat::from((v1.value as f64) % v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) % v2.value), self.types.float_type.to_owned())))
                         } else {
                             exc
                         }
@@ -470,31 +465,31 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Plus => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Operands must be two numbers or two strings.".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxInt::from(v1.value + v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxFloat::from(v1.value + v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxInt::from(v1.value + v2.value), self.types.int_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value + v2.value), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxFloat::from(v1.value + (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value + (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxFloat::from((v1.value as f64) + v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) + v2.value), self.types.float_type.to_owned())))
                         } else {
                             exc
                         }
                     } else if let (Some(v1), Some(v2)) =
-                        (left_val.as_string(), right_val.as_string())
+                        (left_val.payload::<SoxString>(), right_val.payload::<SoxString>())
                     {
-                        Ok(SoxString::from(v1.value.clone() + v2.value.as_str()).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxString::from(v1.value.clone() + v2.value.as_str()), self.types.str_type.to_owned())))
                     } else {
                         exc
                     };
@@ -502,24 +497,24 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Star => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the multiplication operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxInt::from(v1.value * v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxFloat::from(v1.value * v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxInt::from(v1.value * v2.value), self.types.int_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value * v2.value), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxFloat::from(v1.value * (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value * (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxFloat::from((v1.value as f64) * v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) * v2.value), self.types.float_type.to_owned())))
                         } else {
                             exc
                         }
@@ -529,24 +524,24 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Slash => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the division operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxFloat::from((v1.value as f64) / (v2.value as f64)).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxFloat::from(v1.value / v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) / (v2.value as f64)), self.types.float_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value / v2.value), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxFloat::from(v1.value / (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value / (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxFloat::from((v1.value as f64) / v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) / v2.value), self.types.float_type.to_owned())))
                         } else {
                             exc
                         }
@@ -556,24 +551,24 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Less => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the less than operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxBool::from(v1.value < v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value < v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value < v2.value), self.types.bool_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value < v2.value), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxBool::from(v1.value < (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value < (v2.value as f64)), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxBool::from((v1.value as f64) < v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from((v1.value as f64) < v2.value), self.types.bool_type.to_owned())))
                         } else {
                             exc
                         }
@@ -583,24 +578,24 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::Greater => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the greater than operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxBool::from(v1.value > v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value > v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value > v2.value), self.types.bool_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value > v2.value), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxBool::from(v1.value > (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value > (v2.value as f64)), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxBool::from((v1.value as f64) > v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from((v1.value as f64) > v2.value), self.types.bool_type.to_owned())))
                         } else {
                             exc
                         }
@@ -611,46 +606,46 @@ impl ExprVisitor for &mut Interpreter {
                 }
 
                 TokenType::EqualEqual => {
-                    let left_type = left_val.sox_type(self);
+                    let left_type = left_val.typ();
                     let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
                     if let Some(entry) = eq {
                         let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
                         (entry.1.func)(self, call_args)
                     } else {
-                        Ok(SoxBool::from(false).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(false), self.types.bool_type.to_owned())))
                     }
 
                 }
                 TokenType::BangEqual => {
-                    let left_type = left_val.sox_type(self);
+                    let left_type = left_val.typ();
                     let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
                     let value = if let Some(entry) = eq {
                         let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
                         (entry.1.func)(self, call_args)
                     } else {
-                        Ok(SoxBool::from(false).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(false), self.types.bool_type.to_owned())))
                     };
-                    Ok(SoxBool::from(!value?.try_into_rust_bool(self)).into_ref())
+                    Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(!value?.try_into_rust_bool(self)), self.types.bool_type.to_owned())))
                 }
                 TokenType::LessEqual => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the less than or equals operator must both be numbers".into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxBool::from(v1.value <= v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value <= v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value <= v2.value), self.types.bool_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value <= v2.value), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxBool::from(v1.value <= (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value <= (v2.value as f64)), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxBool::from((v1.value as f64) <= v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from((v1.value as f64) <= v2.value), self.types.bool_type.to_owned())))
                         } else {
                             exc
                         }
@@ -660,25 +655,25 @@ impl ExprVisitor for &mut Interpreter {
                     value
                 }
                 TokenType::GreaterEqual => {
-                    let exc = Err(Interpreter::runtime_error(
+                    let exc = Err(self.runtime_error(
                         "Arguments to the greater than or equals operator must both be numbers"
                             .into(),
                     ));
                     let value = if let (Some(v1), Some(v2)) =
-                        (left_val.as_int(), right_val.as_int())
+                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
                     {
-                        Ok(SoxBool::from(v1.value >= v2.value).into_ref())
-                    } else if left_val.as_float().is_some() || right_val.as_float().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.as_float(), right_val.as_float()) {
-                            Ok(SoxBool::from(v1.value >= v2.value).into_ref())
+                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value >= v2.value), self.types.bool_type.to_owned())))
+                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
+                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value >= v2.value), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_float(), right_val.as_int())
+                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
-                            Ok(SoxBool::from(v1.value >= (v2.value as f64)).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(v1.value >= (v2.value as f64)), self.types.bool_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
-                            (left_val.as_int(), right_val.as_float())
+                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
                         {
-                            Ok(SoxBool::from((v1.value as f64) >= v2.value).into_ref())
+                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from((v1.value as f64) >= v2.value), self.types.bool_type.to_owned())))
                         } else {
                             exc
                         }
@@ -689,12 +684,12 @@ impl ExprVisitor for &mut Interpreter {
                 }
                 TokenType::Bang => {
                     let value = right_val.try_into_rust_bool(self);
-                    Ok(SoxBool::from(value).into_ref())
+                    Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(value), self.types.bool_type.to_owned())))
                 }
-                _ => Err(Interpreter::runtime_error("Unsupported token type".into())),
+                _ => Err(self.runtime_error("Unsupported token type".into())),
             }
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed - called visit_binary_expr on non binary expression".into(),
             ))
         };
@@ -705,7 +700,7 @@ impl ExprVisitor for &mut Interpreter {
         let value = if let Expr::Grouping { expr } = expr {
             Ok(self.evaluate(expr)?)
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed - called visit_grouping_expr on a non-group node.".to_string(),
             ))
         };
@@ -717,14 +712,14 @@ impl ExprVisitor for &mut Interpreter {
             let right = self.evaluate(right)?;
             match operator.token_type {
                 TokenType::Minus => {
-                    let value = if let Some(v) = right.as_float() {
-                        let new_val = SoxFloat { value: -v.value };
-                        Ok(new_val.into_ref())
-                    } else if let Some(v) = right.as_int() {
-                        let new_val = SoxInt { value: -v.value };
-                        Ok(new_val.into_ref())
+                    let value = if let Some(v) = right.payload::<SoxFloat>() {
+                        let new_val = SoxRef::new_ref(SoxFloat { value: -v.value }, self.types.float_type.to_owned());
+                        Ok(SoxObjectRef::from(new_val))
+                    } else if let Some(v) = right.payload::<SoxInt>() {
+                        let new_val = SoxRef::new_ref(SoxInt { value: -v.value }, self.types.int_type.to_owned());
+                        Ok(SoxObjectRef::from(new_val))
                     } else {
-                        Err(Interpreter::runtime_error(
+                        Err(self.runtime_error(
                             "The unary operator (-) can only be applied to a numeric value."
                                 .to_string(),
                         ))
@@ -734,12 +729,12 @@ impl ExprVisitor for &mut Interpreter {
 
                 TokenType::Bang => {
                     let value = right.try_into_rust_bool(self);
-                    Ok(SoxBool::from(!value).into_ref())
+                    Ok(SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(!value), self.types.bool_type.to_owned())))
                 }
-                _ => Err(Interpreter::runtime_error("Unknown unary operator.".into())),
+                _ => Err(self.runtime_error("Unknown unary operator.".into())),
             }
         } else {
-            let error = Interpreter::runtime_error(
+            let error = self.runtime_error(
                 "Evaluation failed - called visit_unary_expr on a non unary expression".to_string(),
             );
             Err(error)
@@ -748,25 +743,28 @@ impl ExprVisitor for &mut Interpreter {
     }
 
     fn visit_logical_expr(&mut self, expr: &Expr) -> Self::T {
+        fn should_short_circuit(operator: &Token, left_result: &SoxObjectRef, i: &mut Interpreter) -> bool {
+            let left_value = left_result.try_into_rust_bool(i);
+            match operator.token_type {
+                TokenType::Or => left_value,
+                TokenType::And => !left_value,
+                _ => unreachable!(), // Should not happen for logical expressions.
+            }
+        }
+        
         if let Expr::Logical {
             left,
             operator,
             right,
         } = expr
         {
-            let left = self.evaluate(left)?;
-            if operator.token_type == TokenType::Or {
-                if left.clone().try_into_rust_bool(self) {
-                    return Ok(left);
-                }
-            } else {
-                if !left.clone().try_into_rust_bool(self) {
-                    return Ok(left);
-                }
+            let left_result = self.evaluate(left)?;
+            if should_short_circuit(operator, &left_result, self) {
+                return Ok(left_result);
             }
             self.evaluate(&right)
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed - called visit_logical_expr on non logical expression."
                     .to_string(),
             ))
@@ -777,7 +775,7 @@ impl ExprVisitor for &mut Interpreter {
         if let Expr::Variable { name } = expr {
             self.lookup_variable(name)
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Evaluation failed - called visit_variable_expr on non variable expr.".into(),
             ))
         }
@@ -797,20 +795,20 @@ impl ExprVisitor for &mut Interpreter {
                 args.push(arg_val);
             }
             let call_args = FuncArgs::new(args);
-            let callee_type = callee_.sox_type(self);
+            let callee_type = callee_.typ();
             let callee_type_name = callee_type.name.clone().unwrap();
             let ret_val = match callee_type.slots.call {
                 Some(fo) => {
                     let val = (fo)(callee_, call_args, self);
                     val
                 }
-                _ => Err(Interpreter::runtime_error(
+                _ => Err(self.runtime_error(
                     format!("{} object is not callable.", callee_type_name),
                 )),
             };
             ret_val
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Can only call functions and classes".into(),
             ))
         }
@@ -818,17 +816,16 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_get_expr(&mut self, expr: &Expr) -> Self::T {
         let ret_val = if let Expr::Get { name, object } = expr {
             let object = self.evaluate(object)?;
-            if let SoxObject::TypeInstance(inst) = object {
-                //info!("Instance of type {:?}", inst.class(self));
-
-                SoxInstance::get(inst, name.clone(), self)
+            if let Some(inst)= object.payload::<SoxInstance>() {
+                let inst_ref = SoxRef::new_ref(inst.clone(), self.types.obj_type.to_owned());
+                SoxInstance::get(inst_ref, name.clone(), self)
             } else {
-                Err(Interpreter::runtime_error(
+                Err(self.runtime_error(
                     "Only class instances have attributes".into(),
                 ))
             }
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Calling visit_get_expr on none get expr".into(),
             ))
         };
@@ -843,18 +840,18 @@ impl ExprVisitor for &mut Interpreter {
         } = expr
         {
             let object = self.evaluate(object)?;
-            if let Some(v) = object.as_class_instance() {
+            if let Some(v) = object.payload::<SoxInstance>() {
                 let value = self.evaluate(value)?;
 
                 v.set(name.clone(), value.clone());
                 Ok(value)
             } else {
-                Err(Interpreter::runtime_error(
+                Err(self.runtime_error(
                     "Only instances have fields".into(),
                 ))
             }
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Calling visit_set_expr on none set expr".into(),
             ))
         };
@@ -865,7 +862,7 @@ impl ExprVisitor for &mut Interpreter {
             let value = self.lookup_variable(keyword);
             value
         } else {
-            Err(Interpreter::runtime_error(
+            Err(self.runtime_error(
                 "Calling visit_this_expr on none this expr".into(),
             ))
         }
@@ -883,36 +880,37 @@ impl ExprVisitor for &mut Interpreter {
             let super_type = self.environment.get(key)?;
             let instance = self.environment.get(key2)?;
 
-            let method = if let SoxObject::Type(v) = super_type {
+            let ty = super_type.payload::<SoxType>();
+            let method = if let Some(v) = ty {
                 let c = v;
                 let method_name = method.lexeme.clone();
                 let method = c.find_method(method_name.as_str());
                 let t = if let Some(m) = method {
-                    if let Some(func) = m.as_func() {
+                    if let Some(func) = m.payload::<SoxFunction>() {
                         let bound_method = func.bind(instance, self)?;
                         Ok(bound_method)
                     } else {
-                        Err(Interpreter::runtime_error(format!(
+                        Err(self.runtime_error(format!(
                             "Undefined property {}",
                             method_name
                         )))
                     }
                 } else {
-                    Err(Interpreter::runtime_error(format!(
+                    Err(self.runtime_error(format!(
                         "Undefined property {}",
                         method_name
                     )))
                 };
                 t
             } else {
-                Err(Interpreter::runtime_error(
+                Err(self.runtime_error(
                     "Unable to resolve instance - this".into(),
                 ))
             };
             method
         } else {
-            Err(Interpreter::runtime_error(
-                "Calling visit_super_expr on none super expr".into(),
+            Err(self.runtime_error(
+                "Calling visit_super_expr on none super expr".to_string(),
             ))
         }
     }

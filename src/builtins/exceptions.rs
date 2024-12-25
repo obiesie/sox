@@ -1,22 +1,25 @@
+use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, StaticType};
 use crate::builtins::method::SoxMethod;
-use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, StaticType};
 use crate::interpreter::Interpreter;
 
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::slots::repr::Representable;
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;
+use std::ops::Deref;
 
 #[derive(Clone, Debug)]
 pub enum Exception {
     Err(RuntimeError),
-    Return(SoxObject),
+    Return(SoxObjectRef),
 }
 
 impl Representable for Exception {
-    fn repr(&self, i: &Interpreter) -> String {
-        match &self {
-            Exception::Err(v) => v.repr(i),
+    fn repr(zelf: &Sox<Self>, i: &Interpreter) -> String {
+        match zelf.deref() {
+            Exception::Err(v) => v.msg.to_string(),
             Exception::Return(_) => "Return".to_string(),
         }
     }
@@ -42,40 +45,25 @@ impl From<Exception> for RuntimeError {
     }
 }
 
-impl Representable for RuntimeError {
-    fn repr(&self, _i: &Interpreter) -> String {
-        self.msg.to_string()
-    }
-}
-
 impl SoxObjectPayload for Exception {
-    fn to_sox_type_value(_obj: SoxObject) -> SoxRef<Self> {
-        todo!()
-    }
-
-    fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::Exception(ref_type)
-    }
-
     fn as_any(&self) -> &dyn Any {
         todo!()
-    }
-
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
-        i.types.exception_type
     }
 }
 
 impl StaticType for Exception {
-    const NAME: &'static str = "";
+    const NAME: &'static str = "exception";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
+    fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
+        static CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
         &CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None,             methods: Self::METHOD_DEFS,
+        SoxTypeSlot {
+            call: None,
+            repr: Some(Self::slot_repr),
+            methods: Self::METHOD_DEFS,
         }
     }
 }

@@ -1,6 +1,6 @@
 use crate::token_type::TokenType;
 use std::hash::{Hash, Hasher};
-use std::sync::atomic::{AtomicUsize, Ordering};
+use std::sync::atomic::AtomicUsize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Literal {

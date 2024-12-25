@@ -32,7 +32,6 @@ pub struct Resolver {
     scopes: Vec<Vec<(Token, bool)>>,
     current_function: FunctionType,
     current_class: ClassType,
-    //resolved_data: HashMap<(String, usize), (usize, usize)>, 
     resolved_data: HashMap<Token, (usize, usize)>,
 }
 #[derive(Clone, Debug, Eq, PartialEq, Copy)]

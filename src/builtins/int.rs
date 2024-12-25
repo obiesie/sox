@@ -1,19 +1,21 @@
 use std::any::Any;
-use std::ops::Deref;
 use std::rc::Rc;
-
 use once_cell::sync::OnceCell;
 use macros::{soxmethod, soxtype};
 use crate::builtins::bool::SoxBool;
+use crate::builtins::exceptions::{Exception, RuntimeError};
+use crate::builtins::{exceptions, int, string};
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::core::{Representable, SoxClassImpl, SoxObject, SoxObjectPayload, SoxRef, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::slots::repr::Representable;
 
 pub type SoxIntRef = Rc<SoxInt>;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub struct SoxInt {
     pub value: i64,
 }
@@ -25,92 +27,91 @@ impl SoxInt {
     }
 
     #[soxmethod]
-    pub fn equals(&self, rhs: SoxObject) -> SoxBool {
-        if let Some(rhs_int) = rhs.as_int() {
+    pub fn equals(&self, rhs: SoxObjectRef) -> SoxBool {
+        if let Some(rhs_int) = rhs.payload::<SoxInt>() {
             SoxBool::new(self.value == rhs_int.value)
         } else {
             SoxBool::new(false)
         }
     }
-       
+    
+    #[soxmethod]
+    pub fn add(&self, rhs: SoxObjectRef) -> SoxObjectRef {
+        if let Some(rhs_int) = rhs.payload::<SoxInt>() {
+            let new_int = SoxInt::new(self.value + rhs_int.value);
+            SoxRef::new_ref(new_int, int::SoxInt::init_builtin_type().to_owned()).into()
+        } else {
+            let err_msg = "+ operand not supported for both types".to_string(); 
+            let runtime_err = RuntimeError{
+                msg: err_msg
+            };
+            let exc: Exception = runtime_err.try_into().unwrap();
+            let obj = SoxRef::new_ref(exc, exceptions::Exception::init_builtin_type().to_owned());
+            obj.into()
+        }
+    }
 }
 
-// impl SoxClassImpl for SoxInt {
-//     const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
-//         "equals",
-//         SoxMethod {
-//             func: static_func(SoxInt::equals),
-//         },
-//     )];
-// }
-
 impl SoxObjectPayload for SoxInt {
-    fn to_sox_type_value(obj: SoxObject) -> SoxRef<Self> {
-        obj.as_int().unwrap()
-    }
-
-    fn to_sox_object(&self, ref_type: SoxRef<Self>) -> SoxObject {
-        SoxObject::Int(ref_type)
-    }
-
+    
     fn as_any(&self) -> &dyn Any {
         self
     }
 
-    fn into_ref(self) -> SoxObject {
-        SoxRef::new(self).to_sox_object()
-    }
 
-    fn class(&self, i: &Interpreter) -> &'static SoxType {
-        i.types.int_type
-    }
 }
 
 impl StaticType for SoxInt {
     const NAME: &'static str = "int";
 
-    fn static_cell() -> &'static OnceCell<SoxType> {
-        static CELL: OnceCell<SoxType> = OnceCell::new();
+    fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
+        static CELL:OnceCell<SoxRef<SoxType>> = OnceCell::new();
         &CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
-        SoxTypeSlot { call: None,             methods: Self::METHOD_DEFS,
+        SoxTypeSlot {
+            call: None,
+            repr: Some(Self::slot_repr),
+            methods: Self::METHOD_DEFS,
         }
     }
 }
 
 
 impl TryFromSoxObject for SoxInt {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObject) -> SoxResult<Self> {
-        if let Some(val) = obj.as_int() {
-            Ok(val.val.deref().clone())
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+        if let Some(val) = obj.payload::<SoxInt>() {
+            Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get boolean from supplied object"),
             };
-            let ob = SoxRef::new(err_msg);
-            Err(SoxObject::String(ob))
+            let ob = SoxRef::new_ref(err_msg, string::SoxString::init_builtin_type().to_owned());
+            Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxInt {
     fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = self.into_ref();
-        Ok(obj)
+        let obj = SoxRef::new_ref(self, Self::init_builtin_type().to_owned());
+        Ok(obj.into())
     }
 }
 
 
 impl From<i64> for SoxInt {
     fn from(i: i64) -> Self {
-        Self { value: i }
+        let v = Self{ value: i};
+        let t = v.value;
+        v
     }
 }
 
 impl Representable for SoxInt {
-    fn repr(&self, _i: &Interpreter) -> String {
-        self.value.to_string()
+    fn repr(zelf: &Sox<Self>, i: &Interpreter) -> String {
+        zelf.value.to_string()
     }
 }
+
