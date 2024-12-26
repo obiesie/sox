@@ -104,13 +104,12 @@ impl ToSoxResult for SoxInt {
 impl From<i64> for SoxInt {
     fn from(i: i64) -> Self {
         let v = Self{ value: i};
-        let t = v.value;
         v
     }
 }
 
 impl Representable for SoxInt {
-    fn repr(zelf: &Sox<Self>, i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         zelf.value.to_string()
     }
 }

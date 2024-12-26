@@ -17,7 +17,7 @@ pub enum Exception {
 }
 
 impl Representable for Exception {
-    fn repr(zelf: &Sox<Self>, i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         match zelf.deref() {
             Exception::Err(v) => v.msg.to_string(),
             Exception::Return(_) => "Return".to_string(),

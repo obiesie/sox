@@ -72,7 +72,7 @@ impl Interpreter {
                 let obj = result.unwrap_err();
                 
                     let repr_str = obj.repr(self);
-                    println!("{}", repr_str.unwrap().as_str()); ;
+                    println!("{}", repr_str.unwrap().as_str()); 
                
                 break;
             }
@@ -80,7 +80,7 @@ impl Interpreter {
             if stmts_iter.peek().is_none() {
                 if !result_value.payload_is::<SoxNone>(){
                     let repr_str = result_value.repr(self);
-                    println!("{}", repr_str.unwrap().as_str()); ;
+                    println!("{}", repr_str.unwrap().as_str()); 
                 }
             }
         }

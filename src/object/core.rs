@@ -189,7 +189,7 @@ impl<T: SoxObjectPayload> Borrow<Sox<T>> for SoxRef<T> {
     }
 }
 
-pub fn init_type_type() -> (SoxRef<SoxType>) {
+pub fn init_type_type() -> SoxRef<SoxType> {
     let typ = {
         let type_payload = SoxType {
             base: None,
@@ -201,7 +201,7 @@ pub fn init_type_type() -> (SoxRef<SoxType>) {
         
         let type_type_ptr = Box::into_raw(Box::new(MaybeUninit::<SoxObjectInner::<SoxType>>::uninit())) as *mut SoxObjectInner<SoxType>;
         unsafe {
-            ptr::write(&mut (*type_type_ptr).type_id, (TypeId::of::<SoxType>()));
+            ptr::write(&mut (*type_type_ptr).type_id, TypeId::of::<SoxType>());
             ptr::write(&mut (*type_type_ptr).payload, type_payload);
         
             let type_type = SoxRef::<SoxType>::from_raw(type_type_ptr.cast());
