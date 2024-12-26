@@ -5,7 +5,7 @@ use crate::builtins::r#type::SoxType;
 use crate::interpreter::Interpreter;
 use std::any::TypeId;
 use std::borrow::Borrow;
-use std::mem::{ManuallyDrop, MaybeUninit};
+use std::mem::{MaybeUninit};
 use std::ops::Deref;
 use std::ptr;
 use std::ptr::NonNull;
@@ -98,8 +98,7 @@ impl SoxObjectRef {
 
 impl<T: SoxObjectPayload> From<SoxRef<T>> for SoxObjectRef {
     fn from(value: SoxRef<T>) -> Self {
-        let me = ManuallyDrop::new(value);
-        Self { ptr: me.ptr.cast() }
+        Self { ptr: value.ptr.cast() }
     }
 }
 
