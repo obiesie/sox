@@ -1,3 +1,5 @@
+/* This is a test multi line 
+comment  which is needed for testing */
 // Single-expression body.
 for (let c = 0; c < 3;) print c = c + 1;
 // expect: 1

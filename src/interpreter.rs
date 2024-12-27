@@ -383,7 +383,7 @@ impl ExprVisitor for &mut Interpreter {
         let value = if let Expr::Literal { value } = expr {
             
             let obj = match value {
-                Literal::String(s) => SoxObjectRef::from(self.new_string(s.clone())),
+                Literal::String(s) => SoxObjectRef::from(self.new_string(s.to_string())),
                 Literal::Integer(i) => SoxObjectRef::from(self.new_int(i.clone())),
                 Literal::Float(f) => SoxObjectRef::from(self.new_float(f.0.clone())),
                 Literal::Boolean(b) => SoxObjectRef::from(self.new_bool(b.clone())),
@@ -870,7 +870,7 @@ impl ExprVisitor for &mut Interpreter {
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
             let (dist_to_ns, binding_idx) = self.locals.get(&keyword).unwrap();
-            let this_token = Token::new(TokenType::This, "this".to_string(), Literal::None, 0);
+            let this_token = Token::new(TokenType::This, "this", Literal::None, 0);
             let (dist_to_ns2, binding_idx2) = self.locals.get(&this_token).unwrap();
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
@@ -884,7 +884,7 @@ impl ExprVisitor for &mut Interpreter {
             let method = if let Some(v) = ty {
                 let c = v;
                 let method_name = method.lexeme.clone();
-                let method = c.find_method(method_name.as_str());
+                let method = c.find_method(method_name);
                 let t = if let Some(m) = method {
                     if let Some(func) = m.payload::<SoxFunction>() {
                         let bound_method = func.bind(instance, self)?;

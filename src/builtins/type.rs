@@ -179,11 +179,11 @@ impl SoxInstance {
     }
 
     pub fn get(zelf: SoxRef<SoxInstance>, name: Token, interp: &mut Interpreter) -> SoxResult {
-        if let Some(field_value) = zelf.fields.borrow().get(name.lexeme.as_str()) {
+        if let Some(field_value) = zelf.fields.borrow().get(name.lexeme) {
             return Ok(field_value.clone());
         }
 
-        if let Some(method) = zelf.typ.find_method(name.lexeme.as_str()) {
+        if let Some(method) = zelf.typ.find_method(name.lexeme) {
             if let Some(func) = method.payload::<SoxFunction>() {
                 let bound_method = func.bind(SoxObjectRef::from(zelf.clone()), interp);
                 return bound_method;

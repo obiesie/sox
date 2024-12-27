@@ -79,7 +79,7 @@ impl Resolver {
             let mut found = false;
             for idx in 0..scope.len() {
                 let val = scope.get_mut(idx);
-                if val.as_ref().unwrap().0.lexeme == name.lexeme.as_str() {
+                if val.as_ref().unwrap().0.lexeme == name.lexeme {
                     self.resolved_data.insert(name.clone(), (dist_index, idx));
                     found = true;
                 }
@@ -116,7 +116,7 @@ impl Resolver {
         if let Some(scope) = self.scopes.last_mut() {
             if let Some(entry) = scope
                 .iter_mut()
-                .find(|e| e.0.lexeme == name.lexeme.as_str() && e.0.line == name.line)
+                .find(|e| e.0.lexeme == name.lexeme && e.0.line == name.line)
             {
                 entry.1 = true;
             }
@@ -265,12 +265,12 @@ impl StmtVisitor for &mut Resolver {
 
                 self.begin_scope();
                 let super_token =
-                    Token::new(TokenType::Super, "super".to_string(), Literal::None, 0);
+                    Token::new(TokenType::Super, "super", Literal::None, 0);
                 self.scopes.last_mut().unwrap().push((super_token, true));
             }
 
             self.begin_scope();
-            let this_token = Token::new(TokenType::This, "this".to_string(), Literal::None, 0);
+            let this_token = Token::new(TokenType::This, "this", Literal::None, 0);
 
             self.scopes.last_mut().unwrap().push((this_token, true));
             for method in methods.iter() {
@@ -361,14 +361,14 @@ impl ExprVisitor for &mut Resolver {
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v| v.0.lexeme == name.lexeme.as_str())
+                    .find(|v| v.0.lexeme == name.lexeme)
                     .is_some()
                 && self
                     .scopes
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v|v.0.lexeme == name.lexeme.as_str())
+                    .find(|v|v.0.lexeme == name.lexeme)
                     .unwrap()
                     .1
                     == false

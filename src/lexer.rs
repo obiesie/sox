@@ -1,5 +1,5 @@
-use std::ops::Range;
 use log::debug;
+use std::ops::Range;
 
 use crate::token::{Float, Literal, Token};
 use crate::token_type::TokenType;
@@ -11,64 +11,52 @@ use crate::token_type::TokenType::{
 };
 
 pub struct LexError {
-    msg: String,
+    msg: &'static str,
 }
 
 impl LexError {
-    fn new(msg: String) -> Self {
+    fn new(msg: &'static str) -> Self {
         LexError { msg }
     }
 }
 
-pub struct Lexer<'source> {
-    source: &'source str,
+pub struct Lexer {
+    source: &'static str,
     start: usize,
     current: usize,
     line: usize,
 }
 
-impl<'source> Lexer<'source> {
-    pub fn new(source: &'source str) -> Self {
-        return Self {
+impl Lexer {
+    pub fn new(source: &'static str) -> Self {
+        Self {
             source,
             start: 0,
             current: 0,
             line: 1,
-        };
+        }
     }
 
-    pub fn lex(source: &'source str) -> Self {
+    pub fn lex(source: &'static str) -> Self {
         let lexer = Lexer::new(source);
         lexer
     }
 
     fn is_at_end(&self) -> bool {
-        let _source_len = self.source.len();
-        return self.current >= self.source.len();
+        self.current >= self.source.len()
     }
 
-    fn take_while<P>(&mut self, mut predicate: P) -> Option<(&'source str, Range<usize>)>
+    fn take_while<P>(&mut self, mut predicate: P) -> Option<(&'static str, Range<usize>)>
     where
         P: FnMut(char) -> bool,
     {
         let start = self.start;
-
-        while let Some(c) = self.peek() {
-            if !predicate(c) {
-                break;
-            }
-
+        while self.peek().map_or(false, |c| predicate(c)) {
             self.advance();
         }
-
         let end = self.current;
-
-        if start != end {
-            let text = &self.source[start..end];
-            Some((text, start..end))
-        } else {
-            None
-        }
+        let src = &self.source[start..end];
+        (start != end).then(|| (src, start..end))
     }
 
     fn yield_identifier(&mut self) -> Result<Token, LexError> {
@@ -96,7 +84,7 @@ impl<'source> Lexer<'source> {
             };
             Ok(self.yield_token(token_type.clone()))
         } else {
-            Err(LexError::new("".into()))
+            Err(LexError::new(""))
         }
     }
 
@@ -123,29 +111,31 @@ impl<'source> Lexer<'source> {
                 Ok(self.yield_literal_token(Number, Literal::Integer(parsed_value)))
             }
         } else {
-            Err(LexError::new("".into()))
+            Err(LexError::new(""))
         }
     }
 
     fn yield_string(&mut self) -> Result<Token, LexError> {
-        let value = self.take_while(|ch| ch != '"');
+        let value = {
+            let t = self.take_while(|ch| ch != '"');
+            t
+        };
         self.advance();
         if let Some((str_literal, _)) = value {
             if self.is_at_end() && self.source.chars().last().unwrap() != '"' {
                 panic!("Unterminated string");
             }
-            let token =
-                self.yield_literal_token(SoxString, Literal::String(str_literal[1..].to_string()));
+            let token = self.yield_literal_token(SoxString, Literal::String(&str_literal[1..]));
             Ok(token)
         } else {
-            Err(LexError::new("".into()))
+            Err(LexError::new(""))
         }
     }
 
     fn advance(&mut self) -> Option<char> {
         let curr_char = self.source.chars().nth(self.current);
         self.current += 1;
-        return curr_char;
+        curr_char
     }
 
     fn yield_token(&mut self, token_type: TokenType) -> Token {
@@ -154,7 +144,7 @@ impl<'source> Lexer<'source> {
 
     fn yield_literal_token(&mut self, token_type: TokenType, literal: Literal) -> Token {
         let text = self.source.get(self.start..self.current).unwrap_or("");
-        Token::new(token_type, text.to_string(), literal, self.line)
+        Token::new(token_type, text, literal, self.line)
     }
 
     fn char_matches(&mut self, expected: char) -> bool {
@@ -162,7 +152,7 @@ impl<'source> Lexer<'source> {
             return false;
         }
         self.current += 1;
-        return true;
+        true
     }
 
     fn token_from_result(&self, input: Result<Token, LexError>) -> Option<Token> {
@@ -170,14 +160,14 @@ impl<'source> Lexer<'source> {
             Ok(v) => Some(v),
             Err(e) => Some(Token::new(
                 TokenType::Error,
-                e.msg.into(),
+                e.msg,
                 Literal::None,
                 self.line,
             )),
         }
     }
     fn peek(&self) -> Option<char> {
-        return self.source.chars().nth(self.current);
+        self.source.chars().nth(self.current)
     }
 
     fn peek_next(&self) -> Option<char> {
@@ -185,7 +175,7 @@ impl<'source> Lexer<'source> {
     }
 }
 
-impl<'source> Iterator for Lexer<'source> {
+impl Iterator for Lexer {
     type Item = Token;
 
     fn next(&mut self) -> Option<Self::Item> {
@@ -240,12 +230,12 @@ impl<'source> Iterator for Lexer<'source> {
                     }
                     '/' => {
                         if self.char_matches('/') {
-                            let comment_value = self.take_while(|ch| ch != '\n');
-                            match comment_value {
+                            let comment_text = self.take_while(|ch| ch != '\n');
+                            match comment_text {
                                 Some((comment, _)) => Some(Token::new(
                                     TokenType::Comment,
-                                    comment.to_string(),
-                                    Literal::String(comment.to_string()),
+                                    comment,
+                                    Literal::String(comment),
                                     self.line,
                                 )),
                                 None => Some(Token::new(
@@ -256,31 +246,37 @@ impl<'source> Iterator for Lexer<'source> {
                                 )),
                             }
                         } else if self.char_matches('*') {
-                            let mut found_closing_pair = false;
-                            let mut comment_buffer = String::new();
-                            while let (Some(ch), Some(next_ch)) = (self.peek(), self.peek_next()) {
-                                if ch == '*' && next_ch == '/' {
-                                    found_closing_pair = true;
-                                    break;
-                                } else {
-                                    let char = self.advance();
-                                    if let Some(ch) = char {
-                                        comment_buffer.push(ch);
-                                        if ch == '\n' {
-                                            self.line = self.line + 1;
+                            let mut comment_ranges = vec![];
+                            loop {
+                                let comment_text = self.take_while(|ch| ch != '*');
+                                match comment_text {
+                                    Some((_, b)) => {
+                                        self.advance();
+                                        comment_ranges.push(b);
+                                        if self.peek() == Some('/') {
+                                            self.advance();
+                                            break;
                                         }
+                                    }
+                                    None => {
+                                        panic!("Unterminated comment");
                                     }
                                 }
                             }
-                            if !found_closing_pair {
-                                panic!("Found an unclosed comment");
-                            }
-                            self.advance();
-                            self.advance();
+                            let comments = self
+                                .source
+                                .get(
+                                    comment_ranges[0].start
+                                        ..comment_ranges[comment_ranges.len() - 1].end,
+                                )
+                                .unwrap_or("");
+                            let newline_count = comments.matches('\n').count();
+                            self.line = self.line + newline_count;
+                            println!("Found comment: {}", comments);
                             Some(Token::new(
                                 TokenType::Comment,
-                                comment_buffer.clone(),
-                                Literal::String(comment_buffer),
+                                comments,
+                                Literal::String(comments),
                                 self.line,
                             ))
                         } else {

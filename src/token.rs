@@ -4,7 +4,7 @@ use std::sync::atomic::AtomicUsize;
 
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub enum Literal {
-    String(String),
+    String(&'static str),
     Integer(i64),
     Float(Float),
     Boolean(bool),
@@ -34,7 +34,7 @@ impl Hash for Float {
 #[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct Token {
     pub token_type: TokenType,
-    pub lexeme: String,
+    pub lexeme: &'static str,
     pub literal: Literal,
     pub line: usize,
     pub id: usize,
@@ -43,7 +43,7 @@ pub struct Token {
 static TOKEN_ATOMIC: AtomicUsize = AtomicUsize::new(0); // acts like a unique salt for tokens due to how structs are compared when they are used in something like a hashmap
 
 impl Token {
-    pub fn new(token_type: TokenType, lexeme: String, literal: Literal, line: usize) -> Self {
+    pub fn new(token_type: TokenType, lexeme: &'static str, literal: Literal, line: usize) -> Self {
         let id = TOKEN_ATOMIC.fetch_add(1, std::sync::atomic::Ordering::SeqCst);
         Self {
             token_type,

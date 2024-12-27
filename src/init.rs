@@ -25,19 +25,20 @@ pub fn run_prompt() {
         if stdin.read_line(&mut buffer).expect("Failed to read line") == 0 {
             break;
         }
-
-        parse_and_interpret_with_resolver(buffer.trim(), &mut resolver, &mut interpreter);
+        let static_buffer = buffer.trim().to_string().leak();
+        parse_and_interpret_with_resolver(static_buffer, &mut resolver, &mut interpreter);
     }
 }
 
 pub fn run(source: String) {
     let mut var_resolver = Resolver::new();
     let mut interpreter = Interpreter::new();
-    parse_and_interpret_with_resolver(source.as_str(), &mut var_resolver, &mut interpreter);
+    let static_source = source.leak();
+    parse_and_interpret_with_resolver(static_source, &mut var_resolver, &mut interpreter);
 }
 
 fn parse_and_interpret_with_resolver(
-    source: &str,
+    source: &'static str,
     resolver: &mut Resolver,
     interpreter: &mut Interpreter,
 ) {
