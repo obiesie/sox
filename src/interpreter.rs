@@ -326,7 +326,7 @@ impl StmtVisitor for &mut Interpreter {
                         arity: _params.len() as i8,
                     };
                     let func_ref = SoxRef::new_ref(func, self.types.func_type.to_owned());
-                    methods_map.insert(name.lexeme.clone().into(), SoxObjectRef::from(func_ref));
+                    methods_map.insert(name.lexeme.into(), SoxObjectRef::from(func_ref));
                 }
             }
 
@@ -883,7 +883,7 @@ impl ExprVisitor for &mut Interpreter {
             let ty = super_type.payload::<SoxType>();
             let method = if let Some(v) = ty {
                 let c = v;
-                let method_name = method.lexeme.clone();
+                let method_name = method.lexeme;
                 let method = c.find_method(method_name);
                 let t = if let Some(m) = method {
                     if let Some(func) = m.payload::<SoxFunction>() {

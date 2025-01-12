@@ -1,3 +1,4 @@
+#[repr(u8)]
 #[derive(Copy, Clone, Debug, Eq, PartialEq, PartialOrd, Hash, Ord)]
 pub enum TokenType {
     // Single character tokens
@@ -18,15 +19,16 @@ pub enum TokenType {
     Rem,
 
     // One or two character token
-    Less,
-    Greater,
-    Equal,
-    EqualEqual,
-    NotEqual,
-    LessEqual,
-    GreaterEqual,
     Bang,
     BangEqual,
+    Equal,
+    EqualEqual,
+    Greater,
+    GreaterEqual, 
+    Less,
+    LessEqual,
+   
+   
 
     // Literals
     Identifier,
@@ -48,8 +50,11 @@ pub enum TokenType {
     Def,
     This,
     Let,
-    None,
     Print,
+    None,
+    
+    Error,
+    EOF,
 
     Newline,
     Whitespace,
@@ -57,7 +62,4 @@ pub enum TokenType {
     Dedent,
     Comment,
     CommentMarker,
-
-    Error,
-    EOF,
 }

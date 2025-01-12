@@ -25,8 +25,8 @@ pub struct Parser<I: Iterator<Item = Token>> {
 
 #[derive(Clone, Debug)]
 pub struct SyntaxError {
-    msg: String,
-    line: usize,
+    pub(crate) msg: String,
+    pub(crate) line: usize,
 }
 
 impl<I: Iterator<Item = Token>> Parser<I> {
@@ -445,8 +445,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             return Ok(Expr::Literal {
                 value: Literal::None,
             });
-        }
-        if self.match_token(vec![False]) {
+        } else if self.match_token(vec![False]) {
             return Ok(Expr::Literal {
                 value: Literal::Boolean(false),
             });
@@ -532,40 +531,24 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         if self.at_end() {
             return false;
         }
-        let mut peeked_value = self.tokens.peek();
-        while let Some(value) = peeked_value {
-            if TO_IGNORE.contains(&value.token_type) {
-                self.tokens.next();
-                peeked_value = self.tokens.peek();
-            } else {
-                break;
-            }
-        }
+        while let Some(_) = self.tokens.next_if(|token| TO_IGNORE.contains(&token.token_type)) {}
         let peeked_value = self.tokens.peek();
-        if let Some(t) = peeked_value {
-            t.token_type == token_type
-        } else {
-            false
-        }
+        peeked_value.map_or(false, |t| t.token_type == token_type)
     }
 
     fn advance(&mut self) -> Option<Token> {
-        if !self.at_end() {
-            let token = self.tokens.next();
-            let return_val = token.unwrap();
-            self.processed_tokens.push(return_val.clone());
-            return Some(return_val);
-        }
-        None
+        (!self.at_end()).then_some ({
+            let token = self.tokens.next().and_then(|t| {
+                self.processed_tokens.push(t.clone());
+                Some(t)
+            });
+            token?
+        })
     }
-
+    
     fn at_end(&mut self) -> bool {
-        let mut token = self.tokens.peek();
-        while token.is_some() && TO_IGNORE.contains(&token.unwrap().token_type) {
-            let _ = self.tokens.next();
-            token = self.tokens.peek();
-        }
-        token.map_or(true, |t| vec![TokenType::EOF].contains(&t.token_type))
+        while let Some(_) = self.tokens.next_if(|token| TO_IGNORE.contains(&token.token_type)) {}
+        self.tokens.peek().map_or(true, |t| vec![TokenType::EOF].contains(&t.token_type))
     }
 }
 
