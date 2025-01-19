@@ -9,7 +9,7 @@ use crate::builtins::core::{SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObje
 use crate::builtins::core::{SoxObjectPayload, StaticType};
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::repr::Representable;
+use crate::object::protocols::repr::Representable;
 
 //
 #[derive(Clone, Debug)]

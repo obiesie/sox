@@ -14,8 +14,8 @@ use crate::builtins::core::{
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::call::Callable;
-use crate::slots::repr::Representable;
+use crate::object::protocols::call::Callable;
+use crate::object::protocols::repr::Representable;
 use crate::stmt::Stmt;
 
 #[derive(Clone, Debug, PartialEq)]

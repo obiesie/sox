@@ -8,7 +8,7 @@ use once_cell::sync::OnceCell;
 use macros::{soxmethod, soxtype};
 use crate::builtins::string::SoxString;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::repr::Representable;
+use crate::object::protocols::repr::Representable;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SoxNone;

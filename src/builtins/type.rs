@@ -12,8 +12,8 @@ use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::call::Callable;
-use crate::slots::repr::Representable;
+use crate::object::protocols::call::Callable;
+use crate::object::protocols::repr::Representable;
 
 pub type GenericMethod = fn(SoxObjectRef, FuncArgs, &mut Interpreter) -> SoxResult;
 pub type ReprMethod = fn(&SoxObjectRef, &Interpreter) -> SoxResult<String>;

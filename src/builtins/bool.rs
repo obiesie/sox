@@ -1,17 +1,16 @@
 use std::any::Any;
 
+use crate::builtins::core::{
+    SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
+};
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::builtins::core::{
-    SoxClassImpl, SoxObjectPayload, SoxResult, StaticType,
-    ToSoxResult, TryFromSoxObject,
-};
 use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::repr::Representable;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
-use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::repr::Representable;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SoxBool {
@@ -45,13 +44,10 @@ impl SoxBool {
 }
 
 impl Representable for SoxBool {
-    
-    
     fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         zelf.value.to_string()
     }
 }
-
 
 impl TryFromSoxObject for SoxBool {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
@@ -75,13 +71,9 @@ impl ToSoxResult for SoxBool {
 }
 
 impl SoxObjectPayload for SoxBool {
-    
-
-   
     fn as_any(&self) -> &dyn Any {
         self
     }
-    
 }
 
 impl StaticType for SoxBool {

@@ -12,6 +12,5 @@ pub mod init;
 pub mod interpreter;
 pub mod resolver;
 pub mod heap;
-mod slots;
 mod object;
 pub mod vm;

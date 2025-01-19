@@ -11,7 +11,7 @@ use crate::builtins::string::SoxString;
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::repr::Representable;
+use crate::object::protocols::repr::Representable;
 
 pub type SoxIntRef = Rc<SoxInt>;
 

@@ -4,7 +4,7 @@ use crate::interpreter::Interpreter;
 
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::slots::repr::Representable;
+use crate::object::protocols::repr::Representable;
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::fmt::Debug;
