@@ -108,6 +108,7 @@ impl StaticType for SoxFunction {
         SoxTypeSlot {
             call: Some(Self::slot_call),
             repr: Some(Self::slot_repr),
+            number: None,
             methods: Self::METHOD_DEFS,
 
         }

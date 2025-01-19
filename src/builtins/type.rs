@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::call::Callable;
+use crate::object::protocols::number::NumberMethods;
 use crate::object::protocols::repr::Representable;
 
 pub type GenericMethod = fn(SoxObjectRef, FuncArgs, &mut Interpreter) -> SoxResult;
@@ -22,6 +23,7 @@ pub type ReprMethod = fn(&SoxObjectRef, &Interpreter) -> SoxResult<String>;
 pub struct SoxTypeSlot {
     pub call: Option<GenericMethod>,
     pub repr: Option<ReprMethod>,
+    pub number: Option<NumberMethods>,
     pub methods: &'static [(&'static str, SoxMethod)],
 }
 
@@ -153,6 +155,7 @@ impl StaticType for SoxType {
         SoxTypeSlot {
             call: Some(Self::slot_call),
             repr: Some(Self::slot_repr),
+            number: None,
             methods: Self::METHOD_DEFS,
         }
     }
@@ -217,6 +220,7 @@ impl StaticType for SoxInstance {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            number: None,
             methods: Self::METHOD_DEFS,
         }
     }

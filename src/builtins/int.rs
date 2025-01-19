@@ -9,8 +9,10 @@ use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::builtins::float::SoxFloat;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
 
 pub type SoxIntRef = Rc<SoxInt>;
@@ -73,6 +75,7 @@ impl StaticType for SoxInt {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            number: Some(Self::as_number()),
             methods: Self::METHOD_DEFS,
         }
     }
@@ -94,8 +97,8 @@ impl TryFromSoxObject for SoxInt {
 }
 
 impl ToSoxResult for SoxInt {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, Self::init_builtin_type().to_owned());
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        let obj = SoxRef::new_ref(self, i.types.int_type.to_owned());
         Ok(obj.into())
     }
 }
@@ -114,3 +117,30 @@ impl Representable for SoxInt {
     }
 }
 
+impl AsNumber for SoxInt {
+    fn as_number() -> NumberMethods {
+        NumberMethods {
+            add: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a + b)),
+            minus: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a - b)),
+            star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
+            slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
+            rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
+        }
+    }
+}
+
+impl SoxInt{
+    fn perform_operation(
+        a: SoxObjectRef,
+        b: SoxObjectRef,
+        i: &Interpreter,
+        op: fn(i64, i64) -> i64,
+    ) -> SoxResult {
+        if let (Some(a), Some(b)) = (a.payload::<SoxInt>(), b.payload::<SoxInt>()) {
+            let v = SoxInt::new(op(a.value, b.value));
+            v.to_sox_result(i)
+        } else {
+            Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+        }
+    }
+}

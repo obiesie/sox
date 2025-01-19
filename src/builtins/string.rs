@@ -7,8 +7,11 @@ use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::core::{SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::builtins::core::{SoxObjectPayload, StaticType};
+use crate::builtins::float::SoxFloat;
+use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
 
 //
@@ -49,6 +52,7 @@ impl StaticType for SoxString {
         SoxTypeSlot { 
             call: None,
             repr: Some(Self::slot_repr),
+            number: None,
             methods: Self::METHOD_DEFS,
             
         }
@@ -105,5 +109,37 @@ impl Representable for SoxString {
         zelf.value.to_string()
     }
 }
+
+
+impl AsNumber for SoxString {
+    fn as_number() -> NumberMethods {
+        NumberMethods {
+            add: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| {let mut new_str = String::from("Hello, ");
+                new_str.push_str(&b); new_str})),
+            minus: None,
+            star: None,
+            slash: None,
+            rem: None,
+        }
+    }
+}
+
+impl SoxString{
+    fn perform_operation(
+        a: SoxObjectRef,
+        b: SoxObjectRef,
+        i: &Interpreter,
+        op: fn(String, String) -> String,
+    ) -> SoxResult {
+        if let (Some(a), Some(b)) = (a.payload::<SoxString>(), b.payload::<SoxString>()) {
+            let v = SoxString::new(op(a.value.clone(), b.value.clone()));
+            v.to_sox_result(i)
+        } else {
+            Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+        }
+    }
+}
+
+
 #[cfg(test)]
 mod tests {}

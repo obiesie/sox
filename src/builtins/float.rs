@@ -8,6 +8,7 @@ use crate::builtins::string::SoxString;
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
 
 #[derive(Debug, Clone, Copy)]
@@ -33,7 +34,6 @@ impl SoxFloat {
 
 
 impl SoxObjectPayload for SoxFloat {
-
     
     fn as_any(&self) -> &dyn Any {
         self
@@ -54,6 +54,7 @@ impl StaticType for SoxFloat {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            number: Some(Self::as_number()),
             methods: Self::METHOD_DEFS,
         }
     }
@@ -91,4 +92,35 @@ impl Representable for SoxFloat {
     fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         zelf.value.to_string()
     }
+}
+
+impl AsNumber for SoxFloat {
+    fn as_number() -> NumberMethods {
+        NumberMethods {
+            add: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a + b)),
+            minus: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a - b)),
+            star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
+            slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
+            rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
+           
+        }
+    }
+}
+
+impl SoxFloat{
+    fn perform_operation(
+        a: SoxObjectRef,
+        b: SoxObjectRef,
+        i: &Interpreter,
+        op: fn(f64, f64) -> f64,
+    ) -> SoxResult {
+        if let (Some(a), Some(b)) = (a.payload::<SoxFloat>(), b.payload::<SoxFloat>()) {
+            let v = SoxFloat::new(op(a.value, b.value));
+            v.to_sox_result(i)
+        } else {
+            Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+        }
+    }
+    
+   
 }

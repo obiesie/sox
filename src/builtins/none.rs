@@ -54,6 +54,7 @@ impl StaticType for SoxNone {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            number: None,
             methods: Self::METHOD_DEFS,
         }
     }

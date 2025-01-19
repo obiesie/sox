@@ -1,6 +1,6 @@
 use std::collections::HashMap;
 use log::info;
-
+use polars::prelude::LhsNumOps;
 use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::float::SoxFloat;
@@ -411,28 +411,20 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
+
                     let exc = Err(self.runtime_error(
-                        "Operands must be two numbers or two strings".into(),
+                        "Unsupported operations for operands".into(),
                     ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(SoxInt::from(v1.value - v2.value), self.types.int_type.to_owned())))
-                    } else if left_val.payload::<SoxFloat>().is_some() || right_val.payload::<SoxFloat>().is_some() {
-                        if let (Some(v1), Some(v2)) = (left_val.payload::<SoxFloat>(), right_val.payload::<SoxFloat>()) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value - v2.value), self.types.float_type.to_owned())))
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
-                        {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value - (v2.value as f64)), self.types.float_type.to_owned())))
-                        } else if let (Some(v1), Some(v2)) =
-                            (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
-                        {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from((v1.value as f64) - v2.value), self.types.float_type.to_owned())))
-                        } else {
+                    let typ = left_val.typ();
+                    let nm_slot = typ.slots.number.as_ref();
+                    
+                    let value = if let Some(nm) = nm_slot {
+                        if let Some(minus_fn) = nm.minus {
+                            minus_fn(left_val, right_val, self)
+                        } else{
                             exc
                         }
-                    } else {
+                    } else{
                         exc
                     };
                     value
@@ -478,6 +470,7 @@ impl ExprVisitor for &mut Interpreter {
                         } else if let (Some(v1), Some(v2)) =
                             (left_val.payload::<SoxFloat>(), right_val.payload::<SoxInt>())
                         {
+
                             Ok(SoxObjectRef::from(SoxRef::new_ref(SoxFloat::from(v1.value + (v2.value as f64)), self.types.float_type.to_owned())))
                         } else if let (Some(v1), Some(v2)) =
                             (left_val.payload::<SoxInt>(), right_val.payload::<SoxFloat>())
@@ -876,7 +869,6 @@ impl ExprVisitor for &mut Interpreter {
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);
 
-            //let env = self.active_env_mut();
             let super_type = self.environment.get(key)?;
             let instance = self.environment.get(key2)?;
 
