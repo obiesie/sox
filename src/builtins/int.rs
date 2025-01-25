@@ -76,6 +76,7 @@ impl StaticType for SoxInt {
             call: None,
             repr: Some(Self::slot_repr),
             number: Some(Self::as_number()),
+            comparable: None,
             methods: Self::METHOD_DEFS,
         }
     }

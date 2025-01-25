@@ -13,6 +13,7 @@ use std::collections::HashMap;
 use std::ops::Deref;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::call::Callable;
+use crate::object::protocols::comparable::ComparableMethods;
 use crate::object::protocols::number::NumberMethods;
 use crate::object::protocols::repr::Representable;
 
@@ -24,6 +25,7 @@ pub struct SoxTypeSlot {
     pub call: Option<GenericMethod>,
     pub repr: Option<ReprMethod>,
     pub number: Option<NumberMethods>,
+    pub comparable: Option<ComparableMethods>,
     pub methods: &'static [(&'static str, SoxMethod)],
 }
 
@@ -156,6 +158,7 @@ impl StaticType for SoxType {
             call: Some(Self::slot_call),
             repr: Some(Self::slot_repr),
             number: None,
+            comparable: None,
             methods: Self::METHOD_DEFS,
         }
     }
@@ -221,6 +224,7 @@ impl StaticType for SoxInstance {
             call: None,
             repr: Some(Self::slot_repr),
             number: None,
+            comparable: None,
             methods: Self::METHOD_DEFS,
         }
     }

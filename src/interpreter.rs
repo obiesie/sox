@@ -20,7 +20,7 @@ use crate::token_type::TokenType;
 use log::info;
 use std::collections::HashMap;
 
-macro_rules! eval_op {
+macro_rules! eval_numeric_op {
     ($self:ident, $left_val:expr, $right_val:expr, $op_func:ident) => {{
         let exc = Err($self.runtime_error(format!(
             "Unsupported operand types for % - {} and {}",
@@ -433,113 +433,25 @@ impl ExprVisitor for &mut Interpreter {
         {
             let right_val = self.evaluate(right)?;
             let left_val = self.evaluate(left)?;
-           
+
             match operator.token_type {
                 TokenType::Minus => {
-                    eval_op!(self, left_val, right_val, minus)
-                   
+                    eval_numeric_op!(self, left_val, right_val, minus)
                 }
                 TokenType::Rem => {
-                    eval_op!(self, left_val, right_val, rem)
-                   
+                    eval_numeric_op!(self, left_val, right_val, rem)
                 }
                 TokenType::Plus => {
-                    eval_op!(self, left_val, right_val, add)
-                   
+                    eval_numeric_op!(self, left_val, right_val, add)
                 }
                 TokenType::Star => {
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the multiplication operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxInt::from(v1.value * v2.value),
-                            self.types.int_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from(v1.value * v2.value),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from(v1.value * (v2.value as f64)),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from((v1.value as f64) * v2.value),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_numeric_op!(self, left_val, right_val, star)
                 }
                 TokenType::Slash => {
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the division operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxFloat::from((v1.value as f64) / (v2.value as f64)),
-                            self.types.float_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from(v1.value / v2.value),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from(v1.value / (v2.value as f64)),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxFloat::from((v1.value as f64) / v2.value),
-                                self.types.float_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_numeric_op!(self, left_val, right_val, slash)
                 }
                 TokenType::Less => {
+                    
                     let exc = Err(self.runtime_error(
                         "Arguments to the less than operator must both be numbers".into(),
                     ));

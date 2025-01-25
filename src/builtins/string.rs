@@ -53,6 +53,7 @@ impl StaticType for SoxString {
             call: None,
             repr: Some(Self::slot_repr),
             number: None,
+            comparable: None,
             methods: Self::METHOD_DEFS,
             
         }

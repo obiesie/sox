@@ -8,6 +8,7 @@ use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::comparable::Comparable;
 use crate::object::protocols::repr::Representable;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
@@ -89,6 +90,7 @@ impl StaticType for SoxBool {
             call: None,
             repr: Some(Self::slot_repr),
             number: None,
+            comparable: None,
             methods: Self::METHOD_DEFS,
         }
     }
@@ -97,5 +99,31 @@ impl StaticType for SoxBool {
 impl From<bool> for SoxBool {
     fn from(b: bool) -> Self {
         Self { value: b }
+    }
+}
+
+impl Comparable for SoxBool{
+    fn lt(self, other: Self) -> bool {
+        todo!()
+    }
+
+    fn gt(self, other: Self) -> bool {
+        todo!()
+    }
+
+    fn eq(self, other: Self) -> bool {
+        todo!()
+    }
+
+    fn ge(self, other: Self) -> bool {
+        todo!()
+    }
+
+    fn le(self, other: Self) -> bool {
+        todo!()
+    }
+
+    fn ne(self, other: Self) -> bool {
+        todo!()
     }
 }
