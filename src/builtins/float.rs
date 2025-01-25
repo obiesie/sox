@@ -6,8 +6,10 @@ use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
 
@@ -108,6 +110,20 @@ impl AsNumber for SoxFloat {
     }
 }
 
+impl Comparable for SoxFloat {
+    fn as_comparable() -> ComparableMethods {
+        ComparableMethods {
+            lt: Some(|a, b, i| Self::compare(a, b, i, |a, b| a < b)),
+            gt: Some(|a, b, i| Self::compare(a, b, i, |a, b| a > b)),
+            eq: None,
+            ne: Some(|a, b, i| Self::compare(a, b, i, |a, b| a != b)),
+            ge: Some(|a, b, i| Self::compare(a, b, i, |a, b| a >= b)),
+            le: Some(|a, b, i| Self::compare(a, b, i, |a, b| a <= b)),
+        }
+    }
+}
+
+
 impl SoxFloat{
     fn perform_operation(
         a: SoxObjectRef,
@@ -120,6 +136,18 @@ impl SoxFloat{
             v.to_sox_result(i)
         } else {
             Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+        }
+    }
+
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    where
+        F: FnOnce(i64, i64) -> bool,
+    {
+        if let (Some(a), Some(other_int)) = (a.payload::<SoxInt>(), other.payload::<SoxInt>()) {
+            let result = cmp_fn(a.value, other_int.value);
+            SoxBool::new(result).to_sox_result(i)
+        } else {
+            SoxBool::new(false).to_sox_result(i)
         }
     }
     

@@ -7,10 +7,9 @@ use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::core::{SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::builtins::core::{SoxObjectPayload, StaticType};
-use crate::builtins::float::SoxFloat;
-use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
 
@@ -24,14 +23,6 @@ pub struct SoxString {
 impl SoxString {
     pub fn new<T: Into<String>>(val: T) -> Self {
         SoxString { value: val.into() }
-    }
-
-    #[soxmethod]
-    pub fn equals(&self, rhs: SoxObjectRef) -> SoxBool {
-        match rhs.payload::<SoxString>() {
-            Some(other) => SoxBool::new(self.value == other.value),
-            None => SoxBool::new(false),
-        }
     }
     
     pub fn as_str(&self) -> &str {
@@ -125,6 +116,19 @@ impl AsNumber for SoxString {
     }
 }
 
+impl Comparable for SoxString {
+    fn as_comparable() -> ComparableMethods {
+        ComparableMethods{
+            lt: Some(|a, b, i| Self::compare(a, b, i, |a, b| a < b)),
+            gt: Some(|a, b, i| Self::compare(a, b, i, |a, b| a > b)),
+            eq: Some(|a, b, i| Self::compare(a, b, i, |a, b| a == b)),
+            ne: Some(|a, b, i| Self::compare(a, b, i, |a, b| a != b)),
+            ge: Some(|a, b, i| Self::compare(a, b, i, |a, b| a >= b)),
+            le: Some(|a, b, i| Self::compare(a, b, i, |a, b| a <= b)),
+        }
+    }
+}
+
 impl SoxString{
     fn perform_operation(
         a: SoxObjectRef,
@@ -137,6 +141,18 @@ impl SoxString{
             v.to_sox_result(i)
         } else {
             Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+        }
+    }
+
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    where
+        F: FnOnce(&str, &str) -> bool,
+    {
+        if let (Some(a), Some(other)) = (a.payload::<SoxString>(), other.payload::<SoxString>()) {
+            let result = cmp_fn(a.value.as_str(), other.value.as_str());
+            SoxBool::new(result).to_sox_result(i)
+        } else {
+            SoxBool::new(false).to_sox_result(i)
         }
     }
 }

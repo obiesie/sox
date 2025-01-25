@@ -8,7 +8,7 @@ use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::object::protocols::comparable::Comparable;
+use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
@@ -65,8 +65,8 @@ impl TryFromSoxObject for SoxBool {
 }
 
 impl ToSoxResult for SoxBool {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, _i.types.bool_type.to_owned());
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        let obj = SoxRef::new_ref(self, i.types.bool_type.to_owned());
         Ok(obj.into())
     }
 }
@@ -102,28 +102,10 @@ impl From<bool> for SoxBool {
     }
 }
 
-impl Comparable for SoxBool{
-    fn lt(self, other: Self) -> bool {
-        todo!()
-    }
+impl Comparable for SoxBool {
+    
 
-    fn gt(self, other: Self) -> bool {
-        todo!()
-    }
-
-    fn eq(self, other: Self) -> bool {
-        todo!()
-    }
-
-    fn ge(self, other: Self) -> bool {
-        todo!()
-    }
-
-    fn le(self, other: Self) -> bool {
-        todo!()
-    }
-
-    fn ne(self, other: Self) -> bool {
+    fn as_comparable() -> ComparableMethods {
         todo!()
     }
 }

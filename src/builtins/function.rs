@@ -1,6 +1,7 @@
 use once_cell::sync::OnceCell;
 use std::any::Any;
 use std::iter::zip;
+use macros::soxtype;
 use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{static_func, FuncArgs, SoxMethod};
@@ -11,10 +12,12 @@ use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType,
     ToSoxResult, TryFromSoxObject,
 };
+use crate::builtins::int::SoxInt;
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::call::Callable;
+use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
 use crate::stmt::Stmt;
 
@@ -27,6 +30,7 @@ pub struct SoxFunction {
     pub arity: i8,
 }
 
+#[soxtype]
 impl SoxFunction {
     pub fn new(name: String, declaration: Stmt, environment_ref: EnvRef, arity: i8, is_initializer: bool) -> Self {
         Self {
@@ -65,15 +69,15 @@ impl SoxFunction {
 
 
 
-    pub fn equals(&self, other: &SoxObjectRef) -> SoxBool {
-        if let Some(other_func) = other.payload::<SoxFunction>() {
-            SoxBool::from(self.name == other_func.name
-                && self.declaration == other_func.declaration
-                && self.environment_ref == other_func.environment_ref
-                && self.is_initializer == other_func.is_initializer
-                && self.arity == other_func.arity)
+    pub fn equals(zelf: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> SoxResult {
+        if let (Some(zelf), Some(other_func)) = (zelf.payload::<SoxFunction>(), other.payload::<SoxFunction>()) {
+            SoxBool::from(zelf.name == other_func.name
+                && zelf.declaration == other_func.declaration
+                && zelf.environment_ref == other_func.environment_ref
+                && zelf.is_initializer == other_func.is_initializer
+                && zelf.arity == other_func.arity).to_sox_result(i)
         } else {
-            SoxBool::from(false)
+            SoxBool::from(false).to_sox_result(i)
         }
     }
 }
@@ -85,15 +89,6 @@ impl SoxObjectPayload for SoxFunction {
     }
 
 
-}
-
-impl SoxClassImpl for SoxFunction {
-    const METHOD_DEFS: &'static [(&'static str, SoxMethod)] = &[  (
-        "equals",
-        SoxMethod {
-            func: static_func(SoxBool::equals),
-        },
-    )];
 }
 
 impl StaticType for SoxFunction {
@@ -109,7 +104,7 @@ impl StaticType for SoxFunction {
             call: Some(Self::slot_call),
             repr: Some(Self::slot_repr),
             number: None,
-            comparable: None,
+            comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
 
         }
@@ -203,5 +198,18 @@ impl Callable for SoxFunction {
         i.environment.active = previous_env_ref;
 
         return_value
+    }
+}
+
+impl Comparable for SoxFunction {
+    fn as_comparable() -> ComparableMethods {
+        ComparableMethods {
+            lt: None,
+            gt: None,
+            eq: Some(Self::equals),
+            ne: None,
+            ge: None,
+            le: None,
+        }
     }
 }

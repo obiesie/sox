@@ -20,15 +20,15 @@ use crate::token_type::TokenType;
 use log::info;
 use std::collections::HashMap;
 
-macro_rules! eval_numeric_op {
-    ($self:ident, $left_val:expr, $right_val:expr, $op_func:ident) => {{
+macro_rules! eval_slot_op {
+    ($self:ident, $left_val:expr, $right_val:expr, $op_func:ident, $slot_attr: ident) => {{
         let exc = Err($self.runtime_error(format!(
             "Unsupported operand types for % - {} and {}",
             $left_val.typ().name.as_ref().unwrap().as_str(),
             $right_val.typ().name.as_ref().unwrap().as_str()
         )));
 
-        if let Some(nm) = $left_val.typ().slots.number.as_ref() {
+        if let Some(nm) = $left_val.typ().slots.$slot_attr.as_ref() {
             if let Some(func) = nm.$op_func {
                 func($left_val, $right_val, $self)
             } else {
@@ -436,245 +436,41 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
-                    eval_numeric_op!(self, left_val, right_val, minus)
+                    eval_slot_op!(self, left_val, right_val, minus, number)
                 }
                 TokenType::Rem => {
-                    eval_numeric_op!(self, left_val, right_val, rem)
+                    eval_slot_op!(self, left_val, right_val, rem, number)
                 }
                 TokenType::Plus => {
-                    eval_numeric_op!(self, left_val, right_val, add)
+                    eval_slot_op!(self, left_val, right_val, add, number)
                 }
                 TokenType::Star => {
-                    eval_numeric_op!(self, left_val, right_val, star)
+                    eval_slot_op!(self, left_val, right_val, star, number)
                 }
                 TokenType::Slash => {
-                    eval_numeric_op!(self, left_val, right_val, slash)
+                    eval_slot_op!(self, left_val, right_val, slash, number)
                 }
                 TokenType::Less => {
-                    
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the less than operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(v1.value < v2.value),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value < v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value < (v2.value as f64)),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from((v1.value as f64) < v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_slot_op!(self, left_val, right_val, lt, comparable)
                 }
                 TokenType::Greater => {
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the greater than operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(v1.value > v2.value),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value > v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value > (v2.value as f64)),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from((v1.value as f64) > v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_slot_op!(self, left_val, right_val, gt, comparable)
                 }
 
                 TokenType::EqualEqual => {
-                    let left_type = left_val.typ();
-                    let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
-                    if let Some(entry) = eq {
-                        let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
-                        (entry.1.func)(self, call_args)
-                    } else {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(false),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    }
+                    eval_slot_op!(self, left_val, right_val, eq, comparable)
                 }
                 TokenType::BangEqual => {
-                    let left_type = left_val.typ();
-                    let eq = left_type.slots.methods.iter().find(|v| v.0 == "equals");
-                    let value = if let Some(entry) = eq {
-                        let call_args = FuncArgs::new(vec![left_val.clone(), right_val.clone()]);
-                        (entry.1.func)(self, call_args)
-                    } else {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(false),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    };
-                    Ok(SoxObjectRef::from(SoxRef::new_ref(
-                        SoxBool::from(!value?.try_into_rust_bool(self)),
-                        self.types.bool_type.to_owned(),
-                    )))
+                    eval_slot_op!(self, left_val, right_val, ne, comparable)
                 }
                 TokenType::LessEqual => {
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the less than or equals operator must both be numbers".into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(v1.value <= v2.value),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value <= v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value <= (v2.value as f64)),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from((v1.value as f64) <= v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_slot_op!(self, left_val, right_val, le, comparable)
                 }
                 TokenType::GreaterEqual => {
-                    let exc = Err(self.runtime_error(
-                        "Arguments to the greater than or equals operator must both be numbers"
-                            .into(),
-                    ));
-                    let value = if let (Some(v1), Some(v2)) =
-                        (left_val.payload::<SoxInt>(), right_val.payload::<SoxInt>())
-                    {
-                        Ok(SoxObjectRef::from(SoxRef::new_ref(
-                            SoxBool::from(v1.value >= v2.value),
-                            self.types.bool_type.to_owned(),
-                        )))
-                    } else if left_val.payload::<SoxFloat>().is_some()
-                        || right_val.payload::<SoxFloat>().is_some()
-                    {
-                        if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value >= v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxFloat>(),
-                            right_val.payload::<SoxInt>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from(v1.value >= (v2.value as f64)),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else if let (Some(v1), Some(v2)) = (
-                            left_val.payload::<SoxInt>(),
-                            right_val.payload::<SoxFloat>(),
-                        ) {
-                            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                                SoxBool::from((v1.value as f64) >= v2.value),
-                                self.types.bool_type.to_owned(),
-                            )))
-                        } else {
-                            exc
-                        }
-                    } else {
-                        exc
-                    };
-                    value
+                    eval_slot_op!(self, left_val, right_val, ge, comparable)
                 }
-                TokenType::Bang => {
-                    let value = right_val.try_into_rust_bool(self);
-                    Ok(SoxObjectRef::from(SoxRef::new_ref(
-                        SoxBool::from(value),
-                        self.types.bool_type.to_owned(),
-                    )))
-                }
-                _ => Err(self.runtime_error("Unsupported token type".into())),
+
+                _ => Err(self.runtime_error("Supplied token does not support binary operations.".into())),
             }
         } else {
             Err(self.runtime_error(

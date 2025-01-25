@@ -8,9 +8,10 @@ use once_cell::sync::OnceCell;
 use macros::{soxmethod, soxtype};
 use crate::builtins::string::SoxString;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Eq, PartialOrd, PartialEq)]
 pub struct SoxNone;
 
 #[soxtype]
@@ -20,15 +21,7 @@ impl SoxNone {
     pub fn bool(&self) -> SoxBool {
         SoxBool::new(false)
     }
-
-    #[soxmethod]
-    pub fn equals(&self, rhs: SoxObjectRef) -> SoxBool {
-        let other = rhs.payload::<SoxNone>();
-        match other {
-            Some(_) => SoxBool::new(true),
-            None => SoxBool::new(false),
-        }
-    }
+    
 }
 
 
@@ -83,10 +76,35 @@ impl ToSoxResult for SoxNone {
     }
 }
 
-
+impl Comparable for SoxNone{
+    fn as_comparable() -> ComparableMethods {
+        ComparableMethods{
+            lt: None,
+            gt: None,
+            eq: Some(|a, b, i| Self::compare(a, b, i, |a, b| a == b)),
+            ne: None,
+            ge: None,
+            le: None,
+        }
+    }
+}
 
 impl Representable for SoxNone {
     fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         "None".to_string()
+    }
+}
+
+impl SoxNone {
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    where
+        F: FnOnce(&SoxNone, &SoxNone) -> bool,
+    {
+        if let (Some(a), Some(other)) = (a.payload::<SoxNone>(), other.payload::<SoxNone>()) {
+            let result = cmp_fn(a, other);
+            SoxBool::new(result).to_sox_result(i)
+        } else {
+            SoxBool::new(false).to_sox_result(i)
+        }
     }
 }
