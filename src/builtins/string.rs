@@ -43,8 +43,8 @@ impl StaticType for SoxString {
         SoxTypeSlot { 
             call: None,
             repr: Some(Self::slot_repr),
-            number: None,
-            comparable: None,
+            number: Some(Self::as_number()),
+            comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
             
         }
@@ -106,8 +106,8 @@ impl Representable for SoxString {
 impl AsNumber for SoxString {
     fn as_number() -> NumberMethods {
         NumberMethods {
-            add: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| {let mut new_str = String::from("Hello, ");
-                new_str.push_str(&b); new_str})),
+            add: Some(|a, b, i| Self::perform_operation(a, b, i, |mut a, b| {
+                a.push_str(&b); a})),
             minus: None,
             star: None,
             slash: None,

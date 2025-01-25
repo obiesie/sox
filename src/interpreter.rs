@@ -21,9 +21,10 @@ use log::info;
 use std::collections::HashMap;
 
 macro_rules! eval_slot_op {
-    ($self:ident, $left_val:expr, $right_val:expr, $op_func:ident, $slot_attr: ident) => {{
+    ($self:ident, $left_val:expr, $right_val:expr, $op_func:ident, $slot_attr: ident, $op_str:expr) => {{
         let exc = Err($self.runtime_error(format!(
-            "Unsupported operand types for % - {} and {}",
+            "Unsupported operand types for '{}' - {} and {}",
+            $op_str,
             $left_val.typ().name.as_ref().unwrap().as_str(),
             $right_val.typ().name.as_ref().unwrap().as_str()
         )));
@@ -436,38 +437,38 @@ impl ExprVisitor for &mut Interpreter {
 
             match operator.token_type {
                 TokenType::Minus => {
-                    eval_slot_op!(self, left_val, right_val, minus, number)
+                    eval_slot_op!(self, left_val, right_val, minus, number, "-")
                 }
                 TokenType::Rem => {
-                    eval_slot_op!(self, left_val, right_val, rem, number)
+                    eval_slot_op!(self, left_val, right_val, rem, number, "%")
                 }
                 TokenType::Plus => {
-                    eval_slot_op!(self, left_val, right_val, add, number)
+                    eval_slot_op!(self, left_val, right_val, add, number, "+")
                 }
                 TokenType::Star => {
-                    eval_slot_op!(self, left_val, right_val, star, number)
+                    eval_slot_op!(self, left_val, right_val, star, number, "*")
                 }
                 TokenType::Slash => {
-                    eval_slot_op!(self, left_val, right_val, slash, number)
+                    eval_slot_op!(self, left_val, right_val, slash, number, "/")
                 }
                 TokenType::Less => {
-                    eval_slot_op!(self, left_val, right_val, lt, comparable)
+                    eval_slot_op!(self, left_val, right_val, lt, comparable, "<")
                 }
                 TokenType::Greater => {
-                    eval_slot_op!(self, left_val, right_val, gt, comparable)
+                    eval_slot_op!(self, left_val, right_val, gt, comparable, ">")
                 }
 
                 TokenType::EqualEqual => {
-                    eval_slot_op!(self, left_val, right_val, eq, comparable)
+                    eval_slot_op!(self, left_val, right_val, eq, comparable, "==")
                 }
                 TokenType::BangEqual => {
-                    eval_slot_op!(self, left_val, right_val, ne, comparable)
+                    eval_slot_op!(self, left_val, right_val, ne, comparable, "!=")
                 }
                 TokenType::LessEqual => {
-                    eval_slot_op!(self, left_val, right_val, le, comparable)
+                    eval_slot_op!(self, left_val, right_val, le, comparable, "<=")
                 }
                 TokenType::GreaterEqual => {
-                    eval_slot_op!(self, left_val, right_val, ge, comparable)
+                    eval_slot_op!(self, left_val, right_val, ge, comparable, ">=")
                 }
 
                 _ => Err(self.runtime_error("Supplied token does not support binary operations.".into())),

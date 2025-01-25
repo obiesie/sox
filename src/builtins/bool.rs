@@ -90,7 +90,7 @@ impl StaticType for SoxBool {
             call: None,
             repr: Some(Self::slot_repr),
             number: None,
-            comparable: None,
+            comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
         }
     }
@@ -106,6 +106,25 @@ impl Comparable for SoxBool {
     
 
     fn as_comparable() -> ComparableMethods {
-        todo!()
+        ComparableMethods{
+            lt: None,
+            gt: None,
+            eq: Some(|a, b, i| SoxBool::new(Self::eq(a, b, i)).to_sox_result(i)),
+            ne: Some(|a, b, i| SoxBool::new(!Self::eq(a, b, i)).to_sox_result(i)),
+            ge: None, 
+            le: None, 
+        }
+    }
+}
+
+impl SoxBool {
+    
+    fn eq(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> bool {
+        if let (Some(a), Some(other)) = (a.payload::<SoxBool>(), other.payload::<SoxBool>()) {
+            let result = a.value == other.value;
+            result
+        } else {
+            false
+        }
     }
 }
