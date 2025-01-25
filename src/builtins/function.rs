@@ -4,7 +4,7 @@ use std::iter::zip;
 use macros::soxtype;
 use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::builtins::method::{static_func, FuncArgs, SoxMethod};
+use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 
@@ -12,7 +12,6 @@ use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType,
     ToSoxResult, TryFromSoxObject,
 };
-use crate::builtins::int::SoxInt;
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};

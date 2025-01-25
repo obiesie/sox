@@ -1,9 +1,9 @@
 use std::any::Any;
 use std::fmt;
 pub use once_cell::sync::{Lazy, OnceCell};
-use macros::{soxmethod, soxtype};
+use macros::soxtype;
 use crate::builtins::bool::SoxBool;
-use crate::builtins::method::{static_func, SoxMethod};
+use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::core::{SoxClassImpl, SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::builtins::core::{SoxObjectPayload, StaticType};

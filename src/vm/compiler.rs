@@ -255,7 +255,7 @@ impl Compiler {
         if let Some(prefix_rule_fn) = prefix_rule {
             prefix_rule_fn(self, i);
         }
-        while (precedence as u8 <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8){
+        while precedence as u8 <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8 {
             self.advance();
             let infix_rule = self.get_rule(self.previous.as_ref().unwrap().token_type).1;
             // TODO Handle error
