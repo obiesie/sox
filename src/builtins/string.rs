@@ -108,10 +108,8 @@ impl AsNumber for SoxString {
         NumberMethods {
             add: Some(|a, b, i| Self::perform_operation(a, b, i, |mut a, b| {
                 a.push_str(&b); a})),
-            minus: None,
-            star: None,
-            slash: None,
-            rem: None,
+            
+            ..Self::DEFAULT_NUMBER_METHODS
         }
     }
 }

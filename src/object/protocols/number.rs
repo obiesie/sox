@@ -9,10 +9,21 @@ pub struct NumberMethods {
     pub star: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
     pub slash: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
     pub rem: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
+    pub neg: Option<fn(a: SoxObjectRef, i: &Interpreter) -> SoxResult>,
     
 }
 
 pub trait AsNumber: Sized {
-  
+    
+    const DEFAULT_NUMBER_METHODS: NumberMethods = NumberMethods{
+        add: None,
+        minus: None,
+        star: None,
+        slash: None,
+        rem: None,
+        neg: None,
+    };
+    
+    
     fn as_number() -> NumberMethods;
 }

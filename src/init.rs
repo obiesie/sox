@@ -4,6 +4,8 @@ use crate::parser::Parser;
 use crate::resolver::Resolver;
 use std::io::Write;
 use std::{fs, io};
+use crate::vm::chunk::Chunk;
+use crate::vm::vm::VirtualMachine;
 
 pub fn run_file(file_path: String) {
     let contents =
@@ -26,7 +28,8 @@ pub fn run_prompt() {
             break;
         }
         let static_buffer = buffer.trim().to_string().leak();
-        parse_and_interpret_with_resolver(static_buffer, &mut resolver, &mut interpreter);
+        interpret_with_vm(static_buffer, &mut interpreter);
+        //parse_and_interpret_with_resolver(static_buffer, &mut resolver, &mut interpreter);
     }
 }
 
@@ -34,7 +37,8 @@ pub fn run(source: String) {
     let mut var_resolver = Resolver::new();
     let mut interpreter = Interpreter::new();
     let static_source = source.leak();
-    parse_and_interpret_with_resolver(static_source, &mut var_resolver, &mut interpreter);
+    interpret_with_vm(static_source, &mut interpreter);
+    //parse_and_interpret_with_resolver(static_source, &mut var_resolver, &mut interpreter);
 }
 
 fn parse_and_interpret_with_resolver(
@@ -60,4 +64,11 @@ fn parse_and_interpret_with_resolver(
             println!("Parsing error: {:?}", e);
         }
     }
+}
+
+
+fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
+    let chunk = Chunk::test_chunk(interpreter);
+    let mut vm = VirtualMachine::new(chunk);
+    vm.interpret(interpreter, source);
 }

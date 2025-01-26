@@ -1,0 +1,144 @@
+use crate::builtins::int::SoxInt;
+use crate::interpreter::Interpreter;
+use crate::object::core::{SoxObjectRef, SoxRef};
+
+#[derive(Debug, Clone, Copy)]
+#[repr(u8)]
+pub enum OpCode {
+    OpConstant,
+    OpNone,
+    OpTrue,
+    OpFalse,
+    OpAdd,
+    OpSubtract,
+    OpMultiply,
+    OpDivide,
+    OpNegate,
+    OpReturn,
+}
+
+impl TryFrom<u8> for OpCode {
+    type Error = ();
+
+    fn try_from(value: u8) -> Result<Self, Self::Error> {
+        // Static mapping array for u8 to OpCode
+        const OPCODE_MAP: [Option<OpCode>; 10] = [
+            Some(OpCode::OpConstant),
+            Some(OpCode::OpNone),
+            Some(OpCode::OpTrue),
+            Some(OpCode::OpFalse),
+            Some(OpCode::OpAdd),
+            Some(OpCode::OpSubtract),
+            Some(OpCode::OpMultiply),
+            Some(OpCode::OpDivide),
+            Some(OpCode::OpNegate),
+            Some(OpCode::OpReturn),
+        ];
+
+        // Use get to handle out-of-bounds values gracefully
+        OPCODE_MAP
+            .get(value as usize) // Safe array access
+            .and_then(|&opcode| opcode) // Unwrap Option<OpCode>
+            .ok_or(()) // Return Err(()) if not found
+    }
+    
+    
+}
+
+
+
+#[derive(Debug, Clone)]
+pub struct Chunk {
+    pub code: Vec<u8>,
+    pub constants: Vec<SoxObjectRef>,
+    lines: Vec<usize>,
+}
+
+impl Chunk{
+     pub fn test_chunk(i: &Interpreter) -> Chunk {
+        let mut chunk = Chunk::new();
+        let value = SoxInt{value:42};
+        let val_ref = SoxRef::new_ref(value, i.types.int_type.to_owned());
+        let obj_ref = SoxObjectRef::from(val_ref);
+        let const_idx = chunk.add_constant(obj_ref);
+
+        chunk.write_chunk(OpCode::OpConstant as u8, 1);
+        chunk.write_chunk(const_idx as u8, 1);
+        chunk.write_chunk(OpCode::OpNegate as u8, 1);
+        chunk.write_chunk(OpCode::OpReturn as u8, 1);
+        chunk
+    }
+}
+
+impl Chunk {
+    pub fn new() -> Chunk {
+        Chunk { code: Vec::new(), constants: vec![], lines: vec![] }
+    }
+    
+    pub fn write_chunk(&mut self, data: u8, line: usize) {
+        self.code.push(data);
+        self.lines.push(line);
+    }
+    
+    pub fn disassemble(&self, name: &str) {
+        println!("== {} ==", name);
+        let mut offset = 0;
+        while offset < self.code.len() {
+            offset = self.disassemble_instruction(offset);
+            println!("{:?}", offset);
+        }
+        
+    }
+    
+    pub fn disassemble_instruction(&self, offset: usize) -> usize {
+        print!("{:04} ", offset);
+        if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
+            print!("   | ");
+        } else {
+            print!("{:4} ", self.lines[offset]);
+        }
+        let opcode = self.code[offset].try_into().unwrap();
+        
+        match opcode {
+            OpCode::OpReturn => { 
+                self.simple_instruction("OpReturn", offset)
+            }
+            OpCode::OpConstant => {
+                self.constant_instruction("OpConstant", offset)
+            },
+            OpCode::OpNegate => {
+                self.simple_instruction("OpNegate", offset)
+            }
+            OpCode::OpAdd => {
+                self.simple_instruction("OpAdd", offset)
+            }
+            OpCode::OpSubtract => {
+                self.simple_instruction("OpSubtract", offset)
+            }
+            OpCode::OpMultiply => {
+                self.simple_instruction("OpMultiply", offset)
+            }
+            OpCode::OpDivide => {
+                self.simple_instruction("OpDivide", offset)
+            },
+            OpCode::OpNone | OpCode::OpTrue | OpCode::OpFalse => todo!()
+        }
+    }
+    
+    fn simple_instruction(&self, opcode: &str, offset:usize) -> usize {
+        println!("{}", opcode);
+        offset+1
+    }
+    
+    pub fn add_constant(&mut self, constant: SoxObjectRef) -> usize{
+        self.constants.push(constant);
+        self.constants.len() - 1
+    }
+    
+    fn constant_instruction(&self, opcode: &str, offset:usize) -> usize {
+        let constant_idx = self.code[offset+1] as usize;
+        print!("{} ({:?})", opcode, constant_idx);
+        println!("{:?}", self.constants[constant_idx]);
+        offset+2
+    }
+}

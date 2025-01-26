@@ -105,7 +105,8 @@ impl AsNumber for SoxFloat {
             star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
             slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
             rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
-           
+            neg: Some(|a, i: &Interpreter| SoxFloat::new(-a.payload::<SoxFloat>().unwrap().value).to_sox_result(i)),
+
         }
     }
 }

@@ -39,6 +39,8 @@ impl TryFrom<u8> for Precedence {
             6 => Ok(Self::Term),
             7 => Ok(Self::Factor),
             8 => Ok(Self::Unary),
+            9 => Ok(Self::Call),
+            10 => Ok(Self::Primary),
             _ => Err(()),   
         }
     }
@@ -106,14 +108,18 @@ const PARSE_RULES: [ParseRule; 45] = {
     data[TokenType::And as usize] = (None, None, Precedence::None);
     data[TokenType::Class as usize] = (None, None, Precedence::None);
     data[TokenType::Else as usize] = (None, None, Precedence::None);
-    data[TokenType::False as usize] = (None, None, Precedence::None);
+    data[TokenType::False as usize] = (
+        Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()), 
+        None, Precedence::None);
 
     data[TokenType::For as usize] = (None, None, Precedence::None);
     data[TokenType::If as usize] = (None, None, Precedence::None);
     data[TokenType::Or as usize] = (None, None, Precedence::None);
     data[TokenType::Return as usize] = (None, None, Precedence::None);
     data[TokenType::Super as usize] = (None, None, Precedence::None);
-    data[TokenType::True as usize] = (None, None, Precedence::None);
+    data[TokenType::True as usize] = (
+        Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()),
+        None, Precedence::None);
     data[TokenType::While as usize] = (None, None, Precedence::None);
 
     data[TokenType::Def as usize] = (None, None, Precedence::None);
@@ -121,7 +127,9 @@ const PARSE_RULES: [ParseRule; 45] = {
     data[TokenType::Let as usize] = (None, None, Precedence::None);
     data[TokenType::Print as usize] = (None, None, Precedence::None);
 
-    data[TokenType::None as usize] = (None, None, Precedence::None);
+    data[TokenType::None as usize] = (
+        Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()),
+        None, Precedence::None);
     data[TokenType::Error as usize] = (None, None, Precedence::None);
     data[TokenType::EOF as usize] = (None, None, Precedence::None);
 
@@ -147,8 +155,13 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&self, source: &str, i: &Interpreter) -> Result<Chunk, ()> {
-        todo!()
+    pub fn compile(&mut self, source: &'static str, i: &Interpreter) -> Result<Chunk, ()> {
+        let lexer = Lexer::new(source);
+        self.lexer = Some(lexer);
+        self.advance();
+        self.expression(i);
+        self.consume(TokenType::EOF, "Expect end of expression.");
+        Ok(self.chunk.clone())
     }
 
     pub fn end(&mut self) {
@@ -244,6 +257,16 @@ impl Compiler {
         
     }
 
+    pub fn literal(&mut self, i: &Interpreter) {
+        let value = self.previous.as_ref().unwrap();
+        match value.token_type {
+            TokenType::False => { self.emit_byte((OpCode::OpFalse, None)); }
+            TokenType::True => { self.emit_byte((OpCode::OpTrue, None))}
+            TokenType::None => {self.emit_byte((OpCode::OpNone, None))}
+            _ => {}
+        }
+        
+    }
     pub fn get_rule(&self, token_type: TokenType) -> ParseRule {
         PARSE_RULES[token_type as usize]
     }
