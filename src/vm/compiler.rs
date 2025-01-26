@@ -184,16 +184,18 @@ impl Compiler {
             previous: None,
             current: None,
             lexer: None,
-            // interpreter,
         }
     }
 
     pub fn compile(&mut self, source: &'static str, i: &Interpreter) -> Result<Chunk, ()> {
         let lexer = Lexer::new(source);
         self.lexer = Some(lexer);
-        self.advance();
+        let res =  self.advance();
+        if res.is_err() {
+            return Err(())
+        }
         self.expression(i);
-        self.consume(TokenType::EOF, "Expect end of expression.");
+        let end = self.consume(TokenType::EOF, "Expect end of expression.");
         Ok(self.chunk.clone())
     }
 
@@ -243,27 +245,20 @@ impl Compiler {
     }
 
     pub fn unary(&mut self, i: &Interpreter) {
-        self.parse_precedence(Precedence::Unary, i);
         let operator_type = self.previous.as_ref().unwrap().token_type;
-        self.expression(i);
+        // self.expression(i);
+        self.parse_precedence(Precedence::Unary, i);
 
         match operator_type {
-            TokenType::Plus => {
-                self.emit_byte((OpCode::OpAdd, None));
+            TokenType::Bang => {
+                self.emit_byte((OpCode::OpNot, None));
+                return;
             }
             TokenType::Minus => {
                 self.emit_byte((OpCode::OpNegate, None));
                 return;
             }
-            TokenType::Star => {
-                self.emit_byte((OpCode::OpMultiply, None));
-            }
-            TokenType::Slash => {
-                self.emit_byte((OpCode::OpDivide, None));
-            }
-            TokenType::Bang => {
-                self.emit_byte((OpCode::OpNot, None));
-            }
+           
             _ => {
                 return;
             }
@@ -306,7 +301,6 @@ impl Compiler {
         }
     }
     pub fn get_rule(&self, token_type: TokenType) -> ParseRule {
-        println!("{:?}", token_type);
         PARSE_RULES[token_type as usize]
     }
 
@@ -317,7 +311,7 @@ impl Compiler {
         if let Some(prefix_rule_fn) = prefix_rule {
             prefix_rule_fn(self, i);
         }
-        while precedence as u8 <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8 {
+        while self.current.is_some() && (precedence as u8) <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8 {
             self.advance();
             let infix_rule = self.get_rule(self.previous.as_ref().unwrap().token_type).1;
             // TODO Handle error
@@ -327,22 +321,28 @@ impl Compiler {
         }
     }
 
-    pub fn advance(&mut self) {
+    pub fn advance(&mut self) -> Result<(), ()> {
         self.previous = self.current.clone();
         let token = self.lexer.as_mut().unwrap().next();
-        self.current = token;
+        if token.is_some(){
+            self.current = token;
+            Ok(())
+        } else{
+            Err(())
+        }
     }
 
     pub fn consume(&mut self, expected_type: TokenType, message: &str) -> Result<(), SyntaxError> {
-        if self.current.as_ref().unwrap().token_type == expected_type {
+        if self.current.is_some() && self.current.as_ref().unwrap().token_type == expected_type {
             self.advance();
         }
         Err(SyntaxError {
             msg: format!(
-                "Error at '{}': Expect an expression.",
-                self.current.as_ref().unwrap().lexeme
+                "Error after '{}': {}",
+                self.previous.as_ref().unwrap().lexeme,
+                message
             ),
-            line: self.current.as_ref().unwrap().line,
+            line: self.previous.as_ref().unwrap().line,
         })
     }
 
