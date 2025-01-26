@@ -1,5 +1,6 @@
 use once_cell::sync::OnceCell;
 use std::any::Any;
+use polars::export::num::Zero;
 use macros::{soxmethod, soxtype};
 use crate::builtins::bool::SoxBool;
 use crate::builtins::method::{static_func, SoxMethod};
@@ -25,12 +26,8 @@ impl SoxFloat {
     }
 
     #[soxmethod]
-    pub fn equals(&self, other: SoxObjectRef) -> SoxBool {
-        if let Some(other_float) = other.payload::<SoxFloat>() {
-            SoxBool::from(other_float.value == self.value)
-        } else {
-            SoxBool::from(false)
-        }
+    pub fn bool(&self) -> SoxBool {
+        SoxBool::new(!self.value.is_zero())
     }
 }
 

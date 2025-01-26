@@ -1,7 +1,8 @@
+use crate::builtins::method::static_func;
 use std::any::Any;
 use std::fmt;
 pub use once_cell::sync::{Lazy, OnceCell};
-use macros::soxtype;
+use macros::{soxmethod, soxtype};
 use crate::builtins::bool::SoxBool;
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
@@ -27,6 +28,11 @@ impl SoxString {
     
     pub fn as_str(&self) -> &str {
         self.value.as_str()
+    }
+
+    #[soxmethod]
+    pub fn bool(&self) -> SoxBool {
+        SoxBool::new(self.value.as_str() != "")
     }
 }
 

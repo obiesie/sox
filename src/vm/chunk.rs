@@ -9,10 +9,14 @@ pub enum OpCode {
     OpNone,
     OpTrue,
     OpFalse,
+    OpEqual,
+    OpGreater,
+    OpLess,
     OpAdd,
     OpSubtract,
     OpMultiply,
     OpDivide,
+    OpNot,
     OpNegate,
     OpReturn,
 }
@@ -22,27 +26,28 @@ impl TryFrom<u8> for OpCode {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         // Static mapping array for u8 to OpCode
-        const OPCODE_MAP: [Option<OpCode>; 10] = [
+        const OPCODE_MAP: [Option<OpCode>; 14] = [
             Some(OpCode::OpConstant),
             Some(OpCode::OpNone),
             Some(OpCode::OpTrue),
             Some(OpCode::OpFalse),
+            Some(OpCode::OpEqual),
+            Some(OpCode::OpGreater),
+            Some(OpCode::OpLess), 
             Some(OpCode::OpAdd),
             Some(OpCode::OpSubtract),
             Some(OpCode::OpMultiply),
             Some(OpCode::OpDivide),
+            Some(OpCode::OpNot),
             Some(OpCode::OpNegate),
             Some(OpCode::OpReturn),
         ];
 
-        // Use get to handle out-of-bounds values gracefully
         OPCODE_MAP
-            .get(value as usize) // Safe array access
-            .and_then(|&opcode| opcode) // Unwrap Option<OpCode>
-            .ok_or(()) // Return Err(()) if not found
+            .get(value as usize) 
+            .and_then(|&opcode| opcode) 
+            .ok_or(()) 
     }
-    
-    
 }
 
 
@@ -121,7 +126,27 @@ impl Chunk {
             OpCode::OpDivide => {
                 self.simple_instruction("OpDivide", offset)
             },
-            OpCode::OpNone | OpCode::OpTrue | OpCode::OpFalse => todo!()
+            OpCode::OpNot => {
+                self.simple_instruction("OpNot", offset)
+            }
+            OpCode::OpNone => {
+                self.simple_instruction("OpNone", offset)
+            }
+            OpCode::OpTrue =>{
+                self.simple_instruction("OpTrue", offset)
+            } 
+            OpCode::OpFalse => {
+                self.simple_instruction("OpFalse", offset)
+            },
+            OpCode::OpEqual => {
+                self.simple_instruction("OpEqual", offset)
+            }
+            OpCode::OpGreater => {
+                self.simple_instruction("OpGreater", offset)
+            }
+            OpCode::OpLess => {
+                self.simple_instruction("OpLess", offset)
+            }
         }
     }
     

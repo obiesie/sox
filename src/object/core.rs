@@ -36,7 +36,7 @@ impl SoxObjectRef {
     fn call_method(
         &self,
         method_name: &str,
-        interpreter: &mut Interpreter,
+        interpreter: &Interpreter,
     ) -> Option<SoxObjectRef> {
         self.typ().methods.get(method_name).and_then(|method| {
             let call_args = FuncArgs {
@@ -83,7 +83,8 @@ impl SoxObjectRef {
         &*(self as *const SoxObjectRef as *const SoxRef<T>)
     }
 
-    pub fn try_into_rust_bool(&self, i: &mut Interpreter) -> bool {
+    // TODO migrate this to a protocol?
+    pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
         self.call_method("bool", i)
             .and_then(|tv| tv.payload::<SoxBool>().map(|v| v.value))
             .unwrap_or(true)

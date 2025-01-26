@@ -31,18 +31,9 @@ impl SoxInt {
     }
 
     #[soxmethod]
-    pub fn add(&self, rhs: SoxObjectRef) -> SoxObjectRef {
-        if let Some(rhs_int) = rhs.payload::<SoxInt>() {
-            let new_int = SoxInt::new(self.value + rhs_int.value);
-            SoxRef::new_ref(new_int, int::SoxInt::init_builtin_type().to_owned()).into()
-        } else {
-            let err_msg = "+ operand not supported for both types".to_string();
-            let runtime_err = RuntimeError { msg: err_msg };
-            let exc: Exception = runtime_err.try_into().unwrap();
-            let obj = SoxRef::new_ref(exc, exceptions::Exception::init_builtin_type().to_owned());
-            obj.into()
-        }
-    }
+    pub fn bool(&self) -> SoxBool {
+        SoxBool::new(self.value != 0)
+    } 
 }
 
 impl SoxObjectPayload for SoxInt {

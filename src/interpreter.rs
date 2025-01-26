@@ -46,7 +46,6 @@ pub struct Interpreter {
     pub types: TypeLibrary,
     pub none: SoxRef<SoxNone>,
     pub locals: HashMap<Token, (usize, usize)>,
-    //pub exception: ExceptionLibrary
 }
 
 impl Interpreter {

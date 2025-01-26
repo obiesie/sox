@@ -30,13 +30,11 @@ macro_rules! pop_stack {
     }};
 }
 
-
-
 macro_rules! binary_op {
-    ($vm:expr, $interpreter:expr, $slot_op:ident) => {{
+    ($vm:expr, $interpreter:expr, $slot_op:ident, $slot_name:ident) => {{
         let b = pop_stack!($vm);
         let a = pop_stack!($vm);
-        let operation = a.typ().slots.number.as_ref().unwrap().$slot_op.unwrap();
+        let operation = a.typ().slots.$slot_name.as_ref().unwrap().$slot_op.unwrap();
         let res = (operation)(a, b, $interpreter).unwrap();
         push_stack!($vm, res);
     }};
@@ -92,17 +90,17 @@ impl VirtualMachine {
             let inst = read_instr!(self);
             match inst {
                 OpCode::OpAdd => {
-                    binary_op!(self, i, add);
+                    binary_op!(self, i, add, number);
                     
                 }
                 OpCode::OpSubtract => {
-                    binary_op!(self, i, minus);
+                    binary_op!(self, i, minus, number);
                 }
                 OpCode::OpMultiply => {
-                    binary_op!(self, i, star);
+                    binary_op!(self, i, star, number);
                 }
                 OpCode::OpDivide => {
-                    binary_op!(self, i, slash);
+                    binary_op!(self, i, slash, number);
                 }
                 OpCode::OpReturn => {
                     let val = pop_stack!(self);
@@ -119,7 +117,6 @@ impl VirtualMachine {
                     let neg_op = val.typ().slots.number.as_ref().unwrap().neg.unwrap();
                     let res = (neg_op)(val, i).unwrap();
                     push_stack!(self, res);
-
                     continue;
                 },
                 OpCode::OpNone => {
@@ -131,9 +128,24 @@ impl VirtualMachine {
                 OpCode::OpFalse => {
                     push_stack!(self, SoxObjectRef::from(SoxRef::new_ref(SoxBool::from(false), i.types.bool_type.to_owned())))
                 }
+                OpCode::OpNot => {
+                    let val = pop_stack!(self);
+                    let bool_val = val.try_into_rust_bool(i);
+                    let not_val = SoxObjectRef::from(SoxRef::new_ref(SoxBool::new(!bool_val), i.types.bool_type.to_owned()));
+                    push_stack!(self, not_val);
+                    continue; 
+                }
+                OpCode::OpEqual => {
+                    binary_op!(self, i, eq, comparable)
+                }
+                OpCode::OpGreater => {
+                    binary_op!(self, i, gt, comparable)
+                }
+                OpCode::OpLess => {
+                    binary_op!(self, i, lt, comparable)
+                }
             }
         }
-        println!("VM exit");
     }
 }
 
