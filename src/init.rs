@@ -68,7 +68,7 @@ fn parse_and_interpret_with_resolver(
 
 
 fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
-    let chunk = Chunk::test_chunk(interpreter);
+    let chunk = Chunk::default();
     let mut vm = VirtualMachine::new(chunk);
     vm.interpret(interpreter, source);
 }

@@ -1,3 +1,4 @@
+use std::mem;
 use crate::builtins::bool::SoxBool;
 use crate::interpreter::Interpreter;
 use crate::object::core::{SoxObjectRef, SoxRef};
@@ -71,7 +72,7 @@ impl VirtualMachine {
 
     pub fn interpret(&mut self, i : &Interpreter, source: &'static str)  {
         let mut compiler = Compiler::new();
-        let chunk = compiler.compile(source, i);
+        let chunk = compiler.compile(source, mem::take(&mut self.chunk), i);
         chunk.and_then(|chunk| {
             self.chunk = chunk;
             self.run(i);
@@ -91,7 +92,6 @@ impl VirtualMachine {
             match inst {
                 OpCode::OpAdd => {
                     binary_op!(self, i, add, number);
-                    
                 }
                 OpCode::OpSubtract => {
                     binary_op!(self, i, minus, number);

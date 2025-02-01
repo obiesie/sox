@@ -59,6 +59,12 @@ pub struct Chunk {
     lines: Vec<usize>,
 }
 
+impl Default for Chunk {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl Chunk{
      pub fn test_chunk(i: &Interpreter) -> Chunk {
         let mut chunk = Chunk::new();

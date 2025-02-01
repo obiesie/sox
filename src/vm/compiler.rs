@@ -171,7 +171,7 @@ const PARSE_RULES: [ParseRule; 45] = {
 };
 
 pub struct Compiler {
-    chunk: Chunk,
+    chunk: Option<Chunk>,
     previous: Option<Token>,
     current: Option<Token>,
     lexer: Option<Lexer>,
@@ -180,23 +180,21 @@ pub struct Compiler {
 impl Compiler {
     pub fn new() -> Self {
         Self {
-            chunk: Chunk::new(),
+            chunk: None,
             previous: None,
             current: None,
             lexer: None,
         }
     }
 
-    pub fn compile(&mut self, source: &'static str, i: &Interpreter) -> Result<Chunk, ()> {
+    pub fn compile(&mut self, source: &'static str, chunk: Chunk, i: &Interpreter) -> Result<Chunk, ()> {
         let lexer = Lexer::new(source);
+        self.chunk = Some(chunk);
         self.lexer = Some(lexer);
-        let res =  self.advance();
-        if res.is_err() {
-            return Err(())
-        }
+        self.advance();
         self.expression(i);
         let end = self.consume(TokenType::EOF, "Expect end of expression.");
-        Ok(self.chunk.clone())
+        Ok(self.chunk.take().unwrap())
     }
 
     pub fn end(&mut self) {
@@ -211,7 +209,7 @@ impl Compiler {
     }
 
     pub fn make_constant(&mut self, value: SoxObjectRef) -> Result<usize, ()> {
-        let idx = self.chunk.add_constant(value);
+        let idx = self.chunk.as_mut().unwrap().add_constant(value);
         if idx > i8::MAX as usize {
             Err(())
         } else {
@@ -226,16 +224,16 @@ impl Compiler {
     pub fn emit_byte(&mut self, data: (OpCode, Option<u8>)) {
         let opcode = data.0;
         let operand = data.1;
-        self.chunk
+        self.chunk.as_mut().unwrap()
             .write_chunk(opcode as u8, self.previous.as_ref().unwrap().line);
         if let Some(operand) = operand {
-            self.chunk
+            self.chunk.as_mut().unwrap()
                 .write_chunk(operand, self.previous.as_ref().unwrap().line);
         }
     }
 
     pub fn expression(&mut self, i: &Interpreter) {
-        self.parse_precedence(Precedence::Assignment, i);
+        self.parse_with_precedence(Precedence::Assignment, i);
     }
 
     pub fn grouping(&mut self, i: &Interpreter) {
@@ -246,8 +244,7 @@ impl Compiler {
 
     pub fn unary(&mut self, i: &Interpreter) {
         let operator_type = self.previous.as_ref().unwrap().token_type;
-        // self.expression(i);
-        self.parse_precedence(Precedence::Unary, i);
+        self.parse_with_precedence(Precedence::Unary, i).expect("TODO: panic message");
 
         match operator_type {
             TokenType::Bang => {
@@ -266,26 +263,28 @@ impl Compiler {
     }
 
     pub fn binary(&mut self, i: &Interpreter) {
-        let operator_type = self.previous.as_ref().unwrap().token_type;
-        let rule = self.get_rule(operator_type);
-        let new_precedence = Precedence::try_from(rule.2 as u8 + 1).unwrap();
-        self.parse_precedence(new_precedence, i);
-        match operator_type {
-            TokenType::Plus => {
-                self.emit_byte((OpCode::OpAdd, None));
-            }
-            TokenType::Minus => {
-                self.emit_byte((OpCode::OpSubtract, None));
-            }
-            TokenType::Star => {
-                self.emit_byte((OpCode::OpMultiply, None));
-            }
-            TokenType::Slash => {
-                self.emit_byte((OpCode::OpDivide, None));
-            }
-            _ => {
-                return;
-            }
+        if let Some(token) = self.previous.as_ref() {
+            let operator_type = token.token_type;
+            let rule = self.get_rule(operator_type);
+            let new_precedence = Precedence::try_from(rule.2 as u8 + 1).unwrap();
+            self.parse_with_precedence(new_precedence, i);
+            match operator_type {
+                TokenType::Plus => {
+                    self.emit_byte((OpCode::OpAdd, None));
+                }
+                TokenType::Minus => {
+                    self.emit_byte((OpCode::OpSubtract, None));
+                }
+                TokenType::Star => {
+                    self.emit_byte((OpCode::OpMultiply, None));
+                }
+                TokenType::Slash => {
+                    self.emit_byte((OpCode::OpDivide, None));
+                }
+                _ => {
+                    return;
+                }
+            } 
         }
     }
 
@@ -304,12 +303,18 @@ impl Compiler {
         PARSE_RULES[token_type as usize]
     }
 
-    pub fn parse_precedence(&mut self, precedence: Precedence, i: &Interpreter) {
+    pub fn parse_with_precedence(&mut self, precedence: Precedence, i: &Interpreter) -> Result<(), ()>{
         self.advance();
-        let prefix_rule = self.get_rule(self.previous.as_ref().unwrap().token_type).0;
-        // TODO handle error
-        if let Some(prefix_rule_fn) = prefix_rule {
-            prefix_rule_fn(self, i);
+        let previous_token_type = self.previous.as_ref().map(|token| token.token_type);
+        if let Some(previous_token_type) = previous_token_type {
+            let prefix_rule = self.get_rule(previous_token_type).0;
+            if let Some(prefix_rule_fn) = prefix_rule {
+                prefix_rule_fn(self, i);
+            } else {
+                return Err(());
+            }
+        } else{
+            return Err(());
         }
         while self.current.is_some() && (precedence as u8) <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8 {
             self.advance();
@@ -319,16 +324,14 @@ impl Compiler {
                 infix_rule_fn(self, i)
             }
         }
+        Ok(())
     }
 
-    pub fn advance(&mut self) -> Result<(), ()> {
-        self.previous = self.current.clone();
-        let token = self.lexer.as_mut().unwrap().next();
+    pub fn advance(&mut self) {
+        self.previous = self.current.take();
+        let token = self.lexer.as_mut().and_then(|lexer| lexer.next());
         if token.is_some(){
             self.current = token;
-            Ok(())
-        } else{
-            Err(())
         }
     }
 
