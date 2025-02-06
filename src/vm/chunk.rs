@@ -1,4 +1,3 @@
-use std::fmt;
 use std::fmt::Debug;
 use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;

@@ -157,6 +157,6 @@ mod tests {
         let interpreter = Interpreter::new();
         let chunk = Chunk::test_chunk(&interpreter);
         let mut vm = VirtualMachine::new(chunk);
-        vm.run(&interpreter);;
+        vm.run(&interpreter);
     }
 }

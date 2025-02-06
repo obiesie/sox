@@ -16,7 +16,7 @@ pub fn run_file(file_path: String) {
 pub fn run_prompt() {
     let stdin = io::stdin();
     let mut interpreter = Interpreter::new();
-    let mut resolver = Resolver::new();
+    let resolver = Resolver::new();
     println!("Welcome to sox");
 
     loop {
@@ -34,7 +34,7 @@ pub fn run_prompt() {
 }
 
 pub fn run(source: String) {
-    let mut var_resolver = Resolver::new();
+    let var_resolver = Resolver::new();
     let mut interpreter = Interpreter::new();
     let static_source = source.leak();
     interpret_with_vm(static_source, &mut interpreter);
