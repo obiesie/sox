@@ -10,7 +10,7 @@ use crate::vm::chunk::{Chunk, OpCode};
 use std::str::FromStr;
 
 #[repr(u8)]
-#[derive(Clone, Copy)]
+#[derive(Clone, Copy, PartialOrd, PartialEq, Debug, Hash, Eq)]
 pub enum Precedence {
     None = 0,
     Assignment = 1,
@@ -316,7 +316,7 @@ impl Compiler {
         } else{
             return Err(());
         }
-        while self.current.is_some() && (precedence as u8) <= self.get_rule(self.current.as_ref().unwrap().token_type).2 as u8 {
+        while self.current.is_some() && precedence <= self.get_rule(self.current.as_ref().unwrap().token_type).2 {
             self.advance();
             let infix_rule = self.get_rule(self.previous.as_ref().unwrap().token_type).1;
             // TODO Handle error
