@@ -7,22 +7,29 @@ use crate::token::Token;
 use crate::token_type::TokenType;
 use crate::vm::chunk::OpCode::{OpConstant, OpReturn};
 use crate::vm::chunk::{Chunk, OpCode};
+use std::borrow::Borrow;
 use std::str::FromStr;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Debug, Hash, Eq)]
 pub enum Precedence {
-    None = 0,
-    Assignment = 1,
-    Or = 2,
-    And = 3,
-    Equality = 4,
-    Comparison = 5,
-    Term = 6,
-    Factor = 7,
-    Unary = 8,
-    Call = 9,
-    Primary = 10,
+    None,
+    Assignment,
+    Or,
+    And,
+    Equality,
+    Comparison,
+    Term,
+    Factor,
+    Unary,
+    Call,
+    Primary,
+}
+
+impl Default for Precedence{
+    fn default() -> Self {
+        Precedence::None
+    }
 }
 
 impl TryFrom<u8> for Precedence {
@@ -45,127 +52,145 @@ impl TryFrom<u8> for Precedence {
         }
     }
 }
-type ParseRule = (
-    Option<fn(&mut Compiler, &Interpreter) -> ()>,
-    Option<fn(&mut Compiler, &Interpreter) -> ()>,
-    Precedence,
-);
+
+#[derive(Clone, Copy, Default)]
+pub struct ParseRule{
+    pub infix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+    pub prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+    pub precedence: Precedence
+
+}
+
+impl ParseRule {
+    pub fn new(infix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+               prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+               precedence: Precedence) -> Self{
+        Self{
+            infix_fn,
+            prefix_fn,
+            precedence
+        }
+    }
+}
+
+
+
 const PARSE_RULES: [ParseRule; 45] = {
-    let mut data = [(None, None, Precedence::None); 45];
-    data[TokenType::LeftParen as usize] = (
+    let mut data = [ParseRule::default(); 45];
+    data[TokenType::LeftParen as usize] = ParseRule::new(
         Some(Compiler::grouping as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::RightParen as usize] = (None, None, Precedence::None);
-    data[TokenType::LeftBrace as usize] = (None, None, Precedence::None);
-    data[TokenType::RightBrace as usize] = (None, None, Precedence::None);
-    data[TokenType::LeftSqb as usize] = (None, None, Precedence::None);
-    data[TokenType::RightSqb as usize] = (None, None, Precedence::None);
-    data[TokenType::Colon as usize] = (None, None, Precedence::None);
-    data[TokenType::Comma as usize] = (None, None, Precedence::None);
-    data[TokenType::Semi as usize] = (None, None, Precedence::None);
-    data[TokenType::Minus as usize] = (
+    data[TokenType::RightParen as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::LeftBrace as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::RightBrace as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::LeftSqb as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::RightSqb as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Colon as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Comma as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Semi as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Minus as usize] = ParseRule::new(
         Some(Compiler::grouping as fn(&mut Compiler, &Interpreter) -> ()),
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Term,
     );
-    data[TokenType::Plus as usize] = (
+    data[TokenType::Plus as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Term,
     );
-    data[TokenType::Star as usize] = (
+    data[TokenType::Star as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Factor,
     );
-    data[TokenType::Slash as usize] = (
+    data[TokenType::Slash as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Factor,
     );
-    data[TokenType::Dot as usize] = (None, None, Precedence::None);
-    data[TokenType::Rem as usize] = (None, None, Precedence::None);
+    data[TokenType::Dot as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Rem as usize] = ParseRule::new(None, None, Precedence::None);
 
-    data[TokenType::Bang as usize] = (
+    data[TokenType::Bang as usize] = ParseRule::new(
         Some(Compiler::unary as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::BangEqual as usize] = (
+    data[TokenType::BangEqual as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Equality,
     );
-    data[TokenType::Equal as usize] = (None, None, Precedence::None);
-    data[TokenType::EqualEqual as usize] = (
+    data[TokenType::Equal as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::EqualEqual as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Equality,
     );
-    data[TokenType::Greater as usize] = (
+    data[TokenType::Greater as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Comparison,
     );
-    data[TokenType::GreaterEqual as usize] = (
+    data[TokenType::GreaterEqual as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Comparison,
     );
-    data[TokenType::Less as usize] = (
+    data[TokenType::Less as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Comparison,
     );
-    data[TokenType::LessEqual as usize] = (
+    data[TokenType::LessEqual as usize] = ParseRule::new(
         None,
         Some(Compiler::binary as fn(&mut Compiler, &Interpreter) -> ()),
         Precedence::Comparison,
     );
 
-    data[TokenType::Identifier as usize] = (None, None, Precedence::None);
-    data[TokenType::Number as usize] = (
+    data[TokenType::Identifier as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Number as usize] = ParseRule::new(
         Some(Compiler::number as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::SoxString as usize] = (None, None, Precedence::None);
+    data[TokenType::SoxString as usize] = ParseRule::new(None, None, Precedence::None);
 
-    data[TokenType::And as usize] = (None, None, Precedence::None);
-    data[TokenType::Class as usize] = (None, None, Precedence::None);
-    data[TokenType::Else as usize] = (None, None, Precedence::None);
-    data[TokenType::False as usize] = (
+    data[TokenType::And as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Class as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Else as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::False as usize] = ParseRule::new(
         Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
 
-    data[TokenType::For as usize] = (None, None, Precedence::None);
-    data[TokenType::If as usize] = (None, None, Precedence::None);
-    data[TokenType::Or as usize] = (None, None, Precedence::None);
-    data[TokenType::Return as usize] = (None, None, Precedence::None);
-    data[TokenType::Super as usize] = (None, None, Precedence::None);
-    data[TokenType::True as usize] = (
+    data[TokenType::For as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::If as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Or as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Return as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Super as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::True as usize] = ParseRule::new(
         Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::While as usize] = (None, None, Precedence::None);
+    data[TokenType::While as usize] = ParseRule::new(None, None, Precedence::None);
 
-    data[TokenType::Def as usize] = (None, None, Precedence::None);
-    data[TokenType::This as usize] = (None, None, Precedence::None);
-    data[TokenType::Let as usize] = (None, None, Precedence::None);
-    data[TokenType::Print as usize] = (None, None, Precedence::None);
+    data[TokenType::Def as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::This as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Let as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Print as usize] = ParseRule::new(None, None, Precedence::None);
 
-    data[TokenType::None as usize] = (
+    data[TokenType::None as usize] = ParseRule::new(
         Some(Compiler::literal as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::Error as usize] = (None, None, Precedence::None);
-    data[TokenType::EOF as usize] = (None, None, Precedence::None);
+    data[TokenType::Error as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::EOF as usize] = ParseRule::new(None, None, Precedence::None);
 
     data
 };
@@ -299,8 +324,8 @@ impl Compiler {
             _ => {}
         }
     }
-    pub fn get_rule(&self, token_type: TokenType) -> ParseRule {
-        PARSE_RULES[token_type as usize]
+    pub fn get_rule(&self, token_type: TokenType) -> &ParseRule {
+        PARSE_RULES[token_type as usize].borrow()
     }
 
     pub fn parse_with_precedence(&mut self, precedence: Precedence, i: &Interpreter) -> Result<(), ()>{
