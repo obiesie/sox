@@ -10,12 +10,10 @@ pub struct NumberMethods {
     pub slash: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
     pub rem: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
     pub neg: Option<fn(a: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    
 }
 
 pub trait AsNumber: Sized {
-    
-    const DEFAULT_NUMBER_METHODS: NumberMethods = NumberMethods{
+    const DEFAULT_NUMBER_METHODS: NumberMethods = NumberMethods {
         add: None,
         minus: None,
         star: None,
@@ -23,7 +21,6 @@ pub trait AsNumber: Sized {
         rem: None,
         neg: None,
     };
-    
-    
+
     fn as_number() -> NumberMethods;
 }

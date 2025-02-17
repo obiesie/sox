@@ -2,10 +2,10 @@ use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
-use std::io::Write;
-use std::{fs, io};
 use crate::vm::chunk::Chunk;
 use crate::vm::vm::VirtualMachine;
+use std::io::Write;
+use std::{fs, io};
 
 pub fn run_file(file_path: String) {
     let contents =
@@ -65,7 +65,6 @@ fn parse_and_interpret_with_resolver(
         }
     }
 }
-
 
 fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
     let chunk = Chunk::default();

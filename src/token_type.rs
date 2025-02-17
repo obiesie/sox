@@ -24,11 +24,9 @@ pub enum TokenType {
     Equal,
     EqualEqual,
     Greater,
-    GreaterEqual, 
+    GreaterEqual,
     Less,
     LessEqual,
-   
-   
 
     // Literals
     Identifier,
@@ -52,7 +50,7 @@ pub enum TokenType {
     Let,
     Print,
     None,
-    
+
     Error,
     EOF,
 

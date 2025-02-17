@@ -3,6 +3,11 @@ use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::function::SoxFunction;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::object::protocols::call::Callable;
+use crate::object::protocols::comparable::ComparableMethods;
+use crate::object::protocols::number::NumberMethods;
+use crate::object::protocols::repr::Representable;
 use crate::token::Token;
 use macros::soxtype;
 use once_cell::sync::OnceCell;
@@ -11,11 +16,6 @@ use std::borrow::Borrow;
 use std::cell::RefCell;
 use std::collections::HashMap;
 use std::ops::Deref;
-use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use crate::object::protocols::call::Callable;
-use crate::object::protocols::comparable::ComparableMethods;
-use crate::object::protocols::number::NumberMethods;
-use crate::object::protocols::repr::Representable;
 
 pub type GenericMethod = fn(SoxObjectRef, FuncArgs, &mut Interpreter) -> SoxResult;
 pub type ReprMethod = fn(&SoxObjectRef, &Interpreter) -> SoxResult<String>;
@@ -91,8 +91,6 @@ impl SoxType {
             .cloned()
             .or_else(|| self.base.as_ref().and_then(|base| base.find_method(name)))
     }
-
-    
 }
 
 impl Representable for SoxType {

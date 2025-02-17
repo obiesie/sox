@@ -1,4 +1,4 @@
-use polars::{df};
+use polars::df;
 use polars::frame::DataFrame;
 use polars::prelude::*;
 use regex::Regex;
@@ -35,7 +35,6 @@ static ALL_TEST_SUITES: [&str; 17] = [
     "comments",
     "constructors",
     "logical_operator",
-    
 ];
 
 static TEST_SUITES: [&str; 0] = [];
@@ -97,7 +96,7 @@ fn test_compiler() {
             .map(|v| v.to_string())
             .collect::<Vec<String>>();
         let failures = validate_outputs(&expected_outputs, &output_strs);
-        println!("failures are {:?}",  failures);
+        println!("failures are {:?}", failures);
         test_results.push(failures.is_empty())
     }
     let mut res_df: DataFrame = df!(
@@ -113,11 +112,11 @@ fn test_compiler() {
     let failed_df = res_df
         .lazy()
         .filter(col("Test Passed?").eq(lit(false)))
-        .collect().unwrap();
+        .collect()
+        .unwrap();
 
     println!("failed tests: \n {}", failed_df);
     assert_eq!(failed_df.shape().0, 0);
-
 }
 
 fn validate_outputs<T: ToString + PartialEq>(

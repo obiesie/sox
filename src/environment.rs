@@ -1,12 +1,12 @@
-use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::core::{SoxResult, StaticType};
+use crate::builtins::exceptions::{Exception, RuntimeError};
+use crate::interpreter::Interpreter;
+use crate::object::core::{SoxObjectRef, SoxRef};
 use slotmap::{DefaultKey, SlotMap};
 use std::collections::HashMap;
 use std::fmt;
 use std::fmt::Display;
 use std::rc::Rc;
-use crate::interpreter::Interpreter;
-use crate::object::core::{SoxObjectRef, SoxRef};
 
 pub(crate) type EnvKey = (String, usize, usize);
 pub type EnvRef = Rc<DefaultKey>;
@@ -101,7 +101,12 @@ impl Environment {
         }
     }
 
-    pub fn define_at<T: ToString + Display>(&mut self, key: T, value: SoxObjectRef, ns_ref: EnvRef) {
+    pub fn define_at<T: ToString + Display>(
+        &mut self,
+        key: T,
+        value: SoxObjectRef,
+        ns_ref: EnvRef,
+    ) {
         let ns = self.envs.get_mut(*ns_ref).unwrap();
         let _ = ns.define(key, value);
     }
@@ -135,16 +140,19 @@ impl Environment {
     pub fn get_from_global_scope(&self, key: String, i: &Interpreter) -> SoxResult {
         let key_string = key.to_string();
         let global_namespace = self.envs.get(*self.global).unwrap();
-        match global_namespace.bindings.iter().rev().find(|v| v.0 == key_string) {
+        match global_namespace
+            .bindings
+            .iter()
+            .rev()
+            .find(|v| v.0 == key_string)
+        {
             Some(v) => Ok(v.1.clone()),
             None => {
-
                 let exc = Exception::Err(RuntimeError {
                     msg: format!("NameError: name '{}' is not defined.", key_string),
                 });
                 Err(SoxRef::new_ref(exc, i.types.exception_type.to_owned()).into())
-
-            },
+            }
         }
     }
 
@@ -162,12 +170,12 @@ impl Environment {
                     namespace = self.envs.get_mut(**parent_ns).unwrap();
                 }
                 None => {
-
                     let exc = Exception::Err(RuntimeError {
                         msg: format!("NameError: name '{}' is not defined.", name),
                     });
-                    return Err(SoxRef::new_ref(exc, Exception::init_builtin_type().to_owned()).into())
-
+                    return Err(
+                        SoxRef::new_ref(exc, Exception::init_builtin_type().to_owned()).into(),
+                    );
                 }
             }
             dist += 1;
@@ -196,7 +204,6 @@ impl Environment {
             msg: format!("NameError: name '{}' is not defined.", key_string),
         });
         Err(SoxRef::new_ref(exc, Exception::init_builtin_type().to_owned()).into())
-
     }
 
     pub fn find_and_assign<T: ToString + Display>(
@@ -236,7 +243,6 @@ impl Environment {
             msg: format!("NameError: name '{}' is not defined.", key_string),
         });
         Err(SoxRef::new_ref(exc, Exception::init_builtin_type().to_owned()).into())
-
     }
 
     pub fn assign(&mut self, key: &EnvKey, value: SoxObjectRef) -> SoxResult<()> {

@@ -470,7 +470,10 @@ impl ExprVisitor for &mut Interpreter {
                     eval_slot_op!(self, left_val, right_val, ge, comparable, ">=")
                 }
 
-                _ => Err(self.runtime_error("Supplied token does not support binary operations.".into())),
+                _ => {
+                    Err(self
+                        .runtime_error("Supplied token does not support binary operations.".into()))
+                }
             }
         } else {
             Err(self.runtime_error(

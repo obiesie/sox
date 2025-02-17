@@ -96,4 +96,3 @@ impl ToSoxResult for SoxResult {
 pub trait SoxObjectPayload: Any + Sized + 'static {
     fn as_any(&self) -> &dyn Any;
 }
-

@@ -1,6 +1,5 @@
 use std::iter::Peekable;
 
-
 use crate::expr::Expr;
 use crate::stmt::Stmt;
 use crate::token::{Literal, Token};
@@ -187,7 +186,7 @@ impl<I: Iterator<Item = Token>> Parser<I> {
 
     fn return_statement(&mut self) -> Result<Stmt, SyntaxError> {
         let keyword = self.previous();
-        let mut value =None; 
+        let mut value = None;
         if !self.check(Semi) {
             value = Some(self.expression()?);
         }
@@ -531,13 +530,16 @@ impl<I: Iterator<Item = Token>> Parser<I> {
         if self.at_end() {
             return false;
         }
-        while let Some(_) = self.tokens.next_if(|token| TO_IGNORE.contains(&token.token_type)) {}
+        while let Some(_) = self
+            .tokens
+            .next_if(|token| TO_IGNORE.contains(&token.token_type))
+        {}
         let peeked_value = self.tokens.peek();
         peeked_value.map_or(false, |t| t.token_type == token_type)
     }
 
     fn advance(&mut self) -> Option<Token> {
-        (!self.at_end()).then_some ({
+        (!self.at_end()).then_some({
             let token = self.tokens.next().and_then(|t| {
                 self.processed_tokens.push(t.clone());
                 Some(t)
@@ -545,10 +547,15 @@ impl<I: Iterator<Item = Token>> Parser<I> {
             token?
         })
     }
-    
+
     fn at_end(&mut self) -> bool {
-        while let Some(_) = self.tokens.next_if(|token| TO_IGNORE.contains(&token.token_type)) {}
-        self.tokens.peek().map_or(true, |t| vec![TokenType::EOF].contains(&t.token_type))
+        while let Some(_) = self
+            .tokens
+            .next_if(|token| TO_IGNORE.contains(&token.token_type))
+        {}
+        self.tokens
+            .peek()
+            .map_or(true, |t| vec![TokenType::EOF].contains(&t.token_type))
     }
 }
 

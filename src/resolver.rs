@@ -1,6 +1,5 @@
 use std::collections::HashMap;
 
-
 use crate::expr::{Expr, ExprVisitor};
 use crate::stmt::{Stmt, StmtVisitor};
 use crate::token::{Literal, Token};
@@ -13,7 +12,6 @@ pub enum ResolverError {
     NotFound(String),
     SyntaxError(String),
 }
-
 
 impl std::fmt::Display for ResolverError {
     fn fmt(&self, f: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -129,7 +127,7 @@ impl Resolver {
         stmt: Stmt,
         func_type: FunctionType,
     ) -> Result<(), ResolverError> {
-        if let Stmt::Function {  params, body, .. } = stmt {
+        if let Stmt::Function { params, body, .. } = stmt {
             let enclosing_function = self.current_function.clone();
             self.current_function = func_type;
             self.begin_scope();
@@ -224,9 +222,7 @@ impl StmtVisitor for &mut Resolver {
         }
         if let Stmt::Return { value, .. } = stmt {
             if value.is_some() {
-                
-                if self.current_function == FunctionType::Initializer  {
-                    
+                if self.current_function == FunctionType::Initializer {
                     return Err(ResolverError::SyntaxError(
                         "Cannot return value from initializer.".into(),
                     ));
@@ -255,17 +251,16 @@ impl StmtVisitor for &mut Resolver {
                 self.current_class = ClassType::SubClass;
                 if let Expr::Variable { name } = sc {
                     if name.lexeme == class_name.lexeme {
-                        return Err(ResolverError::SyntaxError(
-                            format!("Error at '{}': A class cannot inherit from itself.", name.lexeme),
-                            
-                        ));
+                        return Err(ResolverError::SyntaxError(format!(
+                            "Error at '{}': A class cannot inherit from itself.",
+                            name.lexeme
+                        )));
                     }
                 }
                 self.resolve_expr(sc)?;
 
                 self.begin_scope();
-                let super_token =
-                    Token::new(TokenType::Super, "super", Literal::None, 0);
+                let super_token = Token::new(TokenType::Super, "super", Literal::None, 0);
                 self.scopes.last_mut().unwrap().push((super_token, true));
             }
 
@@ -368,7 +363,7 @@ impl ExprVisitor for &mut Resolver {
                     .last()
                     .unwrap()
                     .iter()
-                    .find(|v|v.0.lexeme == name.lexeme)
+                    .find(|v| v.0.lexeme == name.lexeme)
                     .unwrap()
                     .1
                     == false

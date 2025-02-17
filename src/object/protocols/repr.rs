@@ -1,6 +1,6 @@
 use crate::builtins::core::{SoxObjectPayload, SoxResult};
-use crate::object::core::{Sox, SoxObjectRef};
 use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef};
 
 pub trait Representable {
     fn slot_repr(zelf: &SoxObjectRef, i: &Interpreter) -> SoxResult<String>

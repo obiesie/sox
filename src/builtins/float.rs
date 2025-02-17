@@ -1,18 +1,20 @@
-use once_cell::sync::OnceCell;
-use std::any::Any;
-use polars::export::num::Zero;
-use macros::{soxmethod, soxtype};
 use crate::builtins::bool::SoxBool;
+use crate::builtins::core::{
+    SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
+};
+use crate::builtins::int::SoxInt;
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
-use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
+use macros::{soxmethod, soxtype};
+use once_cell::sync::OnceCell;
+use polars::export::num::Zero;
+use std::any::Any;
 
 #[derive(Debug, Clone, Copy)]
 pub struct SoxFloat {
@@ -31,14 +33,10 @@ impl SoxFloat {
     }
 }
 
-
 impl SoxObjectPayload for SoxFloat {
-    
     fn as_any(&self) -> &dyn Any {
         self
     }
-
-   
 }
 
 impl StaticType for SoxFloat {
@@ -81,7 +79,6 @@ impl ToSoxResult for SoxFloat {
     }
 }
 
-
 impl From<f64> for SoxFloat {
     fn from(f: f64) -> Self {
         Self { value: f }
@@ -102,8 +99,9 @@ impl AsNumber for SoxFloat {
             star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
             slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
             rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
-            neg: Some(|a, i: &Interpreter| SoxFloat::new(-a.payload::<SoxFloat>().unwrap().value).to_sox_result(i)),
-
+            neg: Some(|a, i: &Interpreter| {
+                SoxFloat::new(-a.payload::<SoxFloat>().unwrap().value).to_sox_result(i)
+            }),
         }
     }
 }
@@ -121,8 +119,7 @@ impl Comparable for SoxFloat {
     }
 }
 
-
-impl SoxFloat{
+impl SoxFloat {
     fn perform_operation(
         a: SoxObjectRef,
         b: SoxObjectRef,
@@ -148,6 +145,4 @@ impl SoxFloat{
             SoxBool::new(false).to_sox_result(i)
         }
     }
-    
-   
 }

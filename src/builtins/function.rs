@@ -1,16 +1,15 @@
-use once_cell::sync::OnceCell;
-use std::any::Any;
-use std::iter::zip;
-use macros::soxtype;
 use crate::builtins::bool::SoxBool;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::builtins::r#type::{SoxInstance, SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
+use macros::soxtype;
+use once_cell::sync::OnceCell;
+use std::any::Any;
+use std::iter::zip;
 
 use crate::builtins::core::{
-    SoxClassImpl, SoxObjectPayload, SoxResult, StaticType,
-    ToSoxResult, TryFromSoxObject,
+    SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
 };
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
@@ -31,7 +30,13 @@ pub struct SoxFunction {
 
 #[soxtype]
 impl SoxFunction {
-    pub fn new(name: String, declaration: Stmt, environment_ref: EnvRef, arity: i8, is_initializer: bool) -> Self {
+    pub fn new(
+        name: String,
+        declaration: Stmt,
+        environment_ref: EnvRef,
+        arity: i8,
+        is_initializer: bool,
+    ) -> Self {
         Self {
             name,
             declaration: Box::new(declaration),
@@ -43,7 +48,6 @@ impl SoxFunction {
 
     pub fn bind(&self, instance: SoxObjectRef, interp: &mut Interpreter) -> SoxResult {
         if let Some(_) = instance.payload::<SoxInstance>() {
-
             let env_ref = interp
                 .environment
                 .new_local_env_at(self.environment_ref.clone());
@@ -58,23 +62,31 @@ impl SoxFunction {
                 is_initializer: self.is_initializer,
                 arity: self.arity,
             };
-            Ok(SoxObjectRef::from(SoxRef::new_ref(new_func, interp.types.func_type.to_owned())))
+            Ok(SoxObjectRef::from(SoxRef::new_ref(
+                new_func,
+                interp.types.func_type.to_owned(),
+            )))
         } else {
-            Err(Interpreter::runtime_error(interp,
+            Err(Interpreter::runtime_error(
+                interp,
                 "Could not bind method to instance".to_string(),
             ))
         }
     }
 
-
-
     pub fn equals(zelf: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> SoxResult {
-        if let (Some(zelf), Some(other_func)) = (zelf.payload::<SoxFunction>(), other.payload::<SoxFunction>()) {
-            SoxBool::from(zelf.name == other_func.name
-                && zelf.declaration == other_func.declaration
-                && zelf.environment_ref == other_func.environment_ref
-                && zelf.is_initializer == other_func.is_initializer
-                && zelf.arity == other_func.arity).to_sox_result(i)
+        if let (Some(zelf), Some(other_func)) = (
+            zelf.payload::<SoxFunction>(),
+            other.payload::<SoxFunction>(),
+        ) {
+            SoxBool::from(
+                zelf.name == other_func.name
+                    && zelf.declaration == other_func.declaration
+                    && zelf.environment_ref == other_func.environment_ref
+                    && zelf.is_initializer == other_func.is_initializer
+                    && zelf.arity == other_func.arity,
+            )
+            .to_sox_result(i)
         } else {
             SoxBool::from(false).to_sox_result(i)
         }
@@ -82,12 +94,9 @@ impl SoxFunction {
 }
 
 impl SoxObjectPayload for SoxFunction {
-    
     fn as_any(&self) -> &dyn Any {
         self
     }
-
-
 }
 
 impl StaticType for SoxFunction {
@@ -105,7 +114,6 @@ impl StaticType for SoxFunction {
             number: None,
             comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
-
         }
     }
 }
@@ -149,7 +157,10 @@ impl Callable for SoxFunction {
                 ),
             });
 
-            return Err(SoxObjectRef::from(SoxRef::new_ref(error, i.types.exception_type.to_owned())));
+            return Err(SoxObjectRef::from(SoxRef::new_ref(
+                error,
+                i.types.exception_type.to_owned(),
+            )));
         }
         let previous_env_ref = i.environment.active.clone();
         i.environment.active = zelf.environment_ref.clone();
@@ -161,9 +172,7 @@ impl Callable for SoxFunction {
             body,
         } = *zelf.declaration.clone()
         {
-            let exec_ns = i
-                .environment
-                .new_local_env_at(zelf.environment_ref.clone());
+            let exec_ns = i.environment.new_local_env_at(zelf.environment_ref.clone());
             let env = i.environment.envs.get_mut(*exec_ns).unwrap();
             for (param, arg) in zip(params, args.args.clone()) {
                 env.define(param.lexeme, arg).expect("TODO: panic message");
@@ -181,18 +190,19 @@ impl Callable for SoxFunction {
                         }
                         Exception::Err(v) => {
                             let rv = Exception::Err(v.clone());
-                            return_value = Err(SoxObjectRef::from(SoxRef::new_ref(rv, i.types.exception_type.to_owned())));
+                            return_value = Err(SoxObjectRef::from(SoxRef::new_ref(
+                                rv,
+                                i.types.exception_type.to_owned(),
+                            )));
                         }
                     }
                 }
             }
         }
         if zelf.is_initializer {
-
-            let v = i.environment.find_and_get( "this");
+            let v = i.environment.find_and_get("this");
             i.environment.active = previous_env_ref;
             return v;
-
         }
         i.environment.active = previous_env_ref;
 

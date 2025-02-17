@@ -1,8 +1,7 @@
 use proc_macro::{self, TokenStream};
 
-
+use syn::parse_macro_input;
 use syn::Item;
-use syn::{parse_macro_input};
 
 use crate::proc::soxtype_impl;
 

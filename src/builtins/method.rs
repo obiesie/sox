@@ -1,9 +1,9 @@
+use crate::builtins::core::{SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::builtins::exceptions::{Exception, RuntimeError};
+use crate::interpreter::Interpreter;
+use crate::object::core::{SoxObjectRef, SoxRef};
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
-use crate::builtins::core::{SoxResult, ToSoxResult, TryFromSoxObject};
-use crate::object::core::{SoxObjectRef, SoxRef};
-use crate::interpreter::Interpreter;
 
 pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;
 
@@ -69,7 +69,6 @@ impl FuncArgs {
             Some(self.args.remove(0))
         }
     }
-
 }
 
 pub trait FromArgs: Sized {
@@ -80,25 +79,22 @@ pub trait FromArgs: Sized {
 pub struct ArgumentError;
 
 impl<T: TryFromSoxObject> FromArgs for T {
-    
     fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
-        
         let val = if let Some(v) = args.take_positional() {
             T::try_from_sox_object(i, v.clone())
         } else {
             let exc = Exception::Err(RuntimeError {
                 msg: "Too few argument supplied to function".into(),
-            }); 
+            });
             Err(SoxRef::new_ref(exc, i.types.exception_type.to_owned()).into())
         };
         val
     }
 }
 
-
 impl TryFromSoxObject for SoxObjectRef {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
-       return Ok(obj); 
+        return Ok(obj);
     }
 }
 

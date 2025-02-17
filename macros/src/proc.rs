@@ -10,7 +10,6 @@ pub fn soxtype_impl(item: Item) -> TokenStream {
             let ident = item_impl.self_ty.as_ref().into_token_stream();
 
             for i in item_impl.items.iter() {
-
                 match i {
                     ImplItem::Fn(v) => {
                         let fn_name = v.sig.ident.clone();

@@ -7,5 +7,5 @@ pub mod none;
 pub mod string;
 
 pub mod bool;
-pub mod r#type;
 pub mod core;
+pub mod r#type;

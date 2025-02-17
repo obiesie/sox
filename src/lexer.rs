@@ -1,3 +1,4 @@
+use std::iter::Peekable;
 use log::debug;
 use std::ops::Range;
 
@@ -20,6 +21,7 @@ impl LexError {
     }
 }
 
+#[derive(Clone, Debug)]
 pub struct Lexer {
     source: &'static str,
     start: usize,
@@ -174,6 +176,9 @@ impl Lexer {
         self.source.chars().nth(self.current + 1)
     }
 }
+
+
+
 
 impl Iterator for Lexer {
     type Item = Token;

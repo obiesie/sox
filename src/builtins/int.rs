@@ -4,8 +4,8 @@ use crate::builtins::core::{
 };
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::builtins::string::SoxString;
 use crate::builtins::string;
+use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
@@ -32,7 +32,7 @@ impl SoxInt {
     #[soxmethod]
     pub fn bool(&self) -> SoxBool {
         SoxBool::new(self.value != 0)
-    } 
+    }
 }
 
 impl SoxObjectPayload for SoxInt {
@@ -102,7 +102,9 @@ impl AsNumber for SoxInt {
             star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
             slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
             rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
-            neg: Some(|a, i: &Interpreter| SoxInt::new(-a.payload::<SoxInt>().unwrap().value).to_sox_result(i)),
+            neg: Some(|a, i: &Interpreter| {
+                SoxInt::new(-a.payload::<SoxInt>().unwrap().value).to_sox_result(i)
+            }),
         }
     }
 }

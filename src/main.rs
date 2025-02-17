@@ -1,5 +1,5 @@
-use std::io::Write;
 use std::env;
+use std::io::Write;
 
 use log::LevelFilter;
 
@@ -21,7 +21,6 @@ fn main() {
 
     let args: Vec<String> = env::args().collect();
     if args.len() >= 2 {
-        
         sox::init::run_file(args.get(1).unwrap().to_string());
     } else {
         sox::init::run_prompt();

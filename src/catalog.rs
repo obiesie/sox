@@ -1,6 +1,6 @@
+use crate::builtins::core::StaticType;
 use crate::builtins::r#type::{SoxInstance, SoxType};
 use crate::builtins::{bool, exceptions, float, function, int, none, r#type, string};
-use crate::builtins::core::StaticType;
 use crate::object::core::{init_type_type, Sox, SoxObjectRef};
 
 pub struct TypeLibrary {
@@ -33,6 +33,5 @@ impl TypeLibrary {
 }
 
 pub struct ExceptionLibrary {
-    pub visit_block_stmt_error: SoxObjectRef
+    pub visit_block_stmt_error: SoxObjectRef,
 }
-

@@ -5,12 +5,10 @@ use crate::builtins::r#type::SoxType;
 use crate::interpreter::Interpreter;
 use std::any::TypeId;
 use std::borrow::Borrow;
-use std::mem::{MaybeUninit};
+use std::mem::MaybeUninit;
 use std::ops::Deref;
 use std::ptr;
 use std::ptr::NonNull;
-
-
 
 #[repr(transparent)]
 pub struct SoxObject(SoxObjectInner<()>);
@@ -20,8 +18,6 @@ pub struct SoxObject(SoxObjectInner<()>);
 pub struct SoxObjectRef {
     pub ptr: NonNull<SoxObject>,
 }
-
-
 
 impl<T: SoxObjectPayload> Deref for Sox<T> {
     type Target = T;
@@ -33,11 +29,7 @@ impl<T: SoxObjectPayload> Deref for Sox<T> {
 }
 
 impl SoxObjectRef {
-    fn call_method(
-        &self,
-        method_name: &str,
-        interpreter: &Interpreter,
-    ) -> Option<SoxObjectRef> {
+    fn call_method(&self, method_name: &str, interpreter: &Interpreter) -> Option<SoxObjectRef> {
         self.typ().methods.get(method_name).and_then(|method| {
             let call_args = FuncArgs {
                 args: vec![self.clone()],
@@ -101,7 +93,9 @@ impl SoxObjectRef {
 
 impl<T: SoxObjectPayload> From<SoxRef<T>> for SoxObjectRef {
     fn from(value: SoxRef<T>) -> Self {
-        Self { ptr: value.ptr.cast() }
+        Self {
+            ptr: value.ptr.cast(),
+        }
     }
 }
 
@@ -200,12 +194,14 @@ pub fn init_type_type() -> SoxRef<SoxType> {
             attributes: Default::default(),
             name: Some("SoxType".to_owned()),
         };
-        
-        let type_type_ptr = Box::into_raw(Box::new(MaybeUninit::<SoxObjectInner::<SoxType>>::uninit())) as *mut SoxObjectInner<SoxType>;
+
+        let type_type_ptr =
+            Box::into_raw(Box::new(MaybeUninit::<SoxObjectInner<SoxType>>::uninit()))
+                as *mut SoxObjectInner<SoxType>;
         unsafe {
             ptr::write(&mut (*type_type_ptr).type_id, TypeId::of::<SoxType>());
             ptr::write(&mut (*type_type_ptr).payload, type_payload);
-        
+
             let type_type = SoxRef::<SoxType>::from_raw(type_type_ptr.cast());
             ptr::write(&mut (*type_type_ptr).typ, type_type.clone());
             type_type

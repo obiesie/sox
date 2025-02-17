@@ -1,4 +1,4 @@
-pub mod repr;
 pub mod call;
-pub mod number;
 pub mod comparable;
+pub mod number;
+pub mod repr;
