@@ -1,9 +1,11 @@
+use std::collections::HashMap;
 use crate::builtins::bool::SoxBool;
 use crate::interpreter::Interpreter;
 use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::vm::chunk::{Chunk, OpCode};
 use crate::vm::compiler::Compiler;
 use std::mem;
+use crate::builtins::string::SoxString;
 
 macro_rules! read_instr {
     ($a:expr) => {{
@@ -30,6 +32,16 @@ macro_rules! pop_stack {
         $a.stack_top -= 1;
         let v = $a.stack.pop().unwrap();
         v
+    }};
+}
+
+macro_rules! peek_stack {
+    ($a:expr) => {{
+        if $a.stack_top == 0 {
+            panic!("Stack underflow.");
+        }
+        let v = $a.stack.last().unwrap();
+        *v
     }};
 }
 
@@ -60,15 +72,18 @@ pub struct VirtualMachine {
     ip: usize,
     stack: Vec<SoxObjectRef>,
     stack_top: usize,
+    globals: HashMap<String, SoxObjectRef>,
 }
 
 impl VirtualMachine {
-    pub fn new(chunk: Chunk) -> VirtualMachine {
+    pub fn new() -> VirtualMachine {
+        let chunk = Chunk::default();
         VirtualMachine {
             chunk,
             ip: 0,
             stack: Vec::with_capacity(256),
             stack_top: 0,
+            globals: HashMap::new(),
         }
     }
 
@@ -175,21 +190,31 @@ impl VirtualMachine {
                     pop_stack!(self);
                 },
                 OpCode::OpDefineGlobal => {
+                    let v = read_constant!(self);
+                    let name = v.payload::<SoxString>().unwrap();
+                    let nv = name.value.to_string();
+                    self.globals.insert(nv, peek_stack!(self));
+                },
+                OpCode::OpGetGlobal => {
+                    let v = read_constant!(self);
+                    let name = v.payload::<SoxString>().unwrap(); 
+                    if let Some(val) = self.globals.get(&name.value) {
+                        push_stack!(self, val.clone());
+                    } else{
+                        panic!("Global variable {} not found", name.value);
+                    }
+                },
+                OpCode::OpSetGlobal => {
+                    let v = read_constant!(self);
+                    let name = v.payload::<SoxString>().unwrap();
                     
+                    if let Some(val) = self.globals.get_mut(&name.value) {
+                        *val = peek_stack!(self);
+                    } else {
+                        panic!("Attempted to set undefined global variable {}", name.value);
+                    }
                 }
             }
         }
-    }
-}
-
-#[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn test_run() {
-        let interpreter = Interpreter::new();
-        let chunk = Chunk::test_chunk(&interpreter);
-        let mut vm = VirtualMachine::new(chunk);
-        vm.run(&interpreter);
     }
 }

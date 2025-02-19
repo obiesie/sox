@@ -1,7 +1,7 @@
 use crate::builtins::int::SoxInt;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
-use crate::object::core::{SoxObject, SoxObjectRef, SoxRef};
+use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::parser::{SyntaxError, TO_IGNORE};
 use crate::token::Token;
 use crate::token_type::TokenType;
@@ -10,8 +10,7 @@ use crate::vm::chunk::{Chunk, OpCode};
 use std::borrow::Borrow;
 use std::iter::Peekable;
 use std::str::FromStr;
-use crate::builtins::string::SoxString;
-use crate::token_type::TokenType::{Class, Def, For, If, Let, Print, Return, Semi, While};
+use crate::token_type::TokenType::Semi;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Debug, Hash, Eq)]
@@ -160,7 +159,7 @@ const PARSE_RULES: [ParseRule; 45] = {
         Precedence::Comparison,
     );
 
-    data[TokenType::Identifier as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::Identifier as usize] = ParseRule::new(Some(Compiler::variable as fn(&mut Compiler, &Interpreter)), None, Precedence::None);
     data[TokenType::Number as usize] = ParseRule::new(
         Some(Compiler::number as fn(&mut Compiler, &Interpreter) -> ()),
         None,
@@ -284,7 +283,7 @@ impl Compiler {
     }
     pub fn parse_variable(&mut self, i: &Interpreter, message: &str) -> usize {
         self.consume(TokenType::Identifier, message);
-        let global = self.identifier_constant(self.previous.as_ref().unwrap().lexeme.clone().to_string(), i);
+        let global = self.identifier_constant(self.previous.as_ref().unwrap().lexeme.to_string(), i);
         return global
     }
     
@@ -494,5 +493,19 @@ impl Compiler {
         let obj_payload = SoxInt { value: val };
         let obj = SoxRef::new_ref(obj_payload, i.types.int_type.to_owned());
         self.emit_constant(SoxObjectRef::from(obj));
+    }
+    
+    pub fn variable(&mut self, i: &Interpreter) {
+        self.named_variable(self.previous.as_ref().unwrap().lexeme.to_string(), i);
+    }
+    
+    pub fn named_variable(&mut self, name: String, i: &Interpreter){
+        let arg = self.identifier_constant(name, i);
+        if self.match_token(vec![TokenType::Equal]) {
+            self.expression(i);
+            self.emit_byte((OpCode::OpSetGlobal, None))
+        } else{
+            self.emit_byte((OpCode::OpGetGlobal, Some(arg as u8)))
+        }
     }
 }

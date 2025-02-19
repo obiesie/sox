@@ -22,6 +22,8 @@ pub enum OpCode {
     OpPrint,
     OpPop,
     OpDefineGlobal,
+    OpGetGlobal, 
+    OpSetGlobal,
     OpReturn,
 
 
@@ -32,7 +34,7 @@ impl TryFrom<u8> for OpCode {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         // Static mapping array for u8 to OpCode
-        const OPCODE_MAP: [Option<OpCode>; 17] = [
+        const OPCODE_MAP: [Option<OpCode>; 19] = [
             Some(OpCode::OpConstant),
             Some(OpCode::OpNone),
             Some(OpCode::OpTrue),
@@ -49,6 +51,8 @@ impl TryFrom<u8> for OpCode {
             Some(OpCode::OpPrint),
             Some(OpCode::OpPop),
             Some(OpCode::OpDefineGlobal),
+            Some(OpCode::OpGetGlobal),
+            Some(OpCode::OpSetGlobal),
             Some(OpCode::OpReturn),
         ];
 
@@ -80,7 +84,9 @@ impl TryFrom<OpCode> for u8 {
             OpCode::OpPrint => Ok(13),
             OpCode::OpPop => Ok(14),
             OpCode::OpDefineGlobal => Ok(15),
-            OpCode::OpReturn => Ok(16),
+            OpCode::OpGetGlobal => Ok(16),
+            OpCode::OpSetGlobal => Ok(17),
+            OpCode::OpReturn => Ok(18),
         }
     }
 }
@@ -166,6 +172,8 @@ impl Chunk {
             OpCode::OpPrint => self.simple_instruction("OpPrint", offset),
             OpCode::OpDefineGlobal => self.simple_instruction("OpDefineGlobal", offset),
             OpCode::OpPop => self.simple_instruction("OpPop", offset),
+            OpCode::OpGetGlobal => self.simple_instruction("OpGetGlobal", offset),
+            OpCode::OpSetGlobal => self.simple_instruction("OpSetGlobal", offset),
         }
     }
 
