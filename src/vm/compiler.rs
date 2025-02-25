@@ -10,6 +10,7 @@ use crate::vm::chunk::{Chunk, OpCode};
 use std::borrow::Borrow;
 use std::iter::Peekable;
 use std::str::FromStr;
+use crate::builtins::string::SoxString;
 use crate::token_type::TokenType::Semi;
 
 #[repr(u8)]
@@ -165,7 +166,11 @@ const PARSE_RULES: [ParseRule; 45] = {
         None,
         Precedence::None,
     );
-    data[TokenType::SoxString as usize] = ParseRule::new(None, None, Precedence::None);
+    data[TokenType::SoxString as usize] =  ParseRule::new(
+        Some(Compiler::string as fn(&mut Compiler, &Interpreter) -> ()),
+        None,
+        Precedence::None,
+    );
 
     data[TokenType::And as usize] = ParseRule::new(None, None, Precedence::None);
     data[TokenType::Class as usize] = ParseRule::new(None, None, Precedence::None);
@@ -208,7 +213,8 @@ pub struct Compiler {
     chunk: Option<Chunk>,
     previous: Option<Token>,
     current: Option<Token>,
-    tokens: Option<Peekable<Lexer>>
+    tokens: Option<Peekable<Lexer>>,
+    can_assign: bool,
 }
 
 impl Compiler {
@@ -218,6 +224,7 @@ impl Compiler {
             previous: None,
             current: None,
             tokens: None,
+            can_assign: false,
         }
     }
 
@@ -419,6 +426,7 @@ impl Compiler {
             }
             TokenType::True => self.emit_byte((OpCode::OpTrue, None)),
             TokenType::None => self.emit_byte((OpCode::OpNone, None)),
+            
             _ => {}
         }
     }
@@ -436,6 +444,7 @@ impl Compiler {
         if let Some(previous_token_type) = previous_token_type {
             let prefix_rule = self.get_rule(previous_token_type).prefix_fn;
             if let Some(prefix_rule_fn) = prefix_rule {
+                self.can_assign = precedence <= Precedence::Assignment;
                 prefix_rule_fn(self, i);
             } else {
                 return Err(());
@@ -456,6 +465,9 @@ impl Compiler {
             if let Some(infix_rule_fn) = infix_rule {
                 infix_rule_fn(self, i)
             }
+        }
+        if self.can_assign && self.match_token(vec![TokenType::Equal]) {
+            panic!("Invalid assignment target.");
         }
         Ok(())
     }
@@ -494,6 +506,14 @@ impl Compiler {
         let obj = SoxRef::new_ref(obj_payload, i.types.int_type.to_owned());
         self.emit_constant(SoxObjectRef::from(obj));
     }
+
+    pub fn string(&mut self, i: &Interpreter) {
+        let obj_payload = SoxString {
+            value: self.previous.as_ref().unwrap().lexeme.to_string()
+        };
+        let obj = SoxRef::new_ref(obj_payload, i.types.str_type.to_owned());
+        self.emit_constant(SoxObjectRef::from(obj));
+    }
     
     pub fn variable(&mut self, i: &Interpreter) {
         self.named_variable(self.previous.as_ref().unwrap().lexeme.to_string(), i);
@@ -501,7 +521,7 @@ impl Compiler {
     
     pub fn named_variable(&mut self, name: String, i: &Interpreter){
         let arg = self.identifier_constant(name, i);
-        if self.match_token(vec![TokenType::Equal]) {
+        if self.match_token(vec![TokenType::Equal]) && self.can_assign{
             self.expression(i);
             self.emit_byte((OpCode::OpSetGlobal, None))
         } else{
