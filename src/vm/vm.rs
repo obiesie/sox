@@ -213,6 +213,17 @@ impl VirtualMachine {
                     } else {
                         panic!("Attempted to set undefined global variable {}", name.value);
                     }
+                },
+                OpCode::OpGetLocal => {
+                    let slot = read_instr!(self);
+                    let slot = slot as u8;
+                    push_stack!(self, self.stack[slot as usize].clone());
+                    
+                },
+                OpCode::OpSetLocal => {
+                    let slot = read_instr!(self);
+                    let slot = slot as u8;
+                    self.stack[slot as usize] = peek_stack!(self);
                 }
             }
         }

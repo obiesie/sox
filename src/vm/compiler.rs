@@ -1,17 +1,19 @@
 use crate::builtins::int::SoxInt;
+use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::parser::{SyntaxError, TO_IGNORE};
 use crate::token::Token;
 use crate::token_type::TokenType;
-use crate::vm::chunk::OpCode::{OpConstant, OpNone, OpReturn};
+use crate::token_type::TokenType::Semi;
+use crate::vm::chunk::OpCode::{
+    OpConstant, OpGetGlobal, OpGetLocal, OpNone, OpReturn, OpSetGlobal, OpSetLocal,
+};
 use crate::vm::chunk::{Chunk, OpCode};
 use std::borrow::Borrow;
 use std::iter::Peekable;
 use std::str::FromStr;
-use crate::builtins::string::SoxString;
-use crate::token_type::TokenType::Semi;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Debug, Hash, Eq)]
@@ -160,13 +162,17 @@ const PARSE_RULES: [ParseRule; 45] = {
         Precedence::Comparison,
     );
 
-    data[TokenType::Identifier as usize] = ParseRule::new(Some(Compiler::variable as fn(&mut Compiler, &Interpreter)), None, Precedence::None);
+    data[TokenType::Identifier as usize] = ParseRule::new(
+        Some(Compiler::variable as fn(&mut Compiler, &Interpreter)),
+        None,
+        Precedence::None,
+    );
     data[TokenType::Number as usize] = ParseRule::new(
         Some(Compiler::number as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
     );
-    data[TokenType::SoxString as usize] =  ParseRule::new(
+    data[TokenType::SoxString as usize] = ParseRule::new(
         Some(Compiler::string as fn(&mut Compiler, &Interpreter) -> ()),
         None,
         Precedence::None,
@@ -209,12 +215,21 @@ const PARSE_RULES: [ParseRule; 45] = {
     data
 };
 
+#[derive(Clone, Debug)]
+pub struct Local {
+    name: String,
+    depth: Option<usize>,
+}
+
 pub struct Compiler {
     chunk: Option<Chunk>,
     previous: Option<Token>,
     current: Option<Token>,
     tokens: Option<Peekable<Lexer>>,
     can_assign: bool,
+    locals: Vec<Local>,
+    locals_count: usize,
+    scope_depth: usize,
 }
 
 impl Compiler {
@@ -225,6 +240,9 @@ impl Compiler {
             current: None,
             tokens: None,
             can_assign: false,
+            locals_count: 0,
+            scope_depth: 0,
+            locals: Vec::new(),
         }
     }
 
@@ -239,7 +257,7 @@ impl Compiler {
         self.tokens = Some(lexer.peekable());
         self.advance();
         //while !self.match_token(vec![TokenType::EOF]) {
-            self.declaration(i);
+        self.declaration(i);
         //}
         Ok(self.chunk.take().unwrap())
     }
@@ -254,17 +272,14 @@ impl Compiler {
         false
     }
 
-    
     fn check(&mut self, token_type: TokenType) -> bool {
-       
-        if !(self.current.is_some() && self.current.as_ref().unwrap().token_type == token_type){
+        if !(self.current.is_some() && self.current.as_ref().unwrap().token_type == token_type) {
             return false;
         }
         //self.advance();
         return true;
-        
     }
-    
+
     pub fn declaration(&mut self, i: &Interpreter) {
         if self.match_token(vec![TokenType::Let]) {
             self.let_declaration(i);
@@ -272,8 +287,8 @@ impl Compiler {
             self.statement(i);
         }
     }
-    
-    pub fn let_declaration(&mut self, i: &Interpreter){
+
+    pub fn let_declaration(&mut self, i: &Interpreter) {
         let global = self.parse_variable(i, "Expect variable name.");
         if self.match_token(vec![TokenType::Equal]) {
             self.expression(i);
@@ -282,42 +297,101 @@ impl Compiler {
         }
         self.consume(TokenType::Semi, "Expect ';' after variable declaration.");
         self.define_variable(global, i);
-        
     }
-    
-    pub fn define_variable(&mut self, global: usize, i: &Interpreter){
+
+    pub fn define_variable(&mut self, global: usize, i: &Interpreter) {
+        if self.scope_depth > 0 {
+            self.mark_initialized();
+            return;
+        }
         self.emit_byte((OpCode::OpDefineGlobal, Some(global as u8)));
+    }
+
+    pub fn mark_initialized(&mut self) {
+        self.locals[self.locals_count - 1].depth = Some(self.scope_depth);
     }
     pub fn parse_variable(&mut self, i: &Interpreter, message: &str) -> usize {
         self.consume(TokenType::Identifier, message);
-        let global = self.identifier_constant(self.previous.as_ref().unwrap().lexeme.to_string(), i);
-        return global
+
+        self.declare_variable(i);
+        if self.scope_depth > 0 {
+            return 0;
+        }
+        let global =
+            self.identifier_constant(self.previous.as_ref().unwrap().lexeme.to_string(), i);
+        return global;
     }
-    
+
+    pub fn declare_variable(&mut self, i: &Interpreter) {
+        if self.scope_depth == 0 {
+            return;
+        }
+        let name = self.previous.as_ref().unwrap().lexeme.to_string();
+
+        for local in self.locals.iter().rev() {
+            if local.depth.is_some() && (local.depth.unwrap() < self.scope_depth) {
+                break;
+            }
+            if local.name == name {
+                panic!("Variable with this name already declared in this scope.");
+            }
+        }
+        self.add_local(name)
+    }
+
+    pub fn add_local(&mut self, name: String) {
+        let local = Local { name, depth: None };
+        self.locals.push(local);
+    }
+
     pub fn identifier_constant(&mut self, name: String, i: &Interpreter) -> usize {
-        let constant_value = SoxObjectRef::from(i.new_string(name.parse().unwrap())); 
+        let constant_value = SoxObjectRef::from(i.new_string(name.parse().unwrap()));
         let constant = self.make_constant(constant_value).unwrap();
         constant
     }
-    pub fn statement(&mut self, i: &Interpreter){
+    pub fn statement(&mut self, i: &Interpreter) {
         if let Some(token) = self.current.as_ref() {
             if self.match_token(vec![TokenType::Print]) {
                 self.print_statement(i);
-                
-            } else{
+            } else if self.match_token(vec![TokenType::LeftBrace]) {
+                self.begin_scope(i);
+                self.block(i);
+                self.end_scope(i);
+            } else {
                 self.expression(i);
             }
-           
         }
     }
-    
-    pub fn print_statement(&mut self, i: &Interpreter){
+
+    pub fn begin_scope(&mut self, i: &Interpreter) {
+        self.scope_depth += 1;
+    }
+
+    pub fn end_scope(&mut self, interpreter: &Interpreter) {
+        self.scope_depth -= 1;
+        while self.locals_count > 0
+            && self.locals[self.locals_count - 1].depth.is_some()
+            && self.locals[self.locals_count - 1].depth.unwrap() > self.scope_depth
+        {
+            self.emit_byte((OpCode::OpPop, None));
+            self.locals_count -= 1;
+        }
+    }
+
+    pub fn block(&mut self, i: &Interpreter) {
+        while !self.check(TokenType::RightBrace) && !self.check(TokenType::EOF) {
+            self.declaration(i);
+        }
+        self.consume(TokenType::RightBrace, "Expect '}' after block.");
+    }
+
+    pub fn print_statement(&mut self, i: &Interpreter) {
         self.expression(i);
         self.consume(Semi, "Expect ';' after value.");
         self.emit_byte((OpCode::OpPrint, None));
     }
-    
-    pub fn expression_statement(&mut self, i: &Interpreter){
+
+    pub fn expression_statement(&mut self, i: &Interpreter) {
         self.expression(i);
         self.consume(Semi, "Expect ';' after expression.");
         self.emit_byte((OpCode::OpPop, None));
@@ -426,7 +500,7 @@ impl Compiler {
             }
             TokenType::True => self.emit_byte((OpCode::OpTrue, None)),
             TokenType::None => self.emit_byte((OpCode::OpNone, None)),
-            
+
             _ => {}
         }
     }
@@ -509,23 +583,45 @@ impl Compiler {
 
     pub fn string(&mut self, i: &Interpreter) {
         let obj_payload = SoxString {
-            value: self.previous.as_ref().unwrap().lexeme.to_string()
+            value: self.previous.as_ref().unwrap().lexeme.to_string(),
         };
         let obj = SoxRef::new_ref(obj_payload, i.types.str_type.to_owned());
         self.emit_constant(SoxObjectRef::from(obj));
     }
-    
+
     pub fn variable(&mut self, i: &Interpreter) {
         self.named_variable(self.previous.as_ref().unwrap().lexeme.to_string(), i);
     }
-    
-    pub fn named_variable(&mut self, name: String, i: &Interpreter){
-        let arg = self.identifier_constant(name, i);
-        if self.match_token(vec![TokenType::Equal]) && self.can_assign{
-            self.expression(i);
-            self.emit_byte((OpCode::OpSetGlobal, None))
-        } else{
-            self.emit_byte((OpCode::OpGetGlobal, Some(arg as u8)))
+
+    pub fn named_variable(&mut self, name: String, i: &Interpreter) {
+        let get_op;
+        let set_op;
+        let arg = self.resolve_local(name.clone(), i);
+        if let Some(arg) = arg {
+            get_op = OpGetLocal;
+            set_op = OpSetLocal;
+        } else {
+            let arg = self.identifier_constant(name, i);
+            get_op = OpGetGlobal;
+            set_op = OpSetGlobal;
         }
+        if self.match_token(vec![TokenType::Equal]) && self.can_assign {
+            self.expression(i);
+            self.emit_byte((set_op, arg))
+        } else {
+            self.emit_byte((get_op, arg))
+        }
+    }
+
+    pub fn resolve_local(&mut self, name: String, i: &Interpreter) -> Option<u8> {
+        for (i, local) in self.locals.iter().enumerate().rev() {
+            if local.name == name {
+                if local.depth.is_none() {
+                    panic!("Can't read local variable in its own initializer.");
+                }
+                return Some(i as u8);
+            }
+        }
+        None
     }
 }

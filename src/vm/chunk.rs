@@ -24,6 +24,8 @@ pub enum OpCode {
     OpDefineGlobal,
     OpGetGlobal, 
     OpSetGlobal,
+    OpGetLocal,
+    OpSetLocal,
     OpReturn,
 
 
@@ -34,7 +36,7 @@ impl TryFrom<u8> for OpCode {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         // Static mapping array for u8 to OpCode
-        const OPCODE_MAP: [Option<OpCode>; 19] = [
+        const OPCODE_MAP: [Option<OpCode>; 21] = [
             Some(OpCode::OpConstant),
             Some(OpCode::OpNone),
             Some(OpCode::OpTrue),
@@ -53,6 +55,8 @@ impl TryFrom<u8> for OpCode {
             Some(OpCode::OpDefineGlobal),
             Some(OpCode::OpGetGlobal),
             Some(OpCode::OpSetGlobal),
+            Some(OpCode::OpGetLocal),
+            Some(OpCode::OpSetLocal),
             Some(OpCode::OpReturn),
         ];
 
@@ -86,7 +90,9 @@ impl TryFrom<OpCode> for u8 {
             OpCode::OpDefineGlobal => Ok(15),
             OpCode::OpGetGlobal => Ok(16),
             OpCode::OpSetGlobal => Ok(17),
-            OpCode::OpReturn => Ok(18),
+            OpCode::OpGetLocal => Ok(18),
+            OpCode::OpSetLocal => Ok(19),
+            OpCode::OpReturn => Ok(20),
         }
     }
 }
@@ -174,9 +180,18 @@ impl Chunk {
             OpCode::OpPop => self.simple_instruction("OpPop", offset),
             OpCode::OpGetGlobal => self.simple_instruction("OpGetGlobal", offset),
             OpCode::OpSetGlobal => self.simple_instruction("OpSetGlobal", offset),
+            OpCode::OpGetLocal => self.byte_instruction("OpGetLocal", offset),
+            OpCode::OpSetLocal => self.byte_instruction("OpSetLocal", offset),
         }
     }
 
+    fn byte_instruction(&self, opcode: &str, offset: usize) -> usize {
+        let byte = self.code[offset + 1];
+        print!("{} {:#04x}", opcode, byte);
+        offset + 2
+    }
+    
+    
     fn simple_instruction(&self, opcode: &str, offset: usize) -> usize {
         println!("{}", opcode);
         offset + 1
