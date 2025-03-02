@@ -256,9 +256,9 @@ impl Compiler {
         self.chunk = Some(chunk);
         self.tokens = Some(lexer.peekable());
         self.advance();
-        //while !self.match_token(vec![TokenType::EOF]) {
-        self.declaration(i);
-        //}
+        while !self.match_token(vec![TokenType::EOF]) && self.current.is_some() {
+            self.declaration(i);
+        }
         Ok(self.chunk.take().unwrap())
     }
 
@@ -276,7 +276,6 @@ impl Compiler {
         if !(self.current.is_some() && self.current.as_ref().unwrap().token_type == token_type) {
             return false;
         }
-        //self.advance();
         return true;
     }
 
@@ -555,9 +554,9 @@ impl Compiler {
             .next_if(|token| TO_IGNORE.contains(&token.token_type))
         {}
         let token = self.tokens.as_mut().and_then(|lexer| lexer.next());
-        if token.is_some() {
+        //if token.is_some() {
             self.current = token;
-        }
+        //}
     }
 
     pub fn consume(&mut self, expected_type: TokenType, message: &str) -> Result<(), SyntaxError> {
@@ -596,12 +595,12 @@ impl Compiler {
     pub fn named_variable(&mut self, name: String, i: &Interpreter) {
         let get_op;
         let set_op;
-        let arg = self.resolve_local(name.clone(), i);
+        let mut arg = self.resolve_local(name.clone(), i);
         if let Some(arg) = arg {
             get_op = OpGetLocal;
             set_op = OpSetLocal;
         } else {
-            let arg = self.identifier_constant(name, i);
+            arg = Some(self.identifier_constant(name, i) as u8);
             get_op = OpGetGlobal;
             set_op = OpSetGlobal;
         }

@@ -5,6 +5,7 @@ use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::vm::chunk::{Chunk, OpCode};
 use crate::vm::compiler::Compiler;
 use std::mem;
+use log::info;
 use crate::builtins::string::SoxString;
 
 macro_rules! read_instr {
