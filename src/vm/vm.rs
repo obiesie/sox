@@ -5,7 +5,6 @@ use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::vm::chunk::{Chunk, OpCode};
 use crate::vm::compiler::Compiler;
 use std::mem;
-use log::info;
 use crate::builtins::string::SoxString;
 
 macro_rules! read_instr {
@@ -23,6 +22,15 @@ macro_rules! read_constant {
         let constant = $a.chunk.constants[instruction as usize].clone();
         constant
     }};
+}
+
+macro_rules! read_short {
+    ($a:expr) => {{
+        $a.ip += 2;
+        let byte1 = $a.chunk.code[$a.ip - 2];
+        let byte2 = $a.chunk.code[$a.ip - 1];
+        (byte1 as u16) << 8 | byte2 as u16
+    }}; 
 }
 
 macro_rules! pop_stack {
@@ -95,7 +103,6 @@ impl VirtualMachine {
             .and_then(|chunk| {
                 self.chunk = chunk;
                 self.run(i);
-                println!("{:?}", self.chunk.code);
                 if self.stack_top > 0 {
                     let value = pop_stack!(self);
                     let repr_str = value.repr(i);
@@ -110,10 +117,10 @@ impl VirtualMachine {
 
     pub fn run(&mut self, i: &Interpreter) {
         while self.ip < self.chunk.code.len() {
-            self.chunk.disassemble_instruction(self.ip);
             let inst = read_instr!(self);
             match inst {
                 OpCode::OpAdd => {
+                    println!("Add");
                     binary_op!(self, i, add, number);
                 }
                 OpCode::OpSubtract => {
@@ -127,7 +134,6 @@ impl VirtualMachine {
                 }
                 OpCode::OpReturn => {
                     let val = pop_stack!(self);
-                    println!("return value is {:?}", val.repr(i).unwrap());
                     break;
                 }
                 OpCode::OpConstant => {
@@ -174,13 +180,14 @@ impl VirtualMachine {
                     continue;
                 }
                 OpCode::OpEqual => {
-                    binary_op!(self, i, eq, comparable)
+                    binary_op!(self, i, eq, comparable);
                 }
                 OpCode::OpGreater => {
-                    binary_op!(self, i, gt, comparable)
+                    binary_op!(self, i, gt, comparable);
                 }
                 OpCode::OpLess => {
-                    binary_op!(self, i, lt, comparable)
+                    println!("Less");
+                    binary_op!(self, i, lt, comparable);
                 },
                 OpCode::OpPrint => {
                     let val = pop_stack!(self);
@@ -195,6 +202,7 @@ impl VirtualMachine {
                     let name = v.payload::<SoxString>().unwrap();
                     let nv = name.value.to_string();
                     self.globals.insert(nv, peek_stack!(self));
+                    pop_stack!(self);
                 },
                 OpCode::OpGetGlobal => {
                     let v = read_constant!(self);
@@ -225,6 +233,21 @@ impl VirtualMachine {
                     let slot = read_instr!(self);
                     let slot = slot as u8;
                     self.stack[slot as usize] = peek_stack!(self);
+                },
+                OpCode::OpJumpIfFalse => {
+                    let offset = read_short!(self);
+                    let val = peek_stack!(self);
+                    if !val.try_into_rust_bool(i) {
+                        self.ip += offset as usize;
+                    }
+                },
+                OpCode::OpJump => {
+                    let offset = read_short!(self);
+                    self.ip += offset as usize;
+                },
+                OpCode::OpLoop => {
+                    let offset = read_short!(self);
+                    self.ip -= offset as usize;
                 }
             }
         }

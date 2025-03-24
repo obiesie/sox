@@ -144,7 +144,16 @@ impl Lexer {
     }
 
     fn yield_literal_token(&mut self, token_type: TokenType, literal: Literal) -> Token {
-        let text = self.source.get(self.start..self.current).unwrap_or("");
+        let text = match token_type {
+            TokenType::SoxString => {
+                let text = self.source.get(self.start+1..self.current-1).unwrap_or("");
+                text
+            }
+            _ => {
+                let text = self.source.get(self.start..self.current).unwrap_or("");
+                text
+            }
+        };
         Token::new(token_type, text, literal, self.line)
     }
 

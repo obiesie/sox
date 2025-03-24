@@ -5,6 +5,7 @@ use crate::resolver::Resolver;
 use crate::vm::vm::VirtualMachine;
 use std::io::Write;
 use std::{fs, io};
+use crate::vm::chunk::Chunk;
 
 pub fn run_file(file_path: String) {
     let contents =
@@ -37,9 +38,9 @@ pub fn run_prompt() {
 
 pub fn run(source: String) {
     let var_resolver = Resolver::new();
-    let interpreter = Interpreter::new();
+    let mut interpreter = Interpreter::new();
     let static_source = source.leak();
-    // interpret_with_vm(static_source, &mut interpreter);
+    interpret_with_vm(static_source, &mut interpreter);
     //parse_and_interpret_with_resolver(static_source, &mut var_resolver, &mut interpreter);
 }
 
@@ -68,8 +69,7 @@ fn parse_and_interpret_with_resolver(
     }
 }
 
-// fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
-//     let chunk = Chunk::default();
-//     let mut vm = VirtualMachine::new(chunk);
-//     vm.interpret(interpreter, source);
-// }
+fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
+    let mut vm = VirtualMachine::new();
+    vm.interpret(interpreter, source);
+}
