@@ -7,7 +7,11 @@ pub trait Representable {
     where
         Self: SoxObjectPayload,
     {
-        let zelf = zelf.downcast_ref().unwrap();
+        let tmp = zelf.downcast_ref();
+        if tmp.is_none() {
+            println!("{:?}", zelf);
+        }
+        let zelf = tmp.unwrap();
         Ok(Self::repr(zelf, i))
     }
     fn repr(zelf: &Sox<Self>, i: &Interpreter) -> String

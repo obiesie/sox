@@ -2,10 +2,10 @@ use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
+use crate::vm::chunk::Chunk;
 use crate::vm::vm::VirtualMachine;
 use std::io::Write;
 use std::{fs, io};
-use crate::vm::chunk::Chunk;
 
 pub fn run_file(file_path: String) {
     let contents =
@@ -18,7 +18,7 @@ pub fn run_prompt() {
     let interpreter = Interpreter::new();
     let resolver = Resolver::new();
     let mut vm = VirtualMachine::new();
-    
+
     println!("Welcome to sox");
 
     loop {

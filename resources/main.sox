@@ -10,3 +10,22 @@
   }
 }
 
+def hello_world(){
+    print "hello world";
+}
+
+def a(){
+    b();
+}
+
+def b(){
+    c();
+}
+
+
+def c(){
+    c("too", "many");
+}
+
+hello_world();
+print a();

@@ -1,6 +1,6 @@
 use crate::builtins::core::StaticType;
 use crate::builtins::r#type::{SoxInstance, SoxType};
-use crate::builtins::{bool, exceptions, float, function, int, none, r#type, string};
+use crate::builtins::{bool, exceptions, float, function, int, module, none, r#type, string};
 use crate::object::core::{init_type_type, Sox, SoxObjectRef};
 
 pub struct TypeLibrary {
@@ -11,8 +11,10 @@ pub struct TypeLibrary {
     pub none_type: &'static Sox<SoxType>,
     pub exception_type: &'static Sox<SoxType>,
     pub func_type: &'static Sox<SoxType>,
+    pub function_type: &'static Sox<SoxType>,
     pub type_type: &'static Sox<SoxType>,
     pub obj_type: &'static Sox<SoxType>,
+    pub mod_type: &'static Sox<SoxType>,
 }
 
 impl TypeLibrary {
@@ -28,6 +30,8 @@ impl TypeLibrary {
             none_type: none::SoxNone::init_builtin_type(),
             exception_type: exceptions::Exception::init_builtin_type(),
             func_type: function::SoxFunction::init_builtin_type(),
+            function_type: function::SoxFunc::init_builtin_type(),
+            mod_type: module::SoxModule::init_builtin_type(),
         }
     }
 }

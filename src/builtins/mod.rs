@@ -8,4 +8,5 @@ pub mod string;
 
 pub mod bool;
 pub mod core;
+pub mod module;
 pub mod r#type;

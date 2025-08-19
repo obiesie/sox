@@ -11,6 +11,8 @@ use std::iter::zip;
 use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
 };
+
+use crate::builtins::string;
 use crate::environment::EnvRef;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
@@ -18,6 +20,73 @@ use crate::object::protocols::call::Callable;
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
 use crate::stmt::Stmt;
+use crate::vm::chunk::Chunk;
+
+#[derive(Clone, Debug)]
+pub struct SoxFunc {
+    pub name: String,
+    pub arity: usize,
+    pub chunk: Option<Chunk>,
+}
+
+#[soxtype]
+impl SoxFunc {
+    pub fn new(name: String, arity: usize, chunk: Option<Chunk>) -> Self {
+        Self { name, arity, chunk }
+    }
+}
+
+impl Representable for SoxFunc {
+    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+        let func_name = zelf.name.to_string();
+        format!("<Function {func_name}>")
+    }
+}
+impl SoxObjectPayload for SoxFunc {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl TryFromSoxObject for SoxFunc {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+        if let Some(val) = obj.payload::<SoxFunc>() {
+            Ok(val.clone())
+        } else {
+            let err_msg = SoxString {
+                value: String::from("failed to get a function from supplied object"),
+            };
+            let ob = SoxRef::new_ref(err_msg, string::SoxString::init_builtin_type().to_owned());
+            Err(ob.into())
+        }
+    }
+}
+
+impl ToSoxResult for SoxFunc {
+    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
+        let obj = SoxRef::new_ref(self, i.types.function_type.to_owned());
+        Ok(obj.into())
+    }
+}
+
+impl StaticType for SoxFunc {
+    const NAME: &'static str = "func";
+
+    fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
+        static CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
+        &CELL
+    }
+
+    fn create_slots() -> SoxTypeSlot {
+        SoxTypeSlot {
+            call: None,
+            repr: Some(Self::slot_repr),
+            number: None,
+            comparable: None,
+            methods: Self::METHOD_DEFS,
+        }
+    }
+}
 
 #[derive(Clone, Debug, PartialEq)]
 pub struct SoxFunction {

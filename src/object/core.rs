@@ -85,7 +85,7 @@ impl SoxObjectRef {
     pub fn repr(&self, i: &Interpreter) -> SoxResult<String> {
         let typ = self.typ();
         match typ.slots.repr {
-            None => Ok("No repr implementation found".to_string()),
+            None => Ok("No repr implementation found.".to_string()),
             Some(f) => f(self, i),
         }
     }
@@ -222,8 +222,6 @@ mod tests {
         let payload = SoxString {
             value: "hello".to_owned(),
         };
-        //let payload = SoxInt{value: 10};
-        //let payload = SoxBool{value: true};
         let i = Interpreter::new();
         let typ = i.types.str_type.to_owned();
 

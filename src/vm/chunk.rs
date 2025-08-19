@@ -22,13 +22,14 @@ pub enum OpCode {
     OpPrint,
     OpPop,
     OpDefineGlobal,
-    OpGetGlobal, 
+    OpGetGlobal,
     OpSetGlobal,
     OpGetLocal,
     OpSetLocal,
     OpJumpIfFalse,
     OpJump,
     OpLoop,
+    OpCall,
     OpReturn,
 }
 
@@ -37,7 +38,7 @@ impl TryFrom<u8> for OpCode {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         // Static mapping array for u8 to OpCode
-        const OPCODE_MAP: [Option<OpCode>; 24] = [
+        const OPCODE_MAP: [Option<OpCode>; 25] = [
             Some(OpCode::OpConstant),
             Some(OpCode::OpNone),
             Some(OpCode::OpTrue),
@@ -61,6 +62,7 @@ impl TryFrom<u8> for OpCode {
             Some(OpCode::OpJumpIfFalse),
             Some(OpCode::OpJump),
             Some(OpCode::OpLoop),
+            Some(OpCode::OpCall),
             Some(OpCode::OpReturn),
         ];
 
@@ -99,16 +101,18 @@ impl TryFrom<OpCode> for u8 {
             OpCode::OpJumpIfFalse => Ok(20),
             OpCode::OpJump => Ok(21),
             OpCode::OpLoop => Ok(22),
-            OpCode::OpReturn => Ok(23),
+            OpCode::OpCall => Ok(23),
+            OpCode::OpReturn => Ok(24),
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct Chunk {
+    pub name: String,
     pub code: Vec<u8>,
     pub constants: Vec<SoxObjectRef>,
-    lines: Vec<usize>,
+    pub lines: Vec<usize>,
 }
 
 impl Default for Chunk {
@@ -136,10 +140,15 @@ impl Chunk {
 impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
+            name: String::from("<module>"),
             code: Vec::new(),
             constants: vec![],
             lines: vec![],
         }
+    }
+
+    pub fn get_line(&self, offset: usize) -> usize {
+        self.lines[offset]
     }
 
     pub fn write_chunk<T: TryInto<u8>>(&mut self, data: T, line: usize) {
@@ -166,7 +175,7 @@ impl Chunk {
             print!("{:4} ", self.lines[offset]);
         }
         let opcode = self.code[offset].try_into().unwrap();
-        
+
         match opcode {
             OpCode::OpReturn => self.simple_instruction("OpReturn", offset),
             OpCode::OpConstant => self.constant_instruction("OpConstant", offset),
@@ -189,16 +198,22 @@ impl Chunk {
             OpCode::OpSetGlobal => self.simple_instruction("OpSetGlobal", offset),
             OpCode::OpGetLocal => self.byte_instruction("OpGetLocal", offset),
             OpCode::OpSetLocal => self.byte_instruction("OpSetLocal", offset),
-            OpCode::OpJumpIfFalse => self.jump_instruction("OP_JUMP", 1, offset),
-            OpCode::OpJump => self.jump_instruction("OP_JUMP_IF_FALSE", 1, offset),
+            OpCode::OpJumpIfFalse => self.jump_instruction("OP_JUMP_IF_FALSE", 1, offset),
+            OpCode::OpJump => self.jump_instruction("OP_JUMP", 1, offset),
             OpCode::OpLoop => self.jump_instruction("OP_LOOP", -1, offset),
+            OpCode::OpCall => self.simple_instruction("OP_CALL", offset),
         }
     }
-    
-    fn jump_instruction(&self, op_code: &str, sign: isize, offset: usize) -> usize{
+
+    fn jump_instruction(&self, op_code: &str, sign: isize, offset: usize) -> usize {
         let mut jump = (self.code[offset + 1] as u16) << 8;
-        jump |= self.code[offset+2] as u16;
-        print!("{} {:#04x} -> {}", op_code, jump, (offset as isize) + (3 as isize) + sign * (jump as isize));
+        jump |= self.code[offset + 2] as u16;
+        print!(
+            "{} {:#04x} -> {}",
+            op_code,
+            jump,
+            (offset as isize) + (3 as isize) + sign * (jump as isize)
+        );
         offset + 3
     }
 
@@ -207,8 +222,7 @@ impl Chunk {
         print!("{} {:#04x}", opcode, byte);
         offset + 2
     }
-    
-    
+
     fn simple_instruction(&self, opcode: &str, offset: usize) -> usize {
         println!("{}", opcode);
         offset + 1
