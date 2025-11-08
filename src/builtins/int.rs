@@ -66,7 +66,7 @@ impl TryFromSoxObject for SoxInt {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
-                value: String::from("failed to get boolean from supplied object"),
+                value: String::from("failed to get int from supplied object"),
             };
             let ob = SoxRef::new_ref(err_msg, string::SoxString::init_builtin_type().to_owned());
             Err(ob.into())

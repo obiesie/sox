@@ -3,7 +3,7 @@ use crate::builtins::core::SoxResult;
 use crate::builtins::core::ToSoxResult;
 use crate::builtins::exceptions::{Exception, RuntimeError};
 use crate::builtins::float::SoxFloat;
-use crate::builtins::function::SoxFunction;
+use crate::builtins::function::SoxFn;
 use crate::builtins::int::SoxInt;
 use crate::builtins::method::FuncArgs;
 use crate::builtins::none::SoxNone;
@@ -262,7 +262,7 @@ impl StmtVisitor for &mut Interpreter {
         } = stmt
         {
             let stmt_clone = stmt.clone();
-            let fo = SoxFunction::new(
+            let fo = SoxFn::new(
                 name.lexeme.to_string(),
                 stmt_clone,
                 self.environment.active.clone(),
@@ -339,7 +339,7 @@ impl StmtVisitor for &mut Interpreter {
                     params: _params,
                 } = method
                 {
-                    let func = SoxFunction {
+                    let func = SoxFn {
                         name: name.lexeme.to_string(),
                         declaration: Box::new(method.clone()),
                         environment_ref: self.environment.active.clone(),
@@ -673,7 +673,7 @@ impl ExprVisitor for &mut Interpreter {
                 let method_name = method.lexeme;
                 let method = c.find_method(method_name);
                 let t = if let Some(m) = method {
-                    if let Some(func) = m.payload::<SoxFunction>() {
+                    if let Some(func) = m.payload::<SoxFn>() {
                         let bound_method = func.bind(instance, self)?;
                         Ok(bound_method)
                     } else {

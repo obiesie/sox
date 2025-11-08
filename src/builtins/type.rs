@@ -1,6 +1,6 @@
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, SoxResult, StaticType};
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::builtins::function::SoxFunction;
+use crate::builtins::function::SoxFn;
 use crate::builtins::method::{FuncArgs, SoxMethod};
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
@@ -82,7 +82,7 @@ impl SoxType {
         if init_method.is_none() {
             return 0;
         }
-        init_method.unwrap().payload::<SoxFunction>().unwrap().arity as i32
+        init_method.unwrap().payload::<SoxFn>().unwrap().arity as i32
     }
 
     pub fn find_method(&self, name: &str) -> Option<SoxObjectRef> {
@@ -125,11 +125,11 @@ impl Callable for SoxType {
         ));
         let ret_val = if let Some(init_func) = initializer {
             let func = init_func
-                .payload::<SoxFunction>()
+                .payload::<SoxFn>()
                 .expect("init resolved to a non function object");
             // TODO is this round tripping necessary?
             let bound_method = func.bind(instance.clone(), interpreter)?;
-            SoxFunction::slot_call(bound_method, args, interpreter)?;
+            SoxFn::slot_call(bound_method, args, interpreter)?;
             Ok(instance)
         } else {
             Ok(instance)
@@ -188,7 +188,7 @@ impl SoxInstance {
         }
 
         if let Some(method) = zelf.typ.find_method(name.lexeme) {
-            if let Some(func) = method.payload::<SoxFunction>() {
+            if let Some(func) = method.payload::<SoxFn>() {
                 let bound_method = func.bind(SoxObjectRef::from(zelf.clone()), interp);
                 return bound_method;
             } else {

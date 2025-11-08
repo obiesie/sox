@@ -1,9 +1,10 @@
+use crate::builtins::method::SoxMethod;
 use crate::builtins::bool::SoxBool;
 use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
 };
 use crate::builtins::int::SoxInt;
-use crate::builtins::method::{static_func, SoxMethod};
+use crate::builtins::method::{static_func};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;

@@ -138,6 +138,7 @@ impl<T: SoxObjectPayload> ToOwned for Sox<T> {
 }
 
 #[repr(transparent)]
+#[derive(Debug)]
 pub struct SoxRef<T: SoxObjectPayload> {
     pub ptr: NonNull<Sox<T>>,
 }

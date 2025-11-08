@@ -1,6 +1,6 @@
 use crate::builtins::core::StaticType;
 use crate::builtins::r#type::{SoxInstance, SoxType};
-use crate::builtins::{bool, exceptions, float, function, int, module, none, r#type, string};
+use crate::builtins::{bool, chunk, closure, exceptions, float, function, int, module, none, r#type, string};
 use crate::object::core::{init_type_type, Sox, SoxObjectRef};
 
 pub struct TypeLibrary {
@@ -10,11 +10,14 @@ pub struct TypeLibrary {
     pub str_type: &'static Sox<SoxType>,
     pub none_type: &'static Sox<SoxType>,
     pub exception_type: &'static Sox<SoxType>,
+    pub upvalue_type: &'static Sox<SoxType>,
     pub func_type: &'static Sox<SoxType>,
+    pub closure_type: &'static Sox<SoxType>,   
     pub function_type: &'static Sox<SoxType>,
     pub type_type: &'static Sox<SoxType>,
     pub obj_type: &'static Sox<SoxType>,
     pub mod_type: &'static Sox<SoxType>,
+    pub co_type: &'static Sox<SoxType>,
 }
 
 impl TypeLibrary {
@@ -28,10 +31,13 @@ impl TypeLibrary {
             int_type: int::SoxInt::init_builtin_type(),
             str_type: string::SoxString::init_builtin_type(),
             none_type: none::SoxNone::init_builtin_type(),
+            upvalue_type: closure::SoxUpvalue::init_builtin_type(),
             exception_type: exceptions::Exception::init_builtin_type(),
-            func_type: function::SoxFunction::init_builtin_type(),
-            function_type: function::SoxFunc::init_builtin_type(),
+            func_type: function::SoxFn::init_builtin_type(),
+            closure_type: closure::SoxClosure::init_builtin_type(),
+            function_type: function::SoxFunction::init_builtin_type(),
             mod_type: module::SoxModule::init_builtin_type(),
+            co_type: chunk::Chunk::init_builtin_type(),
         }
     }
 }

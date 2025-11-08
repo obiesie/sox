@@ -1,7 +1,15 @@
-use crate::builtins::int::SoxInt;
+use crate::builtins::core::SoxClassImpl;
+use std::any::Any;
+use crate::builtins::method::SoxMethod;
 use crate::interpreter::Interpreter;
-use crate::object::core::{SoxObjectRef, SoxRef};
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use std::fmt::Debug;
+use once_cell::sync::OnceCell;
+use macros::soxtype;
+use crate::builtins::core::{SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
+use crate::builtins::r#type::{SoxType, SoxTypeSlot};
+use crate::builtins::string::SoxString;
+use crate::object::protocols::repr::Representable;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
@@ -26,10 +34,14 @@ pub enum OpCode {
     OpSetGlobal,
     OpGetLocal,
     OpSetLocal,
+    OpGetUpvalue,
+    OpSetUpvalue,
+    OpCloseUpvalue,
     OpJumpIfFalse,
     OpJump,
     OpLoop,
     OpCall,
+    OpClosure,
     OpReturn,
 }
 
@@ -38,7 +50,7 @@ impl TryFrom<u8> for OpCode {
 
     fn try_from(value: u8) -> Result<Self, Self::Error> {
         // Static mapping array for u8 to OpCode
-        const OPCODE_MAP: [Option<OpCode>; 25] = [
+        const OPCODE_MAP: [Option<OpCode>; 29] = [
             Some(OpCode::OpConstant),
             Some(OpCode::OpNone),
             Some(OpCode::OpTrue),
@@ -59,10 +71,14 @@ impl TryFrom<u8> for OpCode {
             Some(OpCode::OpSetGlobal),
             Some(OpCode::OpGetLocal),
             Some(OpCode::OpSetLocal),
+            Some(OpCode::OpGetUpvalue),
+            Some(OpCode::OpSetUpvalue),
+            Some(OpCode::OpCloseUpvalue),
             Some(OpCode::OpJumpIfFalse),
             Some(OpCode::OpJump),
             Some(OpCode::OpLoop),
             Some(OpCode::OpCall),
+            Some(OpCode::OpClosure),
             Some(OpCode::OpReturn),
         ];
 
@@ -98,11 +114,15 @@ impl TryFrom<OpCode> for u8 {
             OpCode::OpSetGlobal => Ok(17),
             OpCode::OpGetLocal => Ok(18),
             OpCode::OpSetLocal => Ok(19),
-            OpCode::OpJumpIfFalse => Ok(20),
-            OpCode::OpJump => Ok(21),
-            OpCode::OpLoop => Ok(22),
-            OpCode::OpCall => Ok(23),
-            OpCode::OpReturn => Ok(24),
+            OpCode::OpGetUpvalue => Ok(20),
+            OpCode::OpSetUpvalue => Ok(21),
+            OpCode::OpCloseUpvalue => Ok(22),
+            OpCode::OpJumpIfFalse => Ok(23),
+            OpCode::OpJump => Ok(24),
+            OpCode::OpLoop => Ok(25),
+            OpCode::OpCall => Ok(26),
+            OpCode::OpClosure => Ok(27),
+            OpCode::OpReturn => Ok(28),
         }
     }
 }
@@ -112,6 +132,7 @@ pub struct Chunk {
     pub name: String,
     pub code: Vec<u8>,
     pub constants: Vec<SoxObjectRef>,
+    pub upvalues: Vec<SoxObjectRef>,
     pub lines: Vec<usize>,
 }
 
@@ -121,28 +142,14 @@ impl Default for Chunk {
     }
 }
 
-impl Chunk {
-    pub fn test_chunk(i: &Interpreter) -> Chunk {
-        let mut chunk = Chunk::new();
-        let value = SoxInt { value: 42 };
-        let val_ref = SoxRef::new_ref(value, i.types.int_type.to_owned());
-        let obj_ref = SoxObjectRef::from(val_ref);
-        let const_idx = chunk.add_constant(obj_ref);
-
-        chunk.write_chunk(OpCode::OpConstant, 1);
-        chunk.write_chunk(const_idx as u8, 1);
-        chunk.write_chunk(OpCode::OpNegate, 1);
-        chunk.write_chunk(OpCode::OpReturn, 1);
-        chunk
-    }
-}
-
+#[soxtype]
 impl Chunk {
     pub fn new() -> Chunk {
         Chunk {
             name: String::from("<module>"),
             code: Vec::new(),
             constants: vec![],
+            upvalues: vec![],
             lines: vec![],
         }
     }
@@ -158,16 +165,16 @@ impl Chunk {
         }
     }
 
-    pub fn disassemble(&self, name: &str) {
+    pub fn disassemble(&self, name: &str, i: &Interpreter) {
         println!("== {} ==", name);
         let mut offset = 0;
         while offset < self.code.len() {
-            offset = self.disassemble_instruction(offset);
+            offset = self.disassemble_instruction(offset, i);
             println!("{:?}", offset);
         }
     }
 
-    pub fn disassemble_instruction(&self, offset: usize) -> usize {
+    pub fn disassemble_instruction(&self, mut offset: usize, i: &Interpreter) -> usize {
         print!("{:04} ", offset);
         if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
             print!("   | ");
@@ -201,7 +208,17 @@ impl Chunk {
             OpCode::OpJumpIfFalse => self.jump_instruction("OP_JUMP_IF_FALSE", 1, offset),
             OpCode::OpJump => self.jump_instruction("OP_JUMP", 1, offset),
             OpCode::OpLoop => self.jump_instruction("OP_LOOP", -1, offset),
-            OpCode::OpCall => self.simple_instruction("OP_CALL", offset),
+            OpCode::OpCall => self.byte_instruction("OP_CALL", offset),
+            OpCode::OpGetUpvalue | OpCode::OpSetUpvalue | OpCode::OpCloseUpvalue => todo!(),
+            OpCode::OpClosure => {
+                offset += 1;
+                let constant = self.code[offset] as usize;
+                offset += 1;
+                println!("{:<16} {:4}", "OpClosure", constant);
+                let constant_value = self.constants[constant].repr(i);
+                println!("{:<16} {}", "Constant", constant_value.unwrap());
+                offset
+            },
         }
     }
 
@@ -235,8 +252,59 @@ impl Chunk {
 
     fn constant_instruction(&self, opcode: &str, offset: usize) -> usize {
         let constant_idx = self.code[offset + 1] as usize;
-        // print!("{} ({:?})", opcode, constant_idx);
-        // println!("{:?}", self.constants[constant_idx]);
         offset + 2
+    }
+}
+
+
+impl SoxObjectPayload for Chunk {
+    fn as_any(&self) -> &dyn Any {
+        self
+    }
+}
+
+impl StaticType for Chunk {
+    const NAME: &'static str = "co";
+
+    fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
+        static CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
+        &CELL
+    }
+
+    fn create_slots() -> SoxTypeSlot {
+        SoxTypeSlot {
+            call: None,
+            repr: Some(Self::slot_repr),
+            number: None,
+            comparable: None,
+            methods: Self::METHOD_DEFS,
+        }
+    }
+}
+
+impl TryFromSoxObject for Chunk {
+    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+        if let Some(val) = obj.payload::<Chunk>() {
+            Ok(val.clone())
+        } else {
+            let err_msg = SoxString {
+                value: String::from("failed to get float from provided object"),
+            };
+            let ob = SoxRef::new_ref(err_msg, _i.types.co_type.to_owned());
+            Err(ob.into())
+        }
+    }
+}
+
+impl ToSoxResult for Chunk {
+    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
+        let obj = SoxRef::new_ref(self, _i.types.co_type.to_owned());
+        Ok(obj.into())
+    }
+}
+
+impl Representable for Chunk {
+    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+        "".to_string()
     }
 }

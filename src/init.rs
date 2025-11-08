@@ -2,7 +2,7 @@ use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
-use crate::vm::chunk::Chunk;
+use crate::builtins::chunk::Chunk;
 use crate::vm::vm::VirtualMachine;
 use std::io::Write;
 use std::{fs, io};

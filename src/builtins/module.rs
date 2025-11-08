@@ -9,8 +9,7 @@ use crate::builtins::string::SoxString;
 use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::repr::Representable;
-use crate::vm::chunk::Chunk;
-use crate::vm::compiler::Compilable;
+use crate::builtins::chunk::Chunk;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
 use std::any::Any;
@@ -18,20 +17,14 @@ use std::any::Any;
 #[derive(Debug, Clone)]
 pub struct SoxModule {
     name: String,
-    pub co: Chunk,
+    pub co: SoxRef<Chunk>,
 }
 
 #[soxtype]
 impl SoxModule {
-    pub fn new(name: String, co: Option<Chunk>) -> Self {
-        if let Some(co) = co {
-            Self { name, co }
-        } else {
-            Self {
-                name,
-                co: Chunk::new(),
-            }
-        }
+    pub fn new(name: String, co: SoxRef<Chunk>) -> Self {
+        Self{name, co}
+        
     }
 
     #[soxmethod]
@@ -40,15 +33,7 @@ impl SoxModule {
     }
 }
 
-impl Compilable for SoxModule {
-    fn new_empty(name: String) -> Self {
-        Self::new(name, None)
-    }
 
-    fn new(name: String, co: Chunk) -> Self {
-        Self::new(name, Some(co))
-    }
-}
 impl SoxObjectPayload for SoxModule {
     fn as_any(&self) -> &dyn Any {
         self

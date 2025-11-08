@@ -20,37 +20,40 @@ use crate::object::protocols::call::Callable;
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
 use crate::stmt::Stmt;
-use crate::vm::chunk::Chunk;
+use crate::builtins::chunk::Chunk;
+
 
 #[derive(Clone, Debug)]
-pub struct SoxFunc {
+pub struct SoxFunction {
     pub name: String,
     pub arity: usize,
-    pub chunk: Option<Chunk>,
+    pub upvalue_count: usize,
+    pub upvalues: Vec<SoxObjectRef>,
+    pub chunk: SoxRef<Chunk>,
 }
 
 #[soxtype]
-impl SoxFunc {
-    pub fn new(name: String, arity: usize, chunk: Option<Chunk>) -> Self {
-        Self { name, arity, chunk }
+impl SoxFunction {
+    pub fn new(name: String, arity: usize, upvalue_count: usize, chunk: SoxRef<Chunk>) -> Self {
+        Self { name, arity, upvalue_count, upvalues:vec![], chunk }
     }
 }
 
-impl Representable for SoxFunc {
+impl Representable for SoxFunction {
     fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         let func_name = zelf.name.to_string();
         format!("<Function {func_name}>")
     }
 }
-impl SoxObjectPayload for SoxFunc {
+impl SoxObjectPayload for SoxFunction {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl TryFromSoxObject for SoxFunc {
+impl TryFromSoxObject for SoxFunction {
     fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
-        if let Some(val) = obj.payload::<SoxFunc>() {
+        if let Some(val) = obj.payload::<SoxFunction>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
@@ -62,14 +65,14 @@ impl TryFromSoxObject for SoxFunc {
     }
 }
 
-impl ToSoxResult for SoxFunc {
+impl ToSoxResult for SoxFunction {
     fn to_sox_result(self, i: &Interpreter) -> SoxResult {
         let obj = SoxRef::new_ref(self, i.types.function_type.to_owned());
         Ok(obj.into())
     }
 }
 
-impl StaticType for SoxFunc {
+impl StaticType for SoxFunction {
     const NAME: &'static str = "func";
 
     fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
@@ -89,7 +92,7 @@ impl StaticType for SoxFunc {
 }
 
 #[derive(Clone, Debug, PartialEq)]
-pub struct SoxFunction {
+pub struct SoxFn {
     pub name: String,
     pub declaration: Box<Stmt>,
     pub environment_ref: EnvRef,
@@ -98,7 +101,7 @@ pub struct SoxFunction {
 }
 
 #[soxtype]
-impl SoxFunction {
+impl SoxFn {
     pub fn new(
         name: String,
         declaration: Stmt,
@@ -124,7 +127,7 @@ impl SoxFunction {
                 .environment
                 .define_at("this", instance, env_ref.clone());
 
-            let new_func = SoxFunction {
+            let new_func = SoxFn {
                 name: self.name.to_string(),
                 declaration: self.declaration.clone(),
                 environment_ref: env_ref,
@@ -145,8 +148,8 @@ impl SoxFunction {
 
     pub fn equals(zelf: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> SoxResult {
         if let (Some(zelf), Some(other_func)) = (
-            zelf.payload::<SoxFunction>(),
-            other.payload::<SoxFunction>(),
+            zelf.payload::<SoxFn>(),
+            other.payload::<SoxFn>(),
         ) {
             SoxBool::from(
                 zelf.name == other_func.name
@@ -162,13 +165,13 @@ impl SoxFunction {
     }
 }
 
-impl SoxObjectPayload for SoxFunction {
+impl SoxObjectPayload for SoxFn {
     fn as_any(&self) -> &dyn Any {
         self
     }
 }
 
-impl StaticType for SoxFunction {
+impl StaticType for SoxFn {
     const NAME: &'static str = "function";
 
     fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
@@ -187,9 +190,9 @@ impl StaticType for SoxFunction {
     }
 }
 
-impl TryFromSoxObject for SoxFunction {
+impl TryFromSoxObject for SoxFn {
     fn try_from_sox_object(i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
-        if let Some(func) = obj.payload::<SoxFunction>() {
+        if let Some(func) = obj.payload::<SoxFn>() {
             Ok(func.clone())
         } else {
             let err_msg = SoxString {
@@ -201,21 +204,21 @@ impl TryFromSoxObject for SoxFunction {
     }
 }
 
-impl ToSoxResult for SoxFunction {
+impl ToSoxResult for SoxFn {
     fn to_sox_result(self, i: &Interpreter) -> SoxResult {
         let obj = SoxObjectRef::from(SoxRef::new_ref(self, i.types.func_type.to_owned()));
         Ok(obj)
     }
 }
 
-impl Representable for SoxFunction {
+impl Representable for SoxFn {
     fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
         let func_name = zelf.name.to_string();
         format!("<Function {func_name}>")
     }
 }
 
-impl Callable for SoxFunction {
+impl Callable for SoxFn {
     fn call(zelf: &Sox<Self>, args: FuncArgs, i: &mut Interpreter) -> SoxResult {
         if args.args.len() != zelf.arity as usize {
             let error = Exception::Err(RuntimeError {
@@ -279,7 +282,7 @@ impl Callable for SoxFunction {
     }
 }
 
-impl Comparable for SoxFunction {
+impl Comparable for SoxFn {
     fn as_comparable() -> ComparableMethods {
         ComparableMethods {
             lt: None,
