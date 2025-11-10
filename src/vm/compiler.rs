@@ -1,4 +1,4 @@
-use crate::builtins::function::SoxFunc;
+use crate::builtins::function::SoxFunction;
 use crate::builtins::int::SoxInt;
 use crate::builtins::module::SoxModule;
 use crate::builtins::string::SoxString;
@@ -8,14 +8,14 @@ use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::parser::{SyntaxError, TO_IGNORE};
 use crate::token::Token;
 use crate::token_type::TokenType;
-use crate::vm::chunk::OpCode::{
-    OpConstant, OpGetGlobal, OpGetLocal, OpJump, OpJumpIfFalse, OpNone, OpPop, OpReturn,
-    OpSetGlobal, OpSetLocal,
+use crate::builtins::chunk::OpCode::{
+    OpConstant, OpGetGlobal, OpGetLocal, OpGetUpvalue, OpJump, OpJumpIfFalse, OpNone, OpPop,
+    OpReturn, OpSetGlobal, OpSetLocal, OpSetUpvalue,
 };
-use crate::vm::chunk::{Chunk, OpCode};
+use crate::builtins::chunk::{Chunk, OpCode};
+use log::info;
 use std::borrow::Borrow;
 use std::iter::Peekable;
-use std::marker::PhantomData;
 use std::str::FromStr;
 
 #[repr(u8)]
@@ -94,6 +94,7 @@ impl ParseRule {
 pub struct Local {
     name: String,
     depth: Option<usize>,
+    is_captured: bool,
 }
 
 pub enum CompiledUnitType {
@@ -103,7 +104,7 @@ pub enum CompiledUnitType {
 
 pub enum CompiledUnit {
     Module(SoxModule),
-    Function(SoxFunc),
+    Function(SoxFunction),
 }
 
 pub trait Compilable {
@@ -132,25 +133,31 @@ impl Parser {
     /// Advances the parser to the next token, updating `self.parser.previous` and `self.parser.current`.
     pub fn advance(&mut self) {
         self.previous = self.current.take();
+        self.skip_ignorable_tokens();
+
+        self.current = self.tokens.next();
+    }
+
+
+    fn skip_ignorable_tokens(&mut self) {
         while let Some(_) = self
             .tokens
             .next_if(|token| TO_IGNORE.contains(&token.token_type))
         {}
-        self.current = self.tokens.next();
     }
+
 
     /// Consumes the current token if it matches the expected type, otherwise returns an error.
     pub fn consume(&mut self, expected_type: TokenType, message: &str) -> Result<(), SyntaxError> {
-        if self.current.is_some() && self.current.as_ref().unwrap().token_type == expected_type {
+        if matches!(&self.current, Some(token) if token.token_type == expected_type) {
             self.advance();
             Ok(())
         } else {
-            let previous_lexeme = self
+            let (previous_lexeme, line) = self
                 .previous
                 .as_ref()
-                .map(|t| t.lexeme.clone())
-                .unwrap_or_else(|| "");
-            let line = self.previous.as_ref().map(|t| t.line).unwrap_or(0);
+                .map_or(("", 0), |t| (t.lexeme, t.line));
+
             Err(SyntaxError {
                 msg: format!("Error after '{}': {}", previous_lexeme, message),
                 line,
@@ -184,17 +191,28 @@ impl Default for Parser {
 #[derive(Clone)]
 pub struct CompilerContext {
     can_assign: bool,
+    upvalue_count: usize,
     locals: Vec<Local>,
     scope_depth: usize,
     chunk: Chunk,
+    upvalues: [UpValue; 256],
 }
 
 impl Default for CompilerContext {
     fn default() -> Self {
+        let mut locals = Vec::new();
+        let local = Local {
+            name: "".to_string(),
+            depth: Some(0),
+            is_captured: false,
+        };
+        locals.push(local);
         Self {
             can_assign: false,
-            locals: vec![],
+            locals,
             scope_depth: 0,
+            upvalue_count: 0,
+            upvalues: [UpValue::default(); 256],
             chunk: Chunk::default(),
         }
     }
@@ -205,10 +223,24 @@ macro_rules! context {
     };
 }
 
+#[derive(Clone, Copy, Debug)]
+pub struct UpValue {
+    pub is_local: bool,
+    pub index: usize,
+    pub closed: bool,
+}
+
+impl Default for UpValue {
+    fn default() -> Self {
+        Self {
+            is_local: false,
+            index: 0,
+            closed: false,
+        }
+    }
+}
+
 pub struct Compiler {
-    //previous: Option<Token>,
-    //current: Option<Token>,
-    //tokens: Option<Peekable<Lexer>>,
     name: String,
     parser: Parser,
     context_stack: Vec<CompilerContext>,
@@ -298,6 +330,7 @@ impl Compiler {
         let local = Local {
             name: "".to_string(),
             depth: Some(0),
+            is_captured: false,
         };
         locals.push(local);
         let context = CompilerContext::default();
@@ -308,7 +341,7 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, source: &'static str, chunk: Chunk, i: &Interpreter) -> SoxModule {
+    pub fn compile(&mut self, i: &Interpreter) -> SoxModule {
         self.parser.advance();
         while !self.parser.match_token(vec![TokenType::EOF]) && self.parser.current.is_some() {
             self.declaration(i);
@@ -317,9 +350,9 @@ impl Compiler {
 
         let compiled_unit = SoxModule::new(
             self.name.clone(),
-            Some(std::mem::take(&mut context!(self).chunk)),
+            SoxRef::new_ref(std::mem::take(&mut context!(self).chunk), i.types.co_type.to_owned()),
         );
-        return compiled_unit;
+        compiled_unit
     }
 
     pub fn declaration(&mut self, i: &Interpreter) {
@@ -366,14 +399,24 @@ impl Compiler {
         self.end();
         let mut context = self.context_stack.pop().unwrap();
         context.chunk.name = func_name.to_string();
-        let fo = SoxFunc::new(func_name.to_string(), arity, Some(context.chunk));
+
+        let fo = SoxFunction::new(
+            func_name.to_string(),
+            arity,
+            context.upvalue_count,
+            SoxRef::new_ref(context.chunk, i.types.co_type.to_owned()),
+        );
         let constant = self
             .make_constant(SoxObjectRef::from(SoxRef::new_ref(
                 fo,
                 i.types.function_type.to_owned(),
             )))
             .unwrap();
-        self.emit_instruction_bytes((OpCode::OpConstant, Some(constant as u8)));
+        self.emit_instruction_bytes((OpCode::OpClosure, Some(constant as u8)));
+        for i in 0..context.upvalue_count{
+            self.emit_bytes(context.upvalues[i].is_local as u8);
+            self.emit_bytes(context.upvalues[i].index as u8);
+        }
         self.define_variable(global, i);
     }
 
@@ -407,15 +450,17 @@ impl Compiler {
     pub fn parse_variable(&mut self, i: &Interpreter, message: &str) -> Option<usize> {
         self.parser
             .consume(TokenType::Identifier, message)
-            .expect("TODO: panic message");
+            .expect("Failed to parse variable. ");
 
         if context!(self).scope_depth > 0 {
             self.declare_variable(i);
             return None;
+
         }
+        info!("Parsing variable: {}", self.parser.previous.as_ref().unwrap().lexeme);
         let global =
             self.identifier_constant(self.parser.previous.as_ref().unwrap().lexeme.to_string(), i);
-        return Some(global);
+        Some(global)
     }
 
     pub fn declare_variable(&mut self, i: &Interpreter) {
@@ -423,6 +468,7 @@ impl Compiler {
             return;
         }
         let name = self.parser.previous.as_ref().unwrap().lexeme.to_string();
+        info!("Declaring variable: {name}");
         let scope_depth = context!(self).scope_depth;
 
         for local in context!(self).locals.iter().rev() {
@@ -437,7 +483,11 @@ impl Compiler {
     }
 
     pub fn add_local(&mut self, name: String) {
-        let local = Local { name, depth: None };
+        let local = Local {
+            name,
+            depth: None,
+            is_captured: false,
+        };
         context!(self).locals.push(local);
     }
 
@@ -654,7 +704,11 @@ impl Compiler {
         while local_count > 0
             && context!(self).locals[local_count - 1].depth.unwrap() > context!(self).scope_depth
         {
-            self.emit_instruction_bytes((OpCode::OpPop, None));
+            if context!(self).locals[local_count - 1].is_captured {
+                self.emit_instruction_bytes((OpCode::OpCloseUpvalue, None));
+            } else {
+                self.emit_instruction_bytes((OpCode::OpPop, None));
+            }
             context!(self).locals.pop();
             local_count -= 1;
         }
@@ -672,14 +726,14 @@ impl Compiler {
     pub fn print_statement(&mut self, i: &Interpreter) {
         self.expression(i);
         self.parser
-            .consume(TokenType::Semi, "Expect ';' after value.");
+            .consume(TokenType::Semi, "Expect ';' after value.").expect("TODO: panic message");
         self.emit_instruction_bytes((OpCode::OpPrint, None));
     }
 
     pub fn expression_statement(&mut self, i: &Interpreter) {
         self.expression(i);
         self.parser
-            .consume(TokenType::Semi, "Expect ';' after expression.");
+            .consume(TokenType::Semi, "Expect ';' after expression.").expect("TODO: panic message");
         self.emit_instruction_bytes((OpCode::OpPop, None));
     }
     pub fn end(&mut self) {
@@ -855,20 +909,27 @@ impl Compiler {
     }
 
     pub fn variable(&mut self, i: &Interpreter) {
-        self.named_variable(self.parser.previous.as_ref().unwrap().lexeme.to_string(), i);
+        self.named_variable(self.parser.previous.as_ref().unwrap().lexeme, i);
     }
 
-    pub fn named_variable(&mut self, name: String, i: &Interpreter) {
+    pub fn named_variable(&mut self, name: &str, i: &Interpreter) {
         let get_op;
         let set_op;
-        let mut arg = self.resolve_local(name.clone(), i);
-        if let Some(arg) = arg {
+        let mut arg = self.resolve_local(name, i, self.context_stack.len() - 1);
+        if let Some(_arg) = arg {
             get_op = OpGetLocal;
             set_op = OpSetLocal;
         } else {
-            arg = Some(self.identifier_constant(name, i) as u8);
-            get_op = OpGetGlobal;
-            set_op = OpSetGlobal;
+            arg = self.resolve_upvalue(name, self.context_stack.len() - 1, i);
+            if arg.is_some() {
+
+                get_op = OpGetUpvalue;
+                set_op = OpSetUpvalue;
+            } else {
+                arg = Some(self.identifier_constant(name.to_string(), i) as u8);
+                get_op = OpGetGlobal;
+                set_op = OpSetGlobal;
+            }
         }
         if self.parser.match_token(vec![TokenType::Equal]) && context!(self).can_assign {
             self.expression(i);
@@ -878,9 +939,59 @@ impl Compiler {
         }
     }
 
-    pub fn resolve_local(&mut self, name: String, i: &Interpreter) -> Option<u8> {
-        for (i, local) in context!(self).locals.iter().enumerate().rev() {
-            if local.name == name {
+    pub fn resolve_upvalue(
+        &mut self,
+        name: &str,
+        compiler_idx: usize,
+        i: &Interpreter,
+    ) -> Option<u8> {
+
+        if compiler_idx == 0 {
+            return None;
+        }
+
+        let parent_idx = compiler_idx-1;
+
+        // Look for a local variable in the enclosing compiler.
+        if let Some(local_index) = self.resolve_local(name, i, parent_idx) {
+            self.context_stack[parent_idx]
+                .locals[local_index as usize]
+                .is_captured = true;
+            return self.add_upvalue(compiler_idx, local_index, true);
+        }
+
+        // Recursively look for an upvalue in the enclosing compilers.
+        if let Some(upvalue_index) = self.resolve_upvalue(name, parent_idx, i) {
+            return self.add_upvalue(compiler_idx, upvalue_index, false);
+        }
+
+        None
+    }
+
+    pub fn add_upvalue(&mut self, compiler_idx: usize, idx: u8, is_local: bool) -> Option<u8> {
+        let context = self.context_stack.get_mut(compiler_idx )?;
+        let upvalue_count = context.upvalue_count;
+        for i in 0..upvalue_count {
+            let upvalue = &mut context.upvalues[i];
+            if upvalue.index as u8 == idx && upvalue.is_local == is_local {
+                return Some(i as u8);
+            }
+        }
+        if upvalue_count == u8::MAX as usize {
+            panic!("Too many upvalues in function.");
+        }
+        context.upvalues[upvalue_count].is_local = is_local;
+        context.upvalues[upvalue_count].index = idx as usize;
+        context.upvalue_count += 1;
+
+        Some((context.upvalue_count-1) as u8)
+    }
+
+    // TODO modify to take a pointer to compiler context to start search for local variable
+    pub fn resolve_local(&mut self, name: &str, i: &Interpreter, ctx_index: usize) -> Option<u8> {
+        let context = &self.context_stack[ctx_index];
+        for (i, local) in context.locals.iter().enumerate().rev() {
+            if local.name.as_str() == name {
                 if local.depth.is_none() {
                     panic!("Can't read a local variable in its own initializer.");
                 }
