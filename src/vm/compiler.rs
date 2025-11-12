@@ -412,15 +412,19 @@ impl Compiler {
                 i.types.function_type.to_owned(),
             )))
             .unwrap();
-        self.emit_instruction_bytes((OpCode::OpClosure, Some(constant as u8)));
-        for i in 0..context.upvalue_count{
-            self.emit_bytes(context.upvalues[i].is_local as u8);
-            self.emit_bytes(context.upvalues[i].index as u8);
+            if context.upvalue_count > 0 {
+                self.emit_instruction_bytes((OpCode::OpClosure, Some(constant as u8)));
+                for i in 0..context.upvalue_count {
+                    self.emit_bytes(context.upvalues[i].is_local as u8);
+                    self.emit_bytes(context.upvalues[i].index as u8);
+                }
+            } else {
+                self.emit_instruction_bytes((OpCode::OpConstant, Some(constant as u8)));
+            }
+            self.define_variable(global, i);
         }
-        self.define_variable(global, i);
-    }
 
-    pub fn let_declaration(&mut self, i: &Interpreter) {
+        pub fn let_declaration(&mut self, i: &Interpreter) {
         let global = self.parse_variable(i, "Expect variable name.");
         if self.parser.match_token(vec![TokenType::Equal]) {
             self.expression(i);

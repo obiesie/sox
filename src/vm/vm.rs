@@ -254,35 +254,7 @@ impl VirtualMachine {
         Ok(true)
     }
 
-    // pub fn call_valuee(&mut self, callee: SoxObjectRef, arg_count: usize, i: &Interpreter) -> bool {
-    //     let maybe_func = callee.payload::<SoxFunction>().or_else(|| {
-    //         callee
-    //             .payload::<SoxClosure>()
-    //             .map(|closure| closure.func.payload::<SoxFunction>().unwrap())
-    //     });
-    //
-    //     let upvalues = if let Some(f) = callee.payload::<SoxClosure>() {
-    //         let closure = callee.payload::<SoxClosure>().unwrap();
-    //         let upvalues = closure.upvalues.clone();
-    //         upvalues
-    //     } else {
-    //         let upvalues = Vec::new();
-    //         upvalues
-    //     };
-    //
-    //     let func_name = maybe_func.map(|func| func.name.clone());
-    //     info!("Calling function {} with {} arguments", func_name.unwrap(), arg_count);
-    //
-    //     maybe_func.map_or(false, |func| {
-    //         match self.call(func, arg_count, upvalues, i) {
-    //             Ok(_) => true,
-    //             Err(e) => {
-    //                 self.runtime_error(&e.msg);
-    //                 false
-    //             }
-    //         }
-    //     })
-    // }
+
 
     pub fn call_value(&mut self, callee: SoxObjectRef, arg_count: usize, i: &Interpreter) -> bool {
         let result = if let Some(closure) = callee.payload::<SoxClosure>() {
@@ -585,6 +557,4 @@ impl VirtualMachine {
         self.open_upvalues.insert(pos, new_upvalue_ref);
         new_upvalue_ref
     }
-
-
 }
