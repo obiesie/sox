@@ -6,7 +6,6 @@ use std::fs;
 use std::iter::zip;
 use std::process::Command;
 use walkdir::WalkDir;
-
 lazy_static::lazy_static! {
     static ref EXPECTED_OUTPUT_PATTERN: Regex = Regex::new(r"// expect: ?(.*)").unwrap();
     static ref EXPECTED_ERROR_PATTERN: Regex = Regex::new(r"// (Error.*)").unwrap();
@@ -16,7 +15,6 @@ lazy_static::lazy_static! {
     static ref STACK_TRACE_PATTERN: Regex = Regex::new(r"\[line (\d+)\]").unwrap();
     static ref NON_TEST_PATTERN: Regex = Regex::new(r"// nontest").unwrap();
 }
-
 static ALL_TEST_SUITES: [&str; 17] = [
     "assignment",
     "block",
@@ -36,87 +34,107 @@ static ALL_TEST_SUITES: [&str; 17] = [
     "constructors",
     "logical_operator",
 ];
+static TEST_SUITES: [&str; 1] = ["function"];
 
-static TEST_SUITES: [&str; 0] = [];
+const SOX_EXECUTABLE: &str = "target/debug/sox";
+const RESULT_CSV_PATH: &str = "result.csv";
+const TEST_PATH_COL: &str = "Test Path";
+const TEST_PASSED_COL: &str = "Test Passed?";
 
 #[test]
 fn test_compiler() {
-    let mut test_paths = vec![];
-    let test_suites = if TEST_SUITES.is_empty() {
-        ALL_TEST_SUITES.to_vec()
-    } else {
-        TEST_SUITES.to_vec()
-    };
-    for suite in test_suites {
-        for entry in WalkDir::new(format!("tests/{suite}")) {
-            match entry {
-                Ok(entry) => {
-                    if entry.metadata().unwrap().is_file() {
-                        test_paths.push(entry.path().to_string_lossy().to_string());
-                    }
-                }
-                Err(e) => eprintln!("Error: {}", e),
-            }
-        }
-    }
-    let mut test_results = vec![];
-    let mut actual_test_paths = vec![];
-    for test_path in &test_paths {
-        actual_test_paths.push(test_path.to_string());
-        let hay =
-            fs::read_to_string(test_path.to_string()).expect("Failed to read file at {test_path}");
-        let caps = EXPECTED_OUTPUT_PATTERN.captures_iter(hay.as_str());
-        let syntax_error_caps = SYNTAX_ERROR_PATTERN.captures_iter(hay.as_str());
-        let runtime_error_caps = EXPECTED_RUNTIME_ERROR_PATTERN.captures_iter(hay.as_str());
-        let mut expected_outputs = vec![];
+    let test_paths = get_test_paths();
 
-        for cap in caps {
-            let expected_output = cap.get(1).unwrap().as_str();
-            expected_outputs.push(expected_output.to_string());
-        }
+    let results: Vec<(String, bool)> = test_paths
+        .iter()
+        .map(|path| (path.clone(), run_and_validate_test(path)))
+        .collect();
 
-        for error_cap in syntax_error_caps {
-            let t = error_cap.get(0).unwrap().as_str();
-            expected_outputs.push(format!("{}", t));
-        }
+    let test_paths_series: Vec<String> = results.iter().map(|(path, _)| path.clone()).collect();
+    let test_passed_series: Vec<bool> = results.iter().map(|(_, passed)| *passed).collect();
 
-        for runtime_error_cap in runtime_error_caps {
-            let inst = runtime_error_cap.get(1).unwrap().as_str();
-            expected_outputs.push(format!("{}", inst));
-        }
-        let run_output = Command::new("target/debug/sox")
-            .arg(test_path)
-            .output()
-            .unwrap();
-
-        let output = String::from_utf8_lossy(&run_output.stdout);
-        let output_strs = output
-            .split("\n")
-            .filter(|v| *v != "")
-            .map(|v| v.to_string())
-            .collect::<Vec<String>>();
-        let failures = validate_outputs(&expected_outputs, &output_strs);
-        println!("failures are {:?}", failures);
-        test_results.push(failures.is_empty())
-    }
     let mut res_df: DataFrame = df!(
-        "Test Path" => actual_test_paths.clone(),
-        "Test Passed?" => test_results.clone(),
+        TEST_PATH_COL => &test_paths_series,
+        TEST_PASSED_COL => &test_passed_series,
     )
-    .unwrap();
+        .unwrap();
+
     println!("{}", res_df);
 
-    let mut file = std::fs::File::create("result.csv").unwrap();
+    let mut file = std::fs::File::create(RESULT_CSV_PATH).unwrap();
     CsvWriter::new(&mut file).finish(&mut res_df).unwrap();
 
     let failed_df = res_df
         .lazy()
-        .filter(col("Test Passed?").eq(lit(false)))
+        .filter(col(TEST_PASSED_COL).eq(lit(false)))
         .collect()
         .unwrap();
 
-    println!("failed tests: \n {}", failed_df);
-    assert_eq!(failed_df.shape().0, 0);
+    if failed_df.shape().0 > 0 {
+        println!("failed tests: \n {}", failed_df);
+    }
+
+    assert_eq!(failed_df.shape().0, 0, "Some tests failed");
+}
+
+fn get_test_paths() -> Vec<String> {
+    let test_suites = if TEST_SUITES.is_empty() {
+        ALL_TEST_SUITES.as_ref()
+    } else {
+        TEST_SUITES.as_ref()
+    };
+
+    let mut test_paths = Vec::new();
+    for suite in test_suites {
+        for entry in WalkDir::new(format!("tests/{}", suite)) {
+            match entry {
+                Ok(entry) => {
+                    if entry.file_type().is_file() {
+                        test_paths.push(entry.path().to_string_lossy().to_string());
+                    }
+                }
+                Err(e) => eprintln!("Error walking directory: {}", e),
+            }
+        }
+    }
+    test_paths
+}
+
+fn run_and_validate_test(test_path: &str) -> bool {
+    let content =
+        fs::read_to_string(test_path).unwrap_or_else(|_| panic!("Failed to read file at {}", test_path));
+    let expected_outputs = extract_expected_outputs(&content);
+
+    let run_output = Command::new(SOX_EXECUTABLE)
+        .arg(test_path)
+        .output()
+        .expect("Failed to execute sox command");
+
+    let output = String::from_utf8_lossy(&run_output.stdout);
+    let output_strs = output
+        .lines()
+        .filter(|v| !v.is_empty())
+        .map(str::to_string)
+        .collect::<Vec<String>>();
+
+    let failures = validate_outputs(&expected_outputs, &output_strs);
+    if !failures.is_empty() {
+        println!("Failures for {}: {:?}", test_path, failures);
+    }
+    failures.is_empty()
+}
+
+fn extract_expected_outputs(content: &str) -> Vec<String> {
+    let expected = EXPECTED_OUTPUT_PATTERN
+        .captures_iter(content)
+        .map(|cap| cap.get(1).unwrap().as_str().to_string());
+    let syntax_errors = SYNTAX_ERROR_PATTERN
+        .captures_iter(content)
+        .map(|cap| cap.get(0).unwrap().as_str().to_string());
+    let runtime_errors = EXPECTED_RUNTIME_ERROR_PATTERN
+        .captures_iter(content)
+        .map(|cap| cap.get(1).unwrap().as_str().to_string());
+    expected.chain(syntax_errors).chain(runtime_errors).collect()
 }
 
 fn validate_outputs<T: ToString + PartialEq>(
