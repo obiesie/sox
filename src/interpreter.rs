@@ -353,25 +353,35 @@ impl StmtVisitor for &mut Interpreter {
 
             // set up class in environment
             let class_name = name.lexeme.to_string();
-            let t = sc
-                .clone()
-                .unwrap()
-                .payload::<SoxType>()
-                .clone()
-                .unwrap()
-                .clone();
+            // Handle superclass: if present use it, otherwise create class without base
+            let base_class = if let Some(ref sc_obj) = sc {
+                if let Some(typ) = sc_obj.payload::<SoxType>() {
+                    Some(SoxRef::new_ref(
+                        typ.clone(),
+                        self.types.type_type.to_owned(),
+                    ))
+                } else {
+                    // Superclass was provided but is not a type - return error
+                    return Err(self.runtime_error("Superclass must be a class.".to_string()));
+                }
+            } else {
+                None
+            };
             let class = SoxType::new(
                 class_name.to_string(),
-                Some(SoxRef::new_ref(t, self.types.type_type.to_owned())),
+                base_class,
                 Default::default(),
                 Default::default(),
                 methods_map,
             );
             self.environment.active = prev_env_ref;
             let cls_obj = SoxRef::new_ref(class, self.types.type_type.to_owned());
-            self.environment
+            if let Err(e) = self
+                .environment
                 .find_and_assign(name.lexeme.to_string(), SoxObjectRef::from(cls_obj))
-                .expect("TODO: panic message");
+            {
+                return Err(e);
+            }
 
             Ok(SoxObjectRef::from(self.none.clone()))
         } else {
@@ -657,9 +667,15 @@ impl ExprVisitor for &mut Interpreter {
     }
     fn visit_super_expr(&mut self, expr: &Expr) -> Self::T {
         if let Expr::Super { keyword, method } = expr {
-            let (dist_to_ns, binding_idx) = self.locals.get(&keyword).unwrap();
+            let (dist_to_ns, binding_idx) = match self.locals.get(&keyword) {
+                Some(v) => v,
+                None => return Err(self.runtime_error("Cannot resolve 'super' binding.".into())),
+            };
             let this_token = Token::new(TokenType::This, "this", Literal::None, 0);
-            let (dist_to_ns2, binding_idx2) = self.locals.get(&this_token).unwrap();
+            let (dist_to_ns2, binding_idx2) = match self.locals.get(&this_token) {
+                Some(v) => v,
+                None => return Err(self.runtime_error("Cannot resolve 'this' binding.".into())),
+            };
 
             let key = ("super".to_string(), *dist_to_ns, *binding_idx);
             let key2 = ("this".to_string(), *dist_to_ns2, *binding_idx2);

@@ -105,7 +105,11 @@ impl Resolver {
         if self.scopes.is_empty() {
             return Ok(());
         }
-        let scope = self.scopes.last_mut().unwrap(); // Handle potential None case if needed
+        let scope = self.scopes.last_mut().unwrap();
+        // Check for duplicate declaration in current scope
+        if scope.iter().any(|(t, _)| t.lexeme == name.lexeme) {
+            return Err(ResolverError::DuplicateVariable(name.lexeme.to_string()));
+        }
         scope.push((name, false));
         Ok(())
     }

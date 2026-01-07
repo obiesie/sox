@@ -38,11 +38,18 @@ impl Namespace {
 
     pub(crate) fn assign(&mut self, key: &EnvKey, value: SoxObjectRef) -> SoxResult<()> {
         let (name, _, binding_idx) = key;
-        let mut binding = self.get_binding_mut(*binding_idx);
-        if binding.as_ref().unwrap().0 == *name {
-            binding.as_mut().unwrap().1 = value;
+        let binding = self.get_binding_mut(*binding_idx);
+        if let Some(b) = binding {
+            if b.0 == *name {
+                b.1 = value;
+                return Ok(());
+            }
         }
-        Ok(())
+        // Binding not found or name mismatch - this is an internal error
+        let exc = Exception::Err(RuntimeError {
+            msg: format!("Internal error: binding mismatch for '{}'", name),
+        });
+        Err(SoxRef::new_ref(exc, Exception::init_builtin_type().to_owned()).into())
     }
 
     fn get_binding_mut(&mut self, idx: usize) -> Option<&mut (String, SoxObjectRef)> {
@@ -258,11 +265,16 @@ impl Environment {
     }
 
     pub fn pop(&mut self) -> SoxResult<()> {
-        let (active, parent) = (
-            self.active.clone(),
-            self.env_link.get(&self.active).unwrap(),
-        );
-        self.active = parent.clone();
+        // If we're at global scope, nothing to pop
+        let parent = match self.env_link.get(&self.active) {
+            Some(p) => p.clone(),
+            None => {
+                // At global scope or no parent - just return Ok
+                return Ok(());
+            }
+        };
+        let active = self.active.clone();
+        self.active = parent;
         // check that strong reference count is just from the assignment above and self.envs in which case we can drop the env
         if Rc::strong_count(&active) == 2 {
             self.envs.remove(*active);

@@ -1,5 +1,5 @@
 use crate::builtins::bool::SoxBool;
-use crate::builtins::chunk::{OpCode};
+use crate::builtins::chunk::OpCode;
 use crate::builtins::closure::{SoxClosure, SoxUpvalue};
 use crate::builtins::exceptions::RuntimeError;
 use crate::builtins::function::SoxFunction;
@@ -44,30 +44,21 @@ macro_rules! read_short {
 
 macro_rules! pop_stack {
     ($a:expr) => {{
-        if $a.value_stack_top == 0 {
-            panic!("Stack underflow.");
-        }
-        $a.value_stack_top -= 1;
-        let v = $a.value_stack.pop().unwrap();
-        v
+        $a.value_stack.pop().expect("Stack underflow.")
     }};
 }
 
 macro_rules! peek_stack {
     ($a:expr) => {{
-        if $a.value_stack_top == 0 {
-            panic!("Stack underflow.");
-        }
-        let v = $a.value_stack.last().unwrap();
-        *v
+        *$a.value_stack.last().expect("Stack underflow.")
     }};
     ($a:expr, $i:expr) => {{
-        if $a.value_stack_top < $i {
+        let len = $a.value_stack.len();
+        if len <= $i {
             panic!("Stack underflow.");
         }
-        let p = $a.value_stack_top - $i - 1;
-        let v = $a.value_stack.get(p).unwrap();
-        *v
+        let p = len - $i - 1;
+        $a.value_stack[p]
     }};
 }
 
@@ -84,7 +75,6 @@ macro_rules! binary_op {
 macro_rules! push_stack {
     ($a:expr, $b:expr, $i:expr) => {{
         $a.value_stack.push($b);
-        $a.value_stack_top += 1;
     }};
 }
 pub enum InterpretResult {
@@ -97,7 +87,6 @@ pub struct VirtualMachine {
     call_frame_stack: Vec<CallFrame>,
     call_frame_count: usize,
     value_stack: Vec<SoxObjectRef>,
-    value_stack_top: usize,
     globals: HashMap<String, SoxObjectRef>,
     frames_max: usize,
     open_upvalues: Vec<SoxObjectRef>,
@@ -115,7 +104,6 @@ impl VirtualMachine {
             value_stack: Vec::with_capacity(256),
             call_frame_stack,
             call_frame_count: 0,
-            value_stack_top: 0,
             globals,
             frames_max: 64,
             open_upvalues: Vec::new(),
@@ -135,11 +123,7 @@ impl VirtualMachine {
 
     fn read_constant(&mut self) -> SoxObjectRef {
         let const_idx = self.read_instr() as usize;
-        self.current_frame_mut()
-            .co
-            .as_ref()
-            .unwrap()
-            .constants[const_idx]
+        self.current_frame_mut().co.as_ref().unwrap().constants[const_idx]
     }
 
     fn read_short(&mut self) -> u16 {
@@ -164,7 +148,6 @@ impl VirtualMachine {
 
     fn reset_stack(&mut self) {
         self.value_stack.clear();
-        self.value_stack_top = 0;
         self.call_frame_count = 0;
     }
 
@@ -187,7 +170,6 @@ impl VirtualMachine {
     }
 
     pub fn interpret(&mut self, i: &Interpreter, source: &'static str) {
-
         let parser = Parser::new(source);
         // Compile the source into a module, reusing the current chunk by moving it out (as before).
         let mut compiler = Compiler::new("__main__".to_string(), parser);
@@ -210,13 +192,13 @@ impl VirtualMachine {
         self.call_frame_count += 1;
         frame.ip = 0;
         frame.co = Option::from(compiled_chunk);
-        frame.value_stack_base_addr = self.value_stack_top ;
+        frame.value_stack_base_addr = self.value_stack.len();
 
         // Execute the VM loop for this frame.
         self.run(i);
 
         // If there is a result on the stack, print its representation safely.
-        if self.value_stack_top > 0 {
+        if !self.value_stack.is_empty() {
             let value = pop_stack!(self);
             if let Ok(repr_str) = value.repr(i) {
                 println!("{repr_str}");
@@ -241,7 +223,10 @@ impl VirtualMachine {
                 msg: "Stack overflow.".to_string(),
             });
         }
-        info!("Calling function {} with {} arguments", func.name, arg_count);
+        info!(
+            "Calling function {} with {} arguments",
+            func.name, arg_count
+        );
         self.call_frame_count = self.call_frame_count + 1;
         let frame = self
             .call_frame_stack
@@ -250,11 +235,9 @@ impl VirtualMachine {
         frame.co = Some(func.chunk.clone());
         frame.ip = 0;
         frame.upvalues = upvalues;
-        frame.value_stack_base_addr = self.value_stack_top - arg_count - 1;
+        frame.value_stack_base_addr = self.value_stack.len() - arg_count - 1;
         Ok(true)
     }
-
-
 
     pub fn call_value(&mut self, callee: SoxObjectRef, arg_count: usize, i: &Interpreter) -> bool {
         let result = if let Some(closure) = callee.payload::<SoxClosure>() {
@@ -305,7 +288,6 @@ impl VirtualMachine {
                         return InterpretResult::InterpretOk;
                     }
                     self.value_stack.truncate(frame.value_stack_base_addr);
-                    self.value_stack_top = frame.value_stack_base_addr;
                     push_stack!(self, val, i);
                     continue;
                 }
@@ -437,23 +419,24 @@ impl VirtualMachine {
                     let upval_index = slot as usize;
                     let upval_obj = self.call_frame_stack[self.call_frame_count - 1].upvalues
                         [upval_index]
-                        .payload::<SoxUpvalue>().unwrap();
+                        .payload::<SoxUpvalue>()
+                        .unwrap();
                     push_stack!(self, upval_obj.value, i);
                 }
                 OpCode::OpSetUpvalue => {
                     let slot = read_instr!(self);
                     let upval_index = slot as usize;
                     let value = peek_stack!(self);
-                    let upvalue_ref = self.call_frame_stack[self.call_frame_count - 1].upvalues[upval_index];
+                    let upvalue_ref =
+                        self.call_frame_stack[self.call_frame_count - 1].upvalues[upval_index];
                     let upvalue = unsafe {
                         &mut (*(upvalue_ref.ptr.as_ptr() as *mut SoxObjectInner<SoxUpvalue>))
                             .payload
                     };
                     upvalue.value = value;
-
                 }
                 OpCode::OpCloseUpvalue => {
-                    self.close_upvalues(self.value_stack_top - 1, i);
+                    self.close_upvalues(self.value_stack.len() - 1, i);
                     pop_stack!(self);
                 }
                 OpCode::OpClosure => {
@@ -471,9 +454,8 @@ impl VirtualMachine {
                             self.capture_upvalue(location, i)
                         } else {
                             // Use an upvalue from the enclosing function.
-                            self.call_frame_stack[self.call_frame_count - 1]
-                                .upvalues[index as usize]
-
+                            self.call_frame_stack[self.call_frame_count - 1].upvalues
+                                [index as usize]
                         };
                         closure.upvalues.push(upvalue);
                     }

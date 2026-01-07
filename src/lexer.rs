@@ -121,15 +121,17 @@ impl Lexer {
             let t = self.take_while(|ch| ch != '"');
             t
         };
-        self.advance();
+        if self.is_at_end() {
+            return Err(LexError::new("Unterminated string"));
+        }
+        self.advance(); // consume closing "
         if let Some((str_literal, _)) = value {
-            if self.is_at_end() && self.source.chars().last().unwrap() != '"' {
-                panic!("Unterminated string");
-            }
             let token = self.yield_literal_token(SoxString, Literal::String(&str_literal[1..]));
             Ok(token)
         } else {
-            Err(LexError::new(""))
+            // Empty string case
+            let token = self.yield_literal_token(SoxString, Literal::String(""));
+            Ok(token)
         }
     }
 
@@ -260,38 +262,68 @@ impl Iterator for Lexer {
                             }
                         } else if self.char_matches('*') {
                             let mut comment_ranges = vec![];
+                            let mut unterminated = false;
                             loop {
                                 let comment_text = self.take_while(|ch| ch != '*');
                                 match comment_text {
                                     Some((_, b)) => {
-                                        self.advance();
                                         comment_ranges.push(b);
+                                        if self.is_at_end() {
+                                            unterminated = true;
+                                            break;
+                                        }
+                                        self.advance();
                                         if self.peek() == Some('/') {
                                             self.advance();
                                             break;
                                         }
                                     }
                                     None => {
-                                        panic!("Unterminated comment");
+                                        // Check if we're at end without finding */
+                                        if self.is_at_end() {
+                                            unterminated = true;
+                                            break;
+                                        }
+                                        // Advance past the * and continue
+                                        self.advance();
+                                        if self.peek() == Some('/') {
+                                            self.advance();
+                                            break;
+                                        }
                                     }
                                 }
                             }
-                            let comments = self
-                                .source
-                                .get(
-                                    comment_ranges[0].start
-                                        ..comment_ranges[comment_ranges.len() - 1].end,
-                                )
-                                .unwrap_or("");
-                            let newline_count = comments.matches('\n').count();
-                            self.line = self.line + newline_count;
-                            println!("Found comment: {}", comments);
-                            Some(Token::new(
-                                TokenType::Comment,
-                                comments,
-                                Literal::String(comments),
-                                self.line,
-                            ))
+                            if unterminated {
+                                Some(Token::new(
+                                    TokenType::Error,
+                                    "Unterminated comment",
+                                    Literal::None,
+                                    self.line,
+                                ))
+                            } else if comment_ranges.is_empty() {
+                                Some(Token::new(
+                                    TokenType::Comment,
+                                    "",
+                                    Literal::String(""),
+                                    self.line,
+                                ))
+                            } else {
+                                let comments = self
+                                    .source
+                                    .get(
+                                        comment_ranges[0].start
+                                            ..comment_ranges[comment_ranges.len() - 1].end,
+                                    )
+                                    .unwrap_or("");
+                                let newline_count = comments.matches('\n').count();
+                                self.line = self.line + newline_count;
+                                Some(Token::new(
+                                    TokenType::Comment,
+                                    comments,
+                                    Literal::String(comments),
+                                    self.line,
+                                ))
+                            }
                         } else {
                             Some(self.yield_token(Slash))
                         }
@@ -362,13 +394,13 @@ class A {
             .filter(|token| !TO_IGNORE.contains(&token.token_type))
             .collect::<Vec<Token>>();
         assert_eq!(non_whitespace_tokens.len(), 12);
-        assert_eq!(
-            vec![
-                Token::new(TokenType::Class, "class".into(), Literal::None, 2),
-                Token::new(TokenType::Identifier, "A".into(), Literal::None, 2)
-            ],
-            non_whitespace_tokens[..2]
-        )
+        // Compare token properties, not IDs (IDs are auto-generated and change between runs)
+        assert_eq!(non_whitespace_tokens[0].token_type, TokenType::Class);
+        assert_eq!(non_whitespace_tokens[0].lexeme, "class");
+        assert_eq!(non_whitespace_tokens[0].line, 2);
+        assert_eq!(non_whitespace_tokens[1].token_type, TokenType::Identifier);
+        assert_eq!(non_whitespace_tokens[1].lexeme, "A");
+        assert_eq!(non_whitespace_tokens[1].line, 2);
     }
 
     #[test]

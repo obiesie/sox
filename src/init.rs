@@ -1,8 +1,8 @@
+use crate::builtins::chunk::Chunk;
 use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
 use crate::parser::Parser;
 use crate::resolver::Resolver;
-use crate::builtins::chunk::Chunk;
 use crate::vm::vm::VirtualMachine;
 use std::io::Write;
 use std::{fs, io};
@@ -15,9 +15,8 @@ pub fn run_file(file_path: String) {
 
 pub fn run_prompt() {
     let stdin = io::stdin();
-    let interpreter = Interpreter::new();
-    let resolver = Resolver::new();
     let mut vm = VirtualMachine::new();
+    let interpreter = Interpreter::new();
 
     println!("Welcome to sox");
 
@@ -31,17 +30,13 @@ pub fn run_prompt() {
         }
         let static_buffer = buffer.trim().to_string().leak();
         vm.interpret(&interpreter, static_buffer);
-        //interpret_with_vm(static_buffer, &mut interpreter);
-        //parse_and_interpret_with_resolver(static_buffer, &mut resolver, &mut interpreter);
     }
 }
 
 pub fn run(source: String) {
-    let var_resolver = Resolver::new();
     let mut interpreter = Interpreter::new();
     let static_source = source.leak();
     interpret_with_vm(static_source, &mut interpreter);
-    //parse_and_interpret_with_resolver(static_source, &mut var_resolver, &mut interpreter);
 }
 
 fn parse_and_interpret_with_resolver(
