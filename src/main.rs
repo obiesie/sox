@@ -1,10 +1,8 @@
 use std::env;
 use std::io::Write;
 
-use log::LevelFilter;
-
 fn main() {
-    env_logger::Builder::new()
+    env_logger::Builder::from_env(env_logger::Env::default().default_filter_or("debug"))
         .format(|buf, record| {
             writeln!(
                 buf,
@@ -16,7 +14,6 @@ fn main() {
                 record.args()
             )
         })
-        .filter(None, LevelFilter::Debug)
         .init();
 
     let args: Vec<String> = env::args().collect();

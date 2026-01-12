@@ -37,6 +37,16 @@ impl SoxFunction {
     pub fn new(name: String, arity: usize, upvalue_count: usize, chunk: SoxRef<Chunk>) -> Self {
         Self { name, arity, upvalue_count, upvalues:vec![], chunk }
     }
+
+    pub fn with_upvalues(&self, upvalues: Vec<SoxObjectRef>) -> Self {
+        Self {
+            name: self.name.clone(),
+            arity: self.arity,
+            upvalue_count: self.upvalue_count,
+            upvalues,
+            chunk: self.chunk.clone(),
+        }
+    }
 }
 
 impl Representable for SoxFunction {

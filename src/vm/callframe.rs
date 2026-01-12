@@ -1,13 +1,12 @@
-use crate::builtins::function::SoxFunction;
-use crate::object::core::{SoxObjectRef, SoxRef};
 use crate::builtins::chunk::Chunk;
+use crate::object::core::{SoxObjectRef, SoxRef};
 
 #[derive(Debug)]
 pub struct CallFrame {
     pub ip: usize,
     pub value_stack_base_addr: usize,
     pub co: Option<SoxRef<Chunk>>,
-    pub upvalues: Vec<SoxObjectRef>
+    pub upvalues: Vec<SoxObjectRef>,
 }
 
 impl CallFrame {

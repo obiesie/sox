@@ -1,15 +1,17 @@
 use crate::builtins::core::SoxClassImpl;
-use std::any::Any;
+use crate::builtins::core::{
+    SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
+};
 use crate::builtins::method::SoxMethod;
-use crate::interpreter::Interpreter;
-use crate::object::core::{Sox, SoxObjectRef, SoxRef};
-use std::fmt::Debug;
-use once_cell::sync::OnceCell;
-use macros::soxtype;
-use crate::builtins::core::{SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
+use crate::interpreter::Interpreter;
+use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::repr::Representable;
+use macros::soxtype;
+use once_cell::sync::OnceCell;
+use std::any::Any;
+use std::fmt::Debug;
 
 #[derive(Clone, Copy, PartialEq, Debug)]
 #[repr(u8)]
@@ -218,7 +220,7 @@ impl Chunk {
                 let constant_value = self.constants[constant].repr(i);
                 println!("{:<16} {}", "Constant", constant_value.unwrap());
                 offset
-            },
+            }
         }
     }
 
@@ -250,12 +252,11 @@ impl Chunk {
         self.constants.len() - 1
     }
 
-    fn constant_instruction(&self, opcode: &str, offset: usize) -> usize {
-        let constant_idx = self.code[offset + 1] as usize;
+    fn constant_instruction(&self, _opcode: &str, offset: usize) -> usize {
+        let _constant_idx = self.code[offset + 1] as usize;
         offset + 2
     }
 }
-
 
 impl SoxObjectPayload for Chunk {
     fn as_any(&self) -> &dyn Any {
@@ -304,7 +305,7 @@ impl ToSoxResult for Chunk {
 }
 
 impl Representable for Chunk {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(_zelf: &Sox<Self>, _i: &Interpreter) -> String {
         "".to_string()
     }
 }

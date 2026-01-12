@@ -61,10 +61,76 @@ impl TryFrom<u8> for Precedence {
     }
 }
 
+/// Compile-time error type that unifies syntax errors and semantic errors.
+#[derive(Debug)]
+pub enum CompileError {
+    Syntax(SyntaxError),
+    TooManyParameters { line: usize, token: String },
+    TooManyArguments { line: usize, token: String },
+    TooManyUpvalues { line: usize },
+    TooManyConstants { line: usize },
+    JumpTooLarge { line: usize },
+    LoopBodyTooLarge { line: usize },
+    InvalidAssignmentTarget { line: usize },
+    VariableAlreadyDeclared { name: String, line: usize },
+    VariableInOwnInitializer { name: String, line: usize },
+}
+
+impl std::fmt::Display for CompileError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            CompileError::Syntax(e) => write!(f, "[line {}] {}", e.line, e.msg),
+            CompileError::TooManyParameters { line, token } => write!(
+                f,
+                "[line {}] Error at '{}': Can't have more than 255 parameters.",
+                line, token
+            ),
+            CompileError::TooManyArguments { line, token } => write!(
+                f,
+                "[line {}] Error at '{}': Can't have more than 255 arguments.",
+                line, token
+            ),
+            CompileError::TooManyUpvalues { line } => write!(
+                f,
+                "[line {}] Error: Too many closure variables in function.",
+                line
+            ),
+            CompileError::TooManyConstants { line } => {
+                write!(f, "[line {}] Error: Too many constants in one chunk.", line)
+            }
+            CompileError::JumpTooLarge { line } => {
+                write!(f, "[line {}] Error: Too much code to jump over.", line)
+            }
+            CompileError::LoopBodyTooLarge { line } => {
+                write!(f, "[line {}] Error: Loop body too large.", line)
+            }
+            CompileError::InvalidAssignmentTarget { line: _ } => {
+                write!(f, "Error at '=': Invalid assignment target.")
+            }
+            CompileError::VariableAlreadyDeclared { name, line } => write!(
+                f,
+                "[line {}] Error: Already a variable named '{}' in this scope.",
+                line, name
+            ),
+            CompileError::VariableInOwnInitializer { name, line } => write!(
+                f,
+                "[line {}] Error: Can't read local variable '{}' in its own initializer.",
+                line, name
+            ),
+        }
+    }
+}
+
+impl From<SyntaxError> for CompileError {
+    fn from(e: SyntaxError) -> Self {
+        CompileError::Syntax(e)
+    }
+}
+
 #[derive(Clone, Copy, Default)]
 pub struct ParseRule {
-    pub infix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
-    pub prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+    pub infix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
+    pub prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
     pub precedence: Precedence,
 }
 
@@ -78,8 +144,8 @@ impl ParseRule {
     }
 
     pub const fn new(
-        prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
-        infix_fn: Option<fn(&mut Compiler, &Interpreter) -> ()>,
+        prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
+        infix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
         precedence: Precedence,
     ) -> Self {
         Self {
@@ -117,6 +183,8 @@ pub struct Parser {
     pub previous: Option<Token>,
     pub current: Option<Token>,
     tokens: Peekable<Lexer>,
+    pub had_error: bool,
+    pub panic_mode: bool,
 }
 
 impl Parser {
@@ -126,6 +194,8 @@ impl Parser {
             previous: None,
             current: None,
             tokens: lexer.peekable(),
+            had_error: false,
+            panic_mode: false,
         };
         parser
     }
@@ -151,13 +221,15 @@ impl Parser {
             self.advance();
             Ok(())
         } else {
-            let (previous_lexeme, line) = self
-                .previous
+            let (current_lexeme, line) = self
+                .current
                 .as_ref()
-                .map_or(("", 0), |t| (t.lexeme, t.line));
+                .map_or(("end", self.previous.as_ref().map_or(0, |t| t.line)), |t| {
+                    (t.lexeme, t.line)
+                });
 
             Err(SyntaxError {
-                msg: format!("Error after '{}': {}", previous_lexeme, message),
+                msg: format!("Error at '{}': {}", current_lexeme, message),
                 line,
             })
         }
@@ -177,6 +249,69 @@ impl Parser {
             }
         }
         false
+    }
+
+    /// Reports an error at the current token. Sets panic_mode to suppress cascading errors.
+    pub fn error_at_current(&mut self, message: &str) {
+        if self.panic_mode {
+            return; // Suppress cascading errors
+        }
+        self.panic_mode = true;
+        self.had_error = true;
+
+        let (lexeme, line) = self
+            .current
+            .as_ref()
+            .map_or(("<eof>", 0), |t| (t.lexeme, t.line));
+        eprintln!("[line {}] Error at '{}': {}", line, lexeme, message);
+    }
+
+    /// Reports an error at the previous token.
+    pub fn error(&mut self, message: &str) {
+        if self.panic_mode {
+            return;
+        }
+        self.panic_mode = true;
+        self.had_error = true;
+
+        let (lexeme, line) = self
+            .previous
+            .as_ref()
+            .map_or(("<eof>", 0), |t| (t.lexeme, t.line));
+        eprintln!("[line {}] Error at '{}': {}", line, lexeme, message);
+    }
+
+    /// Synchronize after an error - skip to the next statement boundary
+    pub fn synchronize(&mut self) {
+        self.panic_mode = false;
+
+        while self.current.is_some() {
+            // If we just passed a semicolon, we're at a statement boundary
+            if self
+                .previous
+                .as_ref()
+                .map_or(false, |t| t.token_type == TokenType::Semi)
+            {
+                return;
+            }
+
+            // Check if current token starts a new statement
+            if let Some(token) = &self.current {
+                match token.token_type {
+                    TokenType::Class
+                    | TokenType::Def
+                    | TokenType::Let
+                    | TokenType::For
+                    | TokenType::If
+                    | TokenType::While
+                    | TokenType::Print
+                    | TokenType::Return => return,
+                    _ => {}
+                }
+            }
+
+            self.advance();
+        }
     }
 }
 
@@ -339,12 +474,32 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, i: &Interpreter) -> SoxModule {
+    pub fn compile(&mut self, i: &Interpreter) -> Result<SoxModule, CompileError> {
         self.parser.advance();
         while !self.parser.match_token(vec![TokenType::EOF]) && self.parser.current.is_some() {
-            self.declaration(i);
+            // Catch errors and synchronize to continue parsing
+            if let Err(e) = self.declaration(i) {
+                // Print the error if not already in panic mode
+                if !self.parser.panic_mode {
+                    eprintln!("{}", e);
+                }
+                self.parser.had_error = true;
+                self.parser.synchronize();
+                // Skip any orphaned RightBrace tokens left from exited blocks
+                while self.parser.check(TokenType::RightBrace) {
+                    self.parser.advance();
+                }
+            }
         }
         self.end();
+
+        // If any error occurred, return an error
+        if self.parser.had_error {
+            return Err(CompileError::Syntax(SyntaxError {
+                msg: "Compilation failed due to previous errors.".to_string(),
+                line: 0,
+            }));
+        }
 
         let compiled_unit = SoxModule::new(
             self.name.clone(),
@@ -353,57 +508,66 @@ impl Compiler {
                 i.types.co_type.to_owned(),
             ),
         );
-        compiled_unit
+        Ok(compiled_unit)
     }
 
-    pub fn declaration(&mut self, i: &Interpreter) {
+    pub fn declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         if self.parser.match_token(vec![TokenType::Def]) {
-            self.function_declaration(i)
+            self.function_declaration(i)?;
         } else if self.parser.match_token(vec![TokenType::Let]) {
-            self.let_declaration(i);
+            self.let_declaration(i)?;
         } else {
-            self.statement(i);
+            self.statement(i)?;
         }
+        Ok(())
     }
 
-    pub fn function_declaration(&mut self, i: &Interpreter) {
-        let global = self.parse_variable(i, "Expect function name.");
+    pub fn function_declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        let global = self.parse_variable(i, "Expect function name.")?;
         self.mark_initialized();
+        if global.is_none() {
+            self.emit_instruction_bytes((OpCode::OpNone, None));
+        }
         let func_name = self.parser.previous.as_ref().unwrap().lexeme.to_string();
         let context = CompilerContext::default();
         self.context_stack.push(context);
         self.begin_scope(i);
         self.parser
-            .consume(TokenType::LeftParen, "Expect '(' after function name.")
-            .expect("TODO: panic message");
-        let mut arity = 0;
+            .consume(TokenType::LeftParen, "Expect '(' after function name.")?;
+        let mut arity: u16 = 0;
         if !self.parser.check(TokenType::RightParen) {
             loop {
                 arity += 1;
                 if arity > 255 {
-                    panic!("Too many parameters.");
+                    let line = self.parser.current.as_ref().map_or(0, |t| t.line);
+                    let token = self
+                        .parser
+                        .current
+                        .as_ref()
+                        .map_or(String::new(), |t| t.lexeme.to_string());
+                    return Err(CompileError::TooManyParameters { line, token });
                 }
-                let cnst = self.parse_variable(i, "Expect parameter name.");
+                let cnst = self.parse_variable(i, "Expect parameter name.")?;
                 self.define_variable(cnst, i);
                 if !self.parser.match_token(vec![TokenType::Comma]) {
                     break;
                 }
             }
         }
+        self.parser.consume(
+            TokenType::RightParen,
+            "Expect ')' after function parameters.",
+        )?;
         self.parser
-            .consume(TokenType::RightParen, "Expect ')' after parameters.")
-            .expect("TODO: panic message");
-        self.parser
-            .consume(TokenType::LeftBrace, "Expect '{' before function body.")
-            .expect("TODO: panic message");
-        self.block(i);
+            .consume(TokenType::LeftBrace, "Expect '{' before function body.")?;
+        self.block(i)?;
         self.end();
         let mut context = self.context_stack.pop().unwrap();
         context.chunk.name = func_name.to_string();
 
         let fo = SoxFunction::new(
             func_name.to_string(),
-            arity,
+            arity as usize,
             context.upvalue_count,
             SoxRef::new_ref(context.chunk, i.types.co_type.to_owned()),
         );
@@ -422,23 +586,30 @@ impl Compiler {
         } else {
             self.emit_instruction_bytes((OpCode::OpConstant, Some(constant as u8)));
         }
-        self.define_variable(global, i);
+        if global.is_none() {
+            let idx = (context!(self).locals.len() - 1) as u8;
+            self.emit_instruction_bytes((OpCode::OpSetLocal, Some(idx)));
+            self.emit_instruction_bytes((OpCode::OpPop, None));
+        } else {
+            self.define_variable(global, i);
+        }
+        Ok(())
     }
 
-    pub fn let_declaration(&mut self, i: &Interpreter) {
-        let global = self.parse_variable(i, "Expect variable name.");
+    pub fn let_declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        let global = self.parse_variable(i, "Expect variable name.")?;
         if self.parser.match_token(vec![TokenType::Equal]) {
-            self.expression(i);
+            self.expression(i)?;
         } else {
             self.emit_instruction_bytes((OpNone, None))
         }
         self.parser
-            .consume(TokenType::Semi, "Expect ';' after variable declaration.")
-            .expect("");
+            .consume(TokenType::Semi, "Expect ';' after variable declaration.")?;
         self.define_variable(global, i);
+        Ok(())
     }
 
-    pub fn define_variable(&mut self, global: Option<usize>, i: &Interpreter) {
+    pub fn define_variable(&mut self, global: Option<usize>, _i: &Interpreter) {
         if context!(self).scope_depth > 0 {
             self.mark_initialized();
             return;
@@ -452,14 +623,16 @@ impl Compiler {
         }
         context!(self).locals.last_mut().unwrap().depth = Some(context!(self).scope_depth);
     }
-    pub fn parse_variable(&mut self, i: &Interpreter, message: &str) -> Option<usize> {
-        self.parser
-            .consume(TokenType::Identifier, message)
-            .expect("Failed to parse variable. ");
+    pub fn parse_variable(
+        &mut self,
+        i: &Interpreter,
+        message: &str,
+    ) -> Result<Option<usize>, CompileError> {
+        self.parser.consume(TokenType::Identifier, message)?;
 
         if context!(self).scope_depth > 0 {
-            self.declare_variable(i);
-            return None;
+            self.declare_variable(i)?;
+            return Ok(None);
         }
         info!(
             "Parsing variable: {}",
@@ -467,26 +640,28 @@ impl Compiler {
         );
         let global =
             self.identifier_constant(self.parser.previous.as_ref().unwrap().lexeme.to_string(), i);
-        Some(global)
+        Ok(Some(global))
     }
 
-    pub fn declare_variable(&mut self, i: &Interpreter) {
+    pub fn declare_variable(&mut self, _i: &Interpreter) -> Result<(), CompileError> {
         if context!(self).scope_depth == 0 {
-            return;
+            return Ok(());
         }
         let name = self.parser.previous.as_ref().unwrap().lexeme.to_string();
         info!("Declaring variable: {name}");
         let scope_depth = context!(self).scope_depth;
+        let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
 
         for local in context!(self).locals.iter().rev() {
             if local.depth.is_some() && (local.depth.unwrap() < scope_depth) {
                 break;
             }
             if local.name == name {
-                panic!("Variable with this name already declared in this scope.");
+                return Err(CompileError::VariableAlreadyDeclared { name, line });
             }
         }
-        self.add_local(name)
+        self.add_local(name);
+        Ok(())
     }
 
     pub fn add_local(&mut self, name: String) {
@@ -503,53 +678,61 @@ impl Compiler {
         let constant = self.make_constant(constant_value).unwrap();
         constant
     }
-    pub fn statement(&mut self, i: &Interpreter) {
-        if let Some(token) = self.parser.current.as_ref() {
+    pub fn statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        if let Some(_token) = self.parser.current.as_ref() {
             if self.parser.match_token(vec![TokenType::Print]) {
-                self.print_statement(i);
+                self.print_statement(i)?;
             } else if self.parser.match_token(vec![TokenType::For]) {
-                self.for_statement(i)
+                self.for_statement(i)?;
             } else if self.parser.match_token(vec![TokenType::If]) {
-                self.if_statement(i);
+                self.if_statement(i)?;
             } else if self.parser.match_token(vec![TokenType::Return]) {
-                self.return_statement(i);
+                self.return_statement(i)?;
             } else if self.parser.match_token(vec![TokenType::While]) {
-                self.while_statement(i);
+                self.while_statement(i)?;
             } else if self.parser.match_token(vec![TokenType::LeftBrace]) {
                 self.begin_scope(i);
-                self.block(i);
+                self.block(i)?;
                 self.end_scope(i);
             } else {
-                self.expression_statement(i);
+                self.expression_statement(i)?;
             }
         }
+        Ok(())
     }
 
-    pub fn return_statement(&mut self, i: &Interpreter) {
+    pub fn return_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         if self.parser.match_token(vec![TokenType::Semi]) {
             self.emit_instruction_bytes((OpNone, None)); // Push None for bare return
             self.emit_instruction_bytes((OpCode::OpReturn, None));
         } else {
-            self.expression(i);
+            self.expression(i)?;
             self.parser
-                .consume(TokenType::Semi, "Expect ';' after return value.")
-                .expect("");
+                .consume(TokenType::Semi, "Expect ';' after return value.")?;
             self.emit_instruction_bytes((OpCode::OpReturn, None));
         }
+        Ok(())
     }
-    pub fn call(&mut self, i: &Interpreter) {
-        let arg_count = self.argument_list(i);
-        self.emit_instruction_bytes((OpCode::OpCall, Option::from(arg_count)))
+    pub fn call(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        let arg_count = self.argument_list(i)?;
+        self.emit_instruction_bytes((OpCode::OpCall, Option::from(arg_count)));
+        Ok(())
     }
 
-    pub fn argument_list(&mut self, i: &Interpreter) -> u8 {
-        let mut argcount = 0;
+    pub fn argument_list(&mut self, i: &Interpreter) -> Result<u8, CompileError> {
+        let mut argcount: u16 = 0;
         if !self.parser.check(TokenType::RightParen) {
             loop {
-                self.expression(i);
+                self.expression(i)?;
                 argcount += 1;
                 if argcount > 255 {
-                    panic!("Too many arguments.");
+                    let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
+                    let token = self
+                        .parser
+                        .previous
+                        .as_ref()
+                        .map_or(String::new(), |t| t.lexeme.to_string());
+                    return Err(CompileError::TooManyArguments { line, token });
                 }
                 if !self.parser.match_token(vec![TokenType::Comma]) {
                     break;
@@ -557,52 +740,49 @@ impl Compiler {
             }
         }
         self.parser
-            .consume(TokenType::RightParen, "Expect ')' after arguments.")
-            .expect("TODO: panic message");
-        return argcount;
+            .consume(TokenType::RightParen, "Expect ')' after arguments.")?;
+        Ok(argcount as u8)
     }
 
-    pub fn and_(&mut self, i: &Interpreter) {
+    pub fn and_(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let end_jump = self.emit_jump(OpJumpIfFalse);
         self.emit_instruction_bytes((OpPop, None));
 
-        self.parse_with_precedence(Precedence::And, i)
-            .expect("TODO: panic message");
-        self.patch_jump(end_jump);
+        self.parse_with_precedence(Precedence::And, i)?;
+        self.patch_jump(end_jump)?;
+        Ok(())
     }
 
-    pub fn or_(&mut self, i: &Interpreter) {
+    pub fn or_(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let else_jump = self.emit_jump(OpJumpIfFalse);
         let end_jump = self.emit_jump(OpJump);
 
-        self.patch_jump(else_jump);
+        self.patch_jump(else_jump)?;
         self.emit_instruction_bytes((OpPop, None));
 
-        self.parse_with_precedence(Precedence::Or, i)
-            .expect("TODO: panic message");
-        self.patch_jump(end_jump);
+        self.parse_with_precedence(Precedence::Or, i)?;
+        self.patch_jump(end_jump)?;
+        Ok(())
     }
 
-    pub fn for_statement(&mut self, i: &Interpreter) {
+    pub fn for_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         self.begin_scope(i);
 
         self.parser
-            .consume(TokenType::LeftParen, "Expect '(' after 'for'")
-            .expect("TODO: panic message");
+            .consume(TokenType::LeftParen, "Expect '(' after 'for'")?;
         if self.parser.match_token(vec![TokenType::Semi]) {
         } else if self.parser.match_token(vec![TokenType::Let]) {
-            self.let_declaration(i);
+            self.let_declaration(i)?;
         } else {
-            self.expression_statement(i);
+            self.expression_statement(i)?;
         }
         let mut loop_start = context!(self).chunk.code.len();
 
         let mut exit_jump = None;
         if !self.parser.match_token(vec![TokenType::Semi]) {
-            self.expression(i);
+            self.expression(i)?;
             self.parser
-                .consume(TokenType::Semi, "Expect ';' after variable declaration.")
-                .expect("");
+                .consume(TokenType::Semi, "Expect ';' after variable declaration.")?;
 
             exit_jump = Some(self.emit_jump(OpJumpIfFalse));
             self.emit_instruction_bytes((OpPop, None));
@@ -610,79 +790,79 @@ impl Compiler {
         if !self.parser.match_token(vec![TokenType::RightParen]) {
             let body_jump = self.emit_jump(OpJump);
             let increment_start = context!(self).chunk.code.len();
-            self.expression(i);
+            self.expression(i)?;
             self.emit_instruction_bytes((OpPop, None));
             self.parser
-                .consume(TokenType::RightParen, "Expect ')' after for clauses")
-                .expect("");
+                .consume(TokenType::RightParen, "Expect ')' after for clauses")?;
 
-            self.emit_loop(loop_start);
+            self.emit_loop(loop_start)?;
             loop_start = increment_start;
-            self.patch_jump(body_jump);
+            self.patch_jump(body_jump)?;
         }
 
-        self.statement(i);
-        self.emit_loop(loop_start);
+        self.statement(i)?;
+        self.emit_loop(loop_start)?;
         if let Some(jump) = exit_jump {
-            self.patch_jump(jump);
+            self.patch_jump(jump)?;
             self.emit_instruction_bytes((OpPop, None));
         }
-        self.end_scope(i)
+        self.end_scope(i);
+        Ok(())
     }
 
-    pub fn while_statement(&mut self, i: &Interpreter) {
+    pub fn while_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let loop_start = context!(self).chunk.code.len();
         self.parser
-            .consume(TokenType::LeftParen, "Expect '(' after 'while'.")
-            .expect("TODO: panic message");
-        self.expression(i);
+            .consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
+        self.expression(i)?;
         self.parser
-            .consume(TokenType::RightParen, "Expect ')' after 'while'.")
-            .expect("TODO: panic message");
+            .consume(TokenType::RightParen, "Expect ')' after 'while'.")?;
 
         let exit_jump = self.emit_jump(OpJumpIfFalse);
         self.emit_instruction_bytes((OpPop, None));
-        self.statement(i);
+        self.statement(i)?;
 
-        self.emit_loop(loop_start);
+        self.emit_loop(loop_start)?;
 
-        self.patch_jump(exit_jump);
+        self.patch_jump(exit_jump)?;
         self.emit_instruction_bytes((OpPop, None));
+        Ok(())
     }
 
-    pub fn if_statement(&mut self, i: &Interpreter) {
+    pub fn if_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         self.parser
-            .consume(TokenType::LeftParen, "Expect '(' after 'if'.")
-            .expect("TODO: panic message");
-        self.expression(i);
+            .consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
+        self.expression(i)?;
         self.parser
-            .consume(TokenType::RightParen, "Expect '(' after 'if'.")
-            .expect("TODO: panic message");
+            .consume(TokenType::RightParen, "Expect '(' after 'if'.")?;
         let then_jump = self.emit_jump(OpJumpIfFalse);
 
         self.emit_instruction_bytes((OpPop, None));
-        self.statement(i);
+        self.statement(i)?;
         let jump = self.emit_jump(OpJump);
-        self.patch_jump(then_jump);
+        self.patch_jump(then_jump)?;
 
         self.emit_instruction_bytes((OpPop, None));
         if self.parser.match_token(vec![TokenType::Else]) {
-            self.statement(i);
+            self.statement(i)?;
         }
 
-        self.patch_jump(jump);
+        self.patch_jump(jump)?;
+        Ok(())
     }
 
-    fn emit_loop(&mut self, loop_start: usize) {
+    fn emit_loop(&mut self, loop_start: usize) -> Result<(), CompileError> {
         self.emit_instruction_bytes((OpCode::OpLoop, None));
 
         let offset = context!(self).chunk.code.len() - loop_start + 2;
         if offset as i16 > i16::MAX {
-            panic!("loop body too large.");
+            let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
+            return Err(CompileError::LoopBodyTooLarge { line });
         }
 
         self.emit_bytes(((offset >> 8) & 0xff) as u8);
         self.emit_bytes((offset & 0xff) as u8);
+        Ok(())
     }
     fn emit_jump(&mut self, op_code: OpCode) -> usize {
         self.emit_instruction_bytes((op_code, None));
@@ -691,22 +871,24 @@ impl Compiler {
         return context!(self).chunk.code.len() - 2;
     }
 
-    fn patch_jump(&mut self, offset: usize) {
+    fn patch_jump(&mut self, offset: usize) -> Result<(), CompileError> {
         let code_len = context!(self).chunk.code.len();
         let jump = code_len - offset - 2;
 
         if jump as i16 > i16::MAX {
-            panic!("Too much code to jump over!")
+            let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
+            return Err(CompileError::JumpTooLarge { line });
         }
         context!(self).chunk.code[offset] = ((jump >> 8) & 0xff) as u8;
         context!(self).chunk.code[offset + 1] = (jump & 0xff) as u8;
+        Ok(())
     }
 
-    pub fn begin_scope(&mut self, i: &Interpreter) {
+    pub fn begin_scope(&mut self, _i: &Interpreter) {
         context!(self).scope_depth += 1;
     }
 
-    pub fn end_scope(&mut self, interpreter: &Interpreter) {
+    pub fn end_scope(&mut self, _interpreter: &Interpreter) {
         context!(self).scope_depth -= 1;
         let mut local_count = context!(self).locals.len();
         while local_count > 0
@@ -722,29 +904,29 @@ impl Compiler {
         }
     }
 
-    pub fn block(&mut self, i: &Interpreter) {
+    pub fn block(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         while !self.parser.check(TokenType::RightBrace) && !self.parser.check(TokenType::EOF) {
-            self.declaration(i);
+            self.declaration(i)?;
         }
         self.parser
-            .consume(TokenType::RightBrace, "Expect '}' after block.")
-            .expect("TODO: panic message");
+            .consume(TokenType::RightBrace, "Expect '}' after block.")?;
+        Ok(())
     }
 
-    pub fn print_statement(&mut self, i: &Interpreter) {
-        self.expression(i);
+    pub fn print_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        self.expression(i)?;
         self.parser
-            .consume(TokenType::Semi, "Expect ';' after value.")
-            .expect("TODO: panic message");
+            .consume(TokenType::Semi, "Expect ';' after value.")?;
         self.emit_instruction_bytes((OpCode::OpPrint, None));
+        Ok(())
     }
 
-    pub fn expression_statement(&mut self, i: &Interpreter) {
-        self.expression(i);
+    pub fn expression_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        self.expression(i)?;
         self.parser
-            .consume(TokenType::Semi, "Expect ';' after expression.")
-            .expect("TODO: panic message");
+            .consume(TokenType::Semi, "Expect ';' after expression.")?;
         self.emit_instruction_bytes((OpCode::OpPop, None));
+        Ok(())
     }
     pub fn end(&mut self) {
         self.emit_return()
@@ -787,45 +969,39 @@ impl Compiler {
             .write_chunk(data, self.parser.previous.as_ref().unwrap().line);
     }
 
-    pub fn expression(&mut self, i: &Interpreter) {
+    pub fn expression(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         self.parse_with_precedence(Precedence::Assignment, i)
-            .expect("TODO: panic message");
     }
 
-    pub fn grouping(&mut self, i: &Interpreter) {
-        self.expression(i);
+    pub fn grouping(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+        self.expression(i)?;
         self.parser
-            .consume(TokenType::RightParen, "Expect ')' after expression.")
-            .expect("TODO: panic message");
+            .consume(TokenType::RightParen, "Expect ')' after expression.")?;
+        Ok(())
     }
 
-    pub fn unary(&mut self, i: &Interpreter) {
+    pub fn unary(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let operator_type = self.parser.previous.as_ref().unwrap().token_type;
-        self.parse_with_precedence(Precedence::Unary, i)
-            .expect("TODO: panic message");
+        self.parse_with_precedence(Precedence::Unary, i)?;
 
         match operator_type {
             TokenType::Bang => {
                 self.emit_instruction_bytes((OpCode::OpNot, None));
-                return;
             }
             TokenType::Minus => {
                 self.emit_instruction_bytes((OpCode::OpNegate, None));
-                return;
             }
-
-            _ => {
-                return;
-            }
+            _ => {}
         }
+        Ok(())
     }
 
-    pub fn binary(&mut self, i: &Interpreter) {
+    pub fn binary(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         if let Some(token) = self.parser.previous.as_ref() {
             let operator_type = token.token_type;
             let rule = self.get_rule(operator_type);
             let new_precedence = Precedence::try_from(rule.precedence as u8 + 1).unwrap();
-            self.parse_with_precedence(new_precedence, i);
+            self.parse_with_precedence(new_precedence, i)?;
             match operator_type {
                 TokenType::Plus => {
                     self.emit_instruction_bytes((OpCode::OpAdd, None));
@@ -842,14 +1018,31 @@ impl Compiler {
                 TokenType::Less => {
                     self.emit_instruction_bytes((OpCode::OpLess, None));
                 }
-                _ => {
-                    return;
+                TokenType::Greater => {
+                    self.emit_instruction_bytes((OpCode::OpGreater, None));
                 }
+                TokenType::EqualEqual => {
+                    self.emit_instruction_bytes((OpCode::OpEqual, None));
+                }
+                TokenType::BangEqual => {
+                    self.emit_instruction_bytes((OpCode::OpEqual, None));
+                    self.emit_instruction_bytes((OpCode::OpNot, None));
+                }
+                TokenType::GreaterEqual => {
+                    self.emit_instruction_bytes((OpCode::OpLess, None));
+                    self.emit_instruction_bytes((OpCode::OpNot, None));
+                }
+                TokenType::LessEqual => {
+                    self.emit_instruction_bytes((OpCode::OpGreater, None));
+                    self.emit_instruction_bytes((OpCode::OpNot, None));
+                }
+                _ => {}
             }
         }
+        Ok(())
     }
 
-    pub fn literal(&mut self, i: &Interpreter) {
+    pub fn literal(&mut self, _i: &Interpreter) -> Result<(), CompileError> {
         let value = self.parser.previous.as_ref().unwrap();
         match value.token_type {
             TokenType::False => {
@@ -860,6 +1053,7 @@ impl Compiler {
 
             _ => {}
         }
+        Ok(())
     }
     pub fn get_rule(&self, token_type: TokenType) -> &ParseRule {
         Self::PARSE_RULES[token_type as usize].borrow()
@@ -869,19 +1063,28 @@ impl Compiler {
         &mut self,
         precedence: Precedence,
         i: &Interpreter,
-    ) -> Result<(), ()> {
+    ) -> Result<(), CompileError> {
         self.parser.advance();
         let previous_token_type = self.parser.previous.as_ref().map(|token| token.token_type);
         if let Some(previous_token_type) = previous_token_type {
             let prefix_rule = self.get_rule(previous_token_type).prefix_fn;
             if let Some(prefix_rule_fn) = prefix_rule {
                 context!(self).can_assign = precedence <= Precedence::Assignment;
-                prefix_rule_fn(self, i);
+                prefix_rule_fn(self, i)?;
             } else {
-                return Err(());
+                let token = self.parser.previous.as_ref();
+                let line = token.map_or(0, |t| t.line);
+                let lexeme = token.map_or("<eof>", |t| t.lexeme);
+                return Err(CompileError::Syntax(SyntaxError {
+                    msg: format!("Error at '{}': Expect an expression.", lexeme),
+                    line,
+                }));
             }
         } else {
-            return Err(());
+            return Err(CompileError::Syntax(SyntaxError {
+                msg: "Unexpected end of input.".to_string(),
+                line: 0,
+            }));
         }
         while self.parser.current.is_some()
             && precedence
@@ -894,32 +1097,38 @@ impl Compiler {
                 .get_rule(self.parser.previous.as_ref().unwrap().token_type)
                 .infix_fn;
             if let Some(infix_rule_fn) = infix_rule {
-                infix_rule_fn(self, i)
+                infix_rule_fn(self, i)?;
             }
         }
-        if context!(self).can_assign && self.parser.match_token(vec![TokenType::Equal]) {
-            panic!("Invalid assignment target.");
+        // If we see '=' but can't assign, it's an invalid assignment target
+        if self.parser.check(TokenType::Equal) {
+            self.parser.advance(); // consume the '='
+            let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
+            return Err(CompileError::InvalidAssignmentTarget { line });
         }
         Ok(())
     }
 
-    pub fn number(&mut self, i: &Interpreter) {
+    pub fn number(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let val = i64::from_str(self.parser.previous.as_ref().unwrap().lexeme).unwrap();
         let obj_payload = SoxInt { value: val };
         let obj = SoxRef::new_ref(obj_payload, i.types.int_type.to_owned());
         self.emit_constant(SoxObjectRef::from(obj));
+        Ok(())
     }
 
-    pub fn string(&mut self, i: &Interpreter) {
+    pub fn string(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         let obj_payload = SoxString {
             value: self.parser.previous.as_ref().unwrap().lexeme.to_string(),
         };
         let obj = SoxRef::new_ref(obj_payload, i.types.str_type.to_owned());
         self.emit_constant(SoxObjectRef::from(obj));
+        Ok(())
     }
 
-    pub fn variable(&mut self, i: &Interpreter) {
+    pub fn variable(&mut self, i: &Interpreter) -> Result<(), CompileError> {
         self.named_variable(self.parser.previous.as_ref().unwrap().lexeme, i);
+        Ok(())
     }
 
     pub fn named_variable(&mut self, name: &str, i: &Interpreter) {
@@ -940,8 +1149,8 @@ impl Compiler {
                 set_op = OpSetGlobal;
             }
         }
-        if self.parser.match_token(vec![TokenType::Equal]) && context!(self).can_assign {
-            self.expression(i);
+        if context!(self).can_assign && self.parser.match_token(vec![TokenType::Equal]) {
+            let _ = self.expression(i);
             self.emit_instruction_bytes((set_op, arg))
         } else {
             self.emit_instruction_bytes((get_op, arg))
@@ -993,8 +1202,7 @@ impl Compiler {
         Some((context.upvalue_count - 1) as u8)
     }
 
-    // TODO modify to take a pointer to compiler context to start search for local variable
-    pub fn resolve_local(&mut self, name: &str, i: &Interpreter, ctx_index: usize) -> Option<u8> {
+    pub fn resolve_local(&mut self, name: &str, _i: &Interpreter, ctx_index: usize) -> Option<u8> {
         let context = &self.context_stack[ctx_index];
         for (i, local) in context.locals.iter().enumerate().rev() {
             if local.name.as_str() == name {

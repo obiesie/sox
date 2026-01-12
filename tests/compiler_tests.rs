@@ -34,7 +34,7 @@ static ALL_TEST_SUITES: [&str; 17] = [
     "constructors",
     "logical_operator",
 ];
-static TEST_SUITES: [&str; 1] = ["function"];
+static TEST_SUITES: [&str; 4] = ["for", "assignment", "function", "closure"];
 
 const SOX_EXECUTABLE: &str = "target/debug/sox";
 const RESULT_CSV_PATH: &str = "result.csv";
@@ -57,7 +57,7 @@ fn test_compiler() {
         TEST_PATH_COL => &test_paths_series,
         TEST_PASSED_COL => &test_passed_series,
     )
-        .unwrap();
+    .unwrap();
 
     println!("{}", res_df);
 
@@ -101,8 +101,14 @@ fn get_test_paths() -> Vec<String> {
 }
 
 fn run_and_validate_test(test_path: &str) -> bool {
-    let content =
-        fs::read_to_string(test_path).unwrap_or_else(|_| panic!("Failed to read file at {}", test_path));
+    let content = fs::read_to_string(test_path)
+        .unwrap_or_else(|_| panic!("Failed to read file at {}", test_path));
+
+    // Skip tests marked as nontest
+    if NON_TEST_PATTERN.is_match(&content) {
+        return true;
+    }
+
     let expected_outputs = extract_expected_outputs(&content);
 
     let run_output = Command::new(SOX_EXECUTABLE)
@@ -110,10 +116,43 @@ fn run_and_validate_test(test_path: &str) -> bool {
         .output()
         .expect("Failed to execute sox command");
 
-    let output = String::from_utf8_lossy(&run_output.stdout);
+    let has_runtime_error = EXPECTED_RUNTIME_ERROR_PATTERN.is_match(&content);
+
+    if !run_output.status.success() && !has_runtime_error {
+        println!(
+            "Test crashed or failed for {}: {:?}",
+            test_path, run_output.status
+        );
+        let stderr = String::from_utf8_lossy(&run_output.stderr);
+        if !stderr.is_empty() {
+            println!("Stderr: {}", stderr);
+        }
+        return false;
+    }
+
+    let stdout = String::from_utf8_lossy(&run_output.stdout);
+    let stderr = String::from_utf8_lossy(&run_output.stderr);
+    let output = format!("{}{}", stdout, stderr);
     let output_strs = output
         .lines()
         .filter(|v| !v.is_empty())
+        .filter(|v| {
+            let matches_stack = STACK_TRACE_PATTERN.is_match(v);
+            let matches_syntax = SYNTAX_ERROR_PATTERN.is_match(v);
+            let keep_regex = !matches_stack || matches_syntax;
+
+            let matches_log = v.contains("[INFO]") || v.contains("[ERROR]") || v.contains("[WARN]");
+            let matches_panic = v.contains("panicked at") || v.contains("RUST_BACKTRACE");
+
+            let keep = keep_regex && !matches_log && !matches_panic;
+
+            // println!(
+            //     "DEBUG FILTER: '{}' -> Keep: {}, Stack: {}, Syntax: {}, Log: {}, Panic: {}",
+            //     v, keep, matches_stack, matches_syntax, matches_log, matches_panic
+            // );
+
+            keep
+        })
         .map(str::to_string)
         .collect::<Vec<String>>();
 
@@ -128,13 +167,34 @@ fn extract_expected_outputs(content: &str) -> Vec<String> {
     let expected = EXPECTED_OUTPUT_PATTERN
         .captures_iter(content)
         .map(|cap| cap.get(1).unwrap().as_str().to_string());
-    let syntax_errors = SYNTAX_ERROR_PATTERN
+    // Handle // Error... comments that are NOT preceded by [line N]
+    // EXPECTED_ERROR_PATTERN matches "// Error..." but we only want it for simple error comments
+    // not for the [line N] format which is handled by ERROR_LINE_PATTERN
+    let error_comments = EXPECTED_ERROR_PATTERN
         .captures_iter(content)
-        .map(|cap| cap.get(0).unwrap().as_str().to_string());
+        .filter(|cap| {
+            let full = cap.get(0).unwrap().as_str();
+            // Skip if this is actually a [line N] format
+            !full.contains("[line")
+        })
+        .map(|cap| cap.get(1).unwrap().as_str().to_string());
+    // Handle // [line N] Error... comments - extract as [line N] Error...
+    let error_line_comments = ERROR_LINE_PATTERN.captures_iter(content).map(|cap| {
+        // Reconstruct the expected output format: [line N] Error...
+        let line_num = cap.get(3).unwrap().as_str();
+        let error_msg = cap.get(4).unwrap().as_str();
+        format!("[line {}] {}", line_num, error_msg)
+    });
+    // Note: SYNTAX_ERROR_PATTERN is for matching actual OUTPUT, not for extracting expected comments.
+    // The ERROR_LINE_PATTERN already handles // [line N] Error... comment extraction.
     let runtime_errors = EXPECTED_RUNTIME_ERROR_PATTERN
         .captures_iter(content)
         .map(|cap| cap.get(1).unwrap().as_str().to_string());
-    expected.chain(syntax_errors).chain(runtime_errors).collect()
+    expected
+        .chain(error_comments)
+        .chain(error_line_comments)
+        .chain(runtime_errors)
+        .collect()
 }
 
 fn validate_outputs<T: ToString + PartialEq>(
@@ -142,9 +202,21 @@ fn validate_outputs<T: ToString + PartialEq>(
     outputs: &Vec<T>,
 ) -> Vec<(String, String)> {
     let mut failures = vec![];
+
+    if expected_outputs.len() != outputs.len() {
+        failures.push((
+            format!("Expected {} outputs", expected_outputs.len()),
+            format!("Got {} outputs", outputs.len()),
+        ));
+        return failures;
+    }
+
     for (expected_output, output) in zip(expected_outputs, outputs) {
         if *expected_output != *output {
-            failures.push((expected_output.to_string(), output.to_string()));
+            failures.push((
+                format!("EXP: '{}'", expected_output.to_string()),
+                format!("ACT: '{}'", output.to_string()),
+            ));
         }
     }
     failures

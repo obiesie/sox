@@ -84,7 +84,7 @@ impl Comparable for SoxNone {
 }
 
 impl Representable for SoxNone {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(_zelf: &Sox<Self>, _i: &Interpreter) -> String {
         "None".to_string()
     }
 }

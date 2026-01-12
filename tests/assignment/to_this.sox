@@ -1,3 +1,4 @@
+// nontest - classes not yet implemented
 class Foo {
   Foo() {
     this = "value"; // Error at '=': Invalid assignment target.

@@ -1,6 +1,6 @@
 use crate::builtins::bool::SoxBool;
 use crate::builtins::chunk::OpCode;
-use crate::builtins::closure::{SoxClosure, SoxUpvalue};
+use crate::builtins::closure::SoxUpvalue;
 use crate::builtins::exceptions::RuntimeError;
 use crate::builtins::function::SoxFunction;
 use crate::builtins::string::SoxString;
@@ -77,6 +77,7 @@ macro_rules! push_stack {
         $a.value_stack.push($b);
     }};
 }
+#[derive(PartialEq)]
 pub enum InterpretResult {
     InterpretOk,
     InterpretCompileError,
@@ -110,42 +111,6 @@ impl VirtualMachine {
         }
     }
 
-    fn current_frame_mut(&mut self) -> &mut CallFrame {
-        &mut self.call_frame_stack[self.call_frame_count - 1]
-    }
-
-    fn read_instr(&mut self) -> u8 {
-        let frame = self.current_frame_mut();
-        let instruction = frame.co.as_ref().unwrap().code[frame.ip];
-        frame.ip += 1;
-        instruction
-    }
-
-    fn read_constant(&mut self) -> SoxObjectRef {
-        let const_idx = self.read_instr() as usize;
-        self.current_frame_mut().co.as_ref().unwrap().constants[const_idx]
-    }
-
-    fn read_short(&mut self) -> u16 {
-        let frame = self.current_frame_mut();
-        frame.ip += 2;
-        let byte1 = frame.co.as_ref().unwrap().code[frame.ip - 2];
-        let byte2 = frame.co.as_ref().unwrap().code[frame.ip - 1];
-        (byte1 as u16) << 8 | byte2 as u16
-    }
-
-    fn push_stack(&mut self, value: SoxObjectRef) {
-        self.value_stack.push(value);
-    }
-
-    fn pop_stack(&mut self) -> SoxObjectRef {
-        self.value_stack.pop().expect("VM Stack underflow")
-    }
-
-    fn peek_stack(&self, distance: usize) -> SoxObjectRef {
-        self.value_stack[self.value_stack.len() - 1 - distance]
-    }
-
     fn reset_stack(&mut self) {
         self.value_stack.clear();
         self.call_frame_count = 0;
@@ -171,14 +136,17 @@ impl VirtualMachine {
 
     pub fn interpret(&mut self, i: &Interpreter, source: &'static str) {
         let parser = Parser::new(source);
-        // Compile the source into a module, reusing the current chunk by moving it out (as before).
         let mut compiler = Compiler::new("__main__".to_string(), parser);
-        let compiled_module = compiler.compile(i);
+        let compiled_module = match compiler.compile(i) {
+            Ok(module) => module,
+            Err(err) => {
+                println!("{}", err);
+                return;
+            }
+        };
 
-        // Update VM's active chunk from the compiled module; clone once and reuse (Introduce variable, reduce duplication).
         let compiled_chunk = compiled_module.co.clone();
 
-        // Push the compiled module object onto the VM stack (Introduce variable for clarity).
         let module_obj = SoxObjectRef::from(SoxRef::new_ref(
             compiled_module,
             i.types.mod_type.to_owned(),
@@ -186,19 +154,16 @@ impl VirtualMachine {
 
         push_stack!(self, module_obj, i);
 
-        // Prepare and initialize a new call frame in an orderly manner (Introduce variable, organize setup).
         let frame_index = self.call_frame_count;
         let frame = &mut self.call_frame_stack[frame_index];
         self.call_frame_count += 1;
         frame.ip = 0;
         frame.co = Option::from(compiled_chunk);
-        frame.value_stack_base_addr = self.value_stack.len();
+        frame.value_stack_base_addr = self.value_stack.len() - 1;
 
-        // Execute the VM loop for this frame.
-        self.run(i);
+        let result = self.run(i);
 
-        // If there is a result on the stack, print its representation safely.
-        if !self.value_stack.is_empty() {
+        if result == InterpretResult::InterpretOk && !self.value_stack.is_empty() {
             let value = pop_stack!(self);
             if let Ok(repr_str) = value.repr(i) {
                 println!("{repr_str}");
@@ -211,7 +176,7 @@ impl VirtualMachine {
         func: &SoxFunction,
         arg_count: usize,
         upvalues: Vec<SoxObjectRef>,
-        i: &Interpreter,
+        _i: &Interpreter,
     ) -> Result<bool, RuntimeError> {
         if arg_count != func.arity {
             return Err(RuntimeError {
@@ -240,18 +205,17 @@ impl VirtualMachine {
     }
 
     pub fn call_value(&mut self, callee: SoxObjectRef, arg_count: usize, i: &Interpreter) -> bool {
-        let result = if let Some(closure) = callee.payload::<SoxClosure>() {
-            let func = closure.func.payload::<SoxFunction>().unwrap();
-            self.call(func, arg_count, closure.upvalues.clone(), i)
-        } else if let Some(func) = callee.payload::<SoxFunction>() {
-            self.call(func, arg_count, Vec::new(), i)
+        let result = if let Some(func) = callee.payload::<SoxFunction>() {
+            let upvalues = func.upvalues.clone();
+            self.call(func, arg_count, upvalues, i)
         } else {
-            self.runtime_error("Can only call functions and classes.");
+            let type_name = callee.typ().name.clone().unwrap_or("unknown".to_string());
+            self.runtime_error(&format!("{} object is not callable.", type_name));
             return false;
         };
 
         match result {
-            Ok(_) => true,
+            Ok(success) => success,
             Err(e) => {
                 self.runtime_error(&e.msg);
                 false
@@ -282,12 +246,14 @@ impl VirtualMachine {
                         .call_frame_stack
                         .get_mut(self.call_frame_count - 1)
                         .unwrap();
+                    let frame_base = frame.value_stack_base_addr;
                     self.call_frame_count -= 1;
                     if self.call_frame_count == 0 {
                         pop_stack!(self);
                         return InterpretResult::InterpretOk;
                     }
-                    self.value_stack.truncate(frame.value_stack_base_addr);
+                    self.close_upvalues(frame_base, i);
+                    self.value_stack.truncate(frame_base);
                     push_stack!(self, val, i);
                     continue;
                 }
@@ -367,7 +333,8 @@ impl VirtualMachine {
                     if let Some(val) = self.globals.get(&name.value) {
                         push_stack!(self, val.clone(), i);
                     } else {
-                        panic!("Global variable {} not found", name.value);
+                        eprintln!("NameError: name '{}' is not defined.", name.value);
+                        return InterpretResult::InterpretRuntimeError;
                     }
                 }
                 OpCode::OpSetGlobal => {
@@ -377,7 +344,8 @@ impl VirtualMachine {
                     if let Some(val) = self.globals.get_mut(&name.value) {
                         *val = peek_stack!(self);
                     } else {
-                        panic!("Attempted to set undefined global variable {}", name.value);
+                        eprintln!("NameError: name '{}' is not defined.", name.value);
+                        return InterpretResult::InterpretRuntimeError;
                     }
                 }
                 OpCode::OpGetLocal => {
@@ -410,7 +378,8 @@ impl VirtualMachine {
                 }
                 OpCode::OpCall => {
                     let arg_count = read_instr!(self) as usize;
-                    if !self.call_value(peek_stack!(self, arg_count), arg_count, i) {
+                    let callee = peek_stack!(self, arg_count);
+                    if !self.call_value(callee, arg_count, i) {
                         return InterpretResult::InterpretRuntimeError;
                     }
                 }
@@ -421,7 +390,12 @@ impl VirtualMachine {
                         [upval_index]
                         .payload::<SoxUpvalue>()
                         .unwrap();
-                    push_stack!(self, upval_obj.value, i);
+                    let val = if let Some(closed) = &upval_obj.closed {
+                        (**closed).clone()
+                    } else {
+                        self.value_stack[upval_obj.location]
+                    };
+                    push_stack!(self, val, i);
                 }
                 OpCode::OpSetUpvalue => {
                     let slot = read_instr!(self);
@@ -433,110 +407,92 @@ impl VirtualMachine {
                         &mut (*(upvalue_ref.ptr.as_ptr() as *mut SoxObjectInner<SoxUpvalue>))
                             .payload
                     };
-                    upvalue.value = value;
+                    if let Some(closed) = &mut upvalue.closed {
+                        **closed = value;
+                    } else {
+                        self.value_stack[upvalue.location] = value;
+                    }
                 }
                 OpCode::OpCloseUpvalue => {
                     self.close_upvalues(self.value_stack.len() - 1, i);
                     pop_stack!(self);
                 }
                 OpCode::OpClosure => {
-                    let func = read_constant!(self, i);
-                    let mut closure = SoxClosure::new(func.clone());
+                    let func_obj = read_constant!(self, i);
+                    let func = func_obj.payload::<SoxFunction>().unwrap();
+                    let mut upvalues = Vec::with_capacity(func.upvalue_count);
 
-                    for _ in 0..closure.upvalue_count {
+                    for _ in 0..func.upvalue_count {
                         let is_local = read_instr!(self);
                         let index = read_instr!(self);
                         let upvalue = if is_local == 1 {
-                            // Capture a local variable from the enclosing function's stack frame.
                             let location = self.call_frame_stack[self.call_frame_count - 1]
                                 .value_stack_base_addr
                                 + index as usize;
                             self.capture_upvalue(location, i)
                         } else {
-                            // Use an upvalue from the enclosing function.
                             self.call_frame_stack[self.call_frame_count - 1].upvalues
                                 [index as usize]
                         };
-                        closure.upvalues.push(upvalue);
+                        upvalues.push(upvalue);
                     }
+                    let closure = func.with_upvalues(upvalues);
                     push_stack!(
                         self,
                         SoxObjectRef::from(SoxRef::new_ref(
                             closure,
-                            i.types.closure_type.to_owned()
+                            i.types.function_type.to_owned()
                         )),
                         i
                     );
                 }
             }
         }
-
-        InterpretResult::InterpretOk
     }
 
-    pub fn close_upvalues(&mut self, value_stack_idx: usize, i: &Interpreter) {
-        let value = self.value_stack[value_stack_idx];
-
-        // Iterate through all upvalues the VM is tracking.
-        for upvalue_ref in self.open_upvalues.iter() {
-            let upvalue_payload_ptr = upvalue_ref.ptr.as_ptr() as *mut SoxObjectInner<SoxUpvalue>;
-
-            // This is unsafe because we are getting a mutable reference from an immutable one.
-            // We must be careful not to violate Rust's aliasing rules. In this single-threaded
-            // context where we are just changing the internal state, it's acceptable.
+    pub fn close_upvalues(&mut self, value_stack_idx: usize, _: &Interpreter) {
+        let mut i = 0;
+        while i < self.open_upvalues.len() {
+            let upvalue_ref = self.open_upvalues[i];
             let upvalue_ptr = upvalue_ref.ptr;
-            let upvalue = upvalue_ref
-                .payload::<SoxUpvalue>()
-                .expect("Expected upvalue payload");
 
-            // Check if upvalue needs to be closed
-            if upvalue.closed.is_none() && upvalue.value.ptr >= value.ptr {
-                // Create new allocation on heap for the closed value
-                let heap_value = Box::new(upvalue.value);
+            let should_close = {
+                let upvalue = upvalue_ref
+                    .payload::<SoxUpvalue>()
+                    .expect("Expected upvalue payload");
+                upvalue.location >= value_stack_idx
+            };
 
-                // Update the upvalue through a safe reference obtained via ptr
+            if should_close {
+                self.open_upvalues.remove(i);
                 if let Some(upvalue_obj) = unsafe {
                     upvalue_ptr
                         .as_ptr()
                         .cast::<SoxObjectInner<SoxUpvalue>>()
                         .as_mut()
                 } {
-                    upvalue_obj.payload.value =
-                        **upvalue_obj.payload.closed.get_or_insert(heap_value);
+                    let value = self.value_stack[upvalue_obj.payload.location];
+                    upvalue_obj.payload.closed = Some(Box::new(value));
                 }
+            } else {
+                i += 1;
             }
         }
     }
 
     pub fn capture_upvalue(&mut self, index: usize, i: &Interpreter) -> SoxObjectRef {
-        let up_on_stack = self.value_stack[index];
-
-        // Iterate through existing open upvalues to find one that already
-        // points to this exact stack slot.
-        for upvalue_ref in self.open_upvalues.iter().rev() {
+        for upvalue_ref in self.open_upvalues.iter() {
             let upvalue = upvalue_ref.payload::<SoxUpvalue>().unwrap();
-
-            // If this upvalue is not closed and points to the same memory address
-            // as the value on the stack we want to capture, we've found a match.
-            if upvalue.closed.is_none() && upvalue.value.ptr == up_on_stack.ptr {
+            if upvalue.location == index {
                 return *upvalue_ref;
             }
         }
 
-        // No existing upvalue was found, so create a new one.
-        let new_upvalue_obj = SoxUpvalue::new(up_on_stack);
+        let new_upvalue_obj = SoxUpvalue::new(index);
         let upvalue_type = i.types.upvalue_type.to_owned();
         let new_upvalue_ref = SoxObjectRef::from(SoxRef::new_ref(new_upvalue_obj, upvalue_type));
 
-        // Insert the new upvalue, keeping the list sorted by stack address (descending).
-        // This is important for the `close_upvalues` logic.
-        let pos = self
-            .open_upvalues
-            .iter()
-            .position(|u| u.payload::<SoxUpvalue>().unwrap().value.ptr < up_on_stack.ptr)
-            .unwrap_or(self.open_upvalues.len());
-
-        self.open_upvalues.insert(pos, new_upvalue_ref);
+        self.open_upvalues.push(new_upvalue_ref);
         new_upvalue_ref
     }
 }

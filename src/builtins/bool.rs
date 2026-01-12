@@ -81,8 +81,8 @@ impl StaticType for SoxBool {
     const NAME: &'static str = "boolean";
 
     fn static_cell() -> &'static OnceCell<SoxRef<SoxType>> {
-        static CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
-        &CELL
+        static BOOL_CELL: OnceCell<SoxRef<SoxType>> = OnceCell::new();
+        &BOOL_CELL
     }
 
     fn create_slots() -> SoxTypeSlot {
@@ -116,7 +116,7 @@ impl Comparable for SoxBool {
 }
 
 impl SoxBool {
-    fn eq(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> bool {
+    fn eq(a: SoxObjectRef, other: SoxObjectRef, _i: &Interpreter) -> bool {
         if let (Some(a), Some(other)) = (a.payload::<SoxBool>(), other.payload::<SoxBool>()) {
             let result = a.value == other.value;
             result

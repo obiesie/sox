@@ -1,8 +1,4 @@
-use crate::builtins::chunk::Chunk;
 use crate::interpreter::Interpreter;
-use crate::lexer::Lexer;
-use crate::parser::Parser;
-use crate::resolver::Resolver;
 use crate::vm::vm::VirtualMachine;
 use std::io::Write;
 use std::{fs, io};
@@ -37,31 +33,6 @@ pub fn run(source: String) {
     let mut interpreter = Interpreter::new();
     let static_source = source.leak();
     interpret_with_vm(static_source, &mut interpreter);
-}
-
-fn parse_and_interpret_with_resolver(
-    source: &'static str,
-    resolver: &mut Resolver,
-    interpreter: &mut Interpreter,
-) {
-    let tokens = Lexer::lex(source);
-    let mut parser = Parser::new(tokens);
-    let ast = parser.parse();
-
-    match ast {
-        Ok(ast) => match resolver.resolve(&ast) {
-            Ok(data) => {
-                interpreter.locals = data;
-                interpreter.interpret(&ast);
-            }
-            Err(e) => {
-                println!("Resolution error: {}", e);
-            }
-        },
-        Err(e) => {
-            println!("Parsing error: {:?}", e);
-        }
-    }
 }
 
 fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
