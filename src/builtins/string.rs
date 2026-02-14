@@ -4,18 +4,18 @@ use crate::builtins::core::{SoxObjectPayload, StaticType};
 use crate::builtins::method::static_func;
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 use macros::{soxmethod, soxtype};
 pub use once_cell::sync::{Lazy, OnceCell};
 use std::any::Any;
 use std::fmt;
 
 //
-#[derive(Clone, Debug)]
+#[derive(Clone, Debug, PartialEq, Eq, Hash)]
 pub struct SoxString {
     pub value: String,
 }
@@ -48,9 +48,22 @@ impl StaticType for SoxString {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: None,
+            drop: Some(Self::slot_drop),
             number: Some(Self::as_number()),
             comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
+        }
+    }
+}
+
+impl SoxString {
+    fn slot_drop(obj: &SoxObjectRef) {
+        if obj.payload::<SoxString>().is_some() {
+            unsafe {
+                let inner = obj.ptr.as_ptr() as *mut crate::object::core::SoxObjectInner<SoxString>;
+                std::ptr::drop_in_place(&mut (*inner).payload);
+            }
         }
     }
 }
@@ -69,23 +82,23 @@ impl From<String> for SoxString {
 }
 
 impl TryFromSoxObject for SoxString {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<SoxString>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get boolean from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, _i.types.str_type.to_owned());
+            let ob = i.alloc(err_msg, i.types.str_type.to_owned());
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxString {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, _i.types.str_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.str_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
@@ -97,7 +110,7 @@ impl fmt::Display for SoxString {
 }
 
 impl Representable for SoxString {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         zelf.value.to_string()
     }
 }
@@ -134,18 +147,18 @@ impl SoxString {
     fn perform_operation(
         a: SoxObjectRef,
         b: SoxObjectRef,
-        i: &Interpreter,
+        i: &mut Runtime,
         op: fn(String, String) -> String,
     ) -> SoxResult {
         if let (Some(a), Some(b)) = (a.payload::<SoxString>(), b.payload::<SoxString>()) {
             let v = SoxString::new(op(a.value.clone(), b.value.clone()));
             v.to_sox_result(i)
         } else {
-            Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+            Ok(i.runtime_error("Operands must be two numbers or two strings".to_string()))
         }
     }
 
-    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &mut Runtime, cmp_fn: F) -> SoxResult
     where
         F: FnOnce(&str, &str) -> bool,
     {

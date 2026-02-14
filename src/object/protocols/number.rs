@@ -1,15 +1,15 @@
 use crate::builtins::core::SoxResult;
-use crate::interpreter::Interpreter;
 use crate::object::core::SoxObjectRef;
+use crate::runtime::Runtime;
 
 #[derive(Clone, Debug, Default)]
 pub struct NumberMethods {
-    pub add: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub minus: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub star: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub slash: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub rem: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub neg: Option<fn(a: SoxObjectRef, i: &Interpreter) -> SoxResult>,
+    pub add: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub minus: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub star: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub slash: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub rem: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub neg: Option<fn(a: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
 }
 
 pub trait AsNumber: Sized {

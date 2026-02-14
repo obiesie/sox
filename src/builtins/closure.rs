@@ -8,10 +8,10 @@ use std::any::Any;
 use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
 };
-use crate::interpreter::Interpreter;
 use crate::object::core::SoxObjectRef;
 use crate::object::core::{Sox, SoxRef};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 
 #[derive(Clone, Debug)]
 pub struct SoxUpvalue {
@@ -27,10 +27,18 @@ impl SoxUpvalue {
             closed: None,
         }
     }
+
+    fn slot_trace(obj: &SoxObjectRef, trace_fn: &mut dyn FnMut(SoxObjectRef)) {
+        if let Some(upvalue) = obj.payload::<SoxUpvalue>() {
+            if let Some(closed) = &upvalue.closed {
+                trace_fn(*closed.clone());
+            }
+        }
+    }
 }
 
 impl Representable for SoxUpvalue {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         let value_repr = if let Some(closed) = &zelf.closed {
             closed.repr(_i).unwrap_or_default()
         } else {
@@ -57,6 +65,8 @@ impl StaticType for SoxUpvalue {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: Some(Self::slot_trace),
+            drop: Some(Self::slot_drop),
             number: None,
             comparable: None,
             methods: Self::METHOD_DEFS,
@@ -64,23 +74,38 @@ impl StaticType for SoxUpvalue {
     }
 }
 
+impl SoxUpvalue {
+    fn slot_drop(obj: &SoxObjectRef) {
+        if obj.payload::<SoxUpvalue>().is_some() {
+            unsafe {
+                let inner =
+                    obj.ptr.as_ptr() as *mut crate::object::core::SoxObjectInner<SoxUpvalue>;
+                std::ptr::drop_in_place(&mut (*inner).payload);
+            }
+        }
+    }
+}
+
 impl TryFromSoxObject for SoxUpvalue {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<SoxUpvalue>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get an upvalue from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, SoxString::init_builtin_type().to_owned());
+            let ob = i.alloc(
+                err_msg,
+                crate::builtins::string::SoxString::init_builtin_type().to_owned(),
+            );
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxUpvalue {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, Self::static_type().to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.upvalue_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }

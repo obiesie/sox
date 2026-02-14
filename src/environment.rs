@@ -1,6 +1,6 @@
 use crate::builtins::core::{SoxResult, StaticType};
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::interpreter::Interpreter;
+use crate::runtime::Runtime;
 use crate::object::core::{SoxObjectRef, SoxRef};
 use slotmap::{DefaultKey, SlotMap};
 use std::collections::HashMap;
@@ -144,7 +144,7 @@ impl Environment {
         let _ = ns.define(key, value);
     }
 
-    pub fn get_from_global_scope(&self, key: String, i: &Interpreter) -> SoxResult {
+    pub fn get_from_global_scope(&self, key: String, i: &Runtime) -> SoxResult {
         let key_string = key.to_string();
         let global_namespace = self.envs.get(*self.global).unwrap();
         match global_namespace

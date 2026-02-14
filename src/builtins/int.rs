@@ -6,11 +6,11 @@ use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string;
 use crate::builtins::string::SoxString;
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::number::{AsNumber, NumberMethods};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
 use std::any::Any;
@@ -53,6 +53,8 @@ impl StaticType for SoxInt {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: None,
+            drop: None,
             number: Some(Self::as_number()),
             comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
@@ -61,23 +63,23 @@ impl StaticType for SoxInt {
 }
 
 impl TryFromSoxObject for SoxInt {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<SoxInt>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get int from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, string::SoxString::init_builtin_type().to_owned());
-            Err(ob.into())
+            let ob = i.alloc(err_msg, string::SoxString::init_builtin_type().to_owned());
+            Err(SoxObjectRef::from(ob))
         }
     }
 }
 
 impl ToSoxResult for SoxInt {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, i.types.int_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.int_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
@@ -89,7 +91,7 @@ impl From<i64> for SoxInt {
 }
 
 impl Representable for SoxInt {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         zelf.value.to_string()
     }
 }
@@ -97,34 +99,38 @@ impl Representable for SoxInt {
 impl AsNumber for SoxInt {
     fn as_number() -> NumberMethods {
         NumberMethods {
-            add: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a + b)),
-            minus: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a - b)),
-            star: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a * b)),
-            slash: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a / b)),
-            rem: Some(|a, b, i| Self::perform_operation(a, b, i, |a, b| a % b)),
-            neg: Some(|a, i: &Interpreter| {
-                SoxInt::new(-a.payload::<SoxInt>().unwrap().value).to_sox_result(i)
+            add: Some(|a, b, i| Self::binary_op(a, b, i, |a, b| a + b)),
+            minus: Some(|a, b, i| Self::binary_op(a, b, i, |a, b| a - b)),
+            star: Some(|a, b, i| Self::binary_op(a, b, i, |a, b| a * b)),
+            slash: Some(|a, b, i| Self::binary_op(a, b, i, |a, b| a / b)),
+            rem: Some(|a, b, i| Self::binary_op(a, b, i, |a, b| a % b)),
+            neg: Some(|a, i: &mut Runtime| {
+                if let Some(val) = a.payload::<SoxInt>() {
+                    SoxInt::new(-val.value).to_sox_result(i)
+                } else {
+                    unreachable!()
+                }
             }),
         }
     }
 }
 
 impl SoxInt {
-    fn perform_operation(
+    pub(crate) fn binary_op(
         a: SoxObjectRef,
         b: SoxObjectRef,
-        i: &Interpreter,
+        i: &mut Runtime,
         op: fn(i64, i64) -> i64,
     ) -> SoxResult {
         if let (Some(a), Some(b)) = (a.payload::<SoxInt>(), b.payload::<SoxInt>()) {
             let v = SoxInt::new(op(a.value, b.value));
             v.to_sox_result(i)
         } else {
-            Ok(i.runtime_error("Operands must be two numbers or two strings".into()))
+            Ok(i.runtime_error("Operands must be two numbers or two strings".to_string()))
         }
     }
 
-    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &mut Runtime, cmp_fn: F) -> SoxResult
     where
         F: FnOnce(i64, i64) -> bool,
     {

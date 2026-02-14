@@ -1,31 +1,26 @@
 {
-  let i = "before";
-
-  // New variable is in inner scope.
-  for (let i = 0; i < 10; i = i + 2) {
-    print i; // expect: 0
-
-    // Loop body is in second inner scope.
-    
-  }
+    let a = 100;
+    let b = 200;
+    let c = a * b;
+    print c;
+    a = 1;
+    b = 1;
+    {
+        let x = 999;
+        let y = 888;
+        let z = x * y;
+        print z;
+    }
+    let d = 10;
+    let e = 20;
+    let f = d * e;
+    print f;
+    let i = 0;
+    while (i < 10) {
+        let tmp = i * 42;
+        i = i + 1;
+    }
+    print i;
+    let result = 7 * 7;
+    print result;
 }
-
-def hello_world(){
-    print "hello world";
-}
-
-def a(){
-    b();
-}
-
-def b(){
-    c();
-}
-
-
-def c(){
-    c("too", "many");
-}
-
-hello_world();
-print a();

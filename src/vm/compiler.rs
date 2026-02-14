@@ -1,19 +1,17 @@
 use crate::builtins::chunk::OpCode::{
-    OpConstant, OpGetGlobal, OpGetLocal, OpGetUpvalue, OpJump, OpJumpIfFalse, OpNone, OpPop,
-    OpReturn, OpSetGlobal, OpSetLocal, OpSetUpvalue,
+    OpGetGlobal, OpGetLocal, OpGetUpvalue, OpJump, OpJumpIfFalse, OpNone, OpPop, OpReturn,
+    OpSetGlobal, OpSetLocal, OpSetUpvalue,
 };
 use crate::builtins::chunk::{Chunk, OpCode};
 use crate::builtins::function::SoxFunction;
-use crate::builtins::int::SoxInt;
 use crate::builtins::module::SoxModule;
-use crate::builtins::string::SoxString;
-use crate::interpreter::Interpreter;
 use crate::lexer::Lexer;
-use crate::object::core::{SoxObjectRef, SoxRef};
+use crate::object::core::SoxObjectRef;
 use crate::parser::{SyntaxError, TO_IGNORE};
+use crate::runtime::Runtime;
 use crate::token::Token;
 use crate::token_type::TokenType;
-use log::info;
+
 use std::borrow::Borrow;
 use std::iter::Peekable;
 use std::str::FromStr;
@@ -129,8 +127,8 @@ impl From<SyntaxError> for CompileError {
 
 #[derive(Clone, Copy, Default)]
 pub struct ParseRule {
-    pub infix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
-    pub prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
+    pub infix_fn: Option<fn(&mut Compiler, &mut Runtime) -> Result<(), CompileError>>,
+    pub prefix_fn: Option<fn(&mut Compiler, &mut Runtime) -> Result<(), CompileError>>,
     pub precedence: Precedence,
 }
 
@@ -144,8 +142,8 @@ impl ParseRule {
     }
 
     pub const fn new(
-        prefix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
-        infix_fn: Option<fn(&mut Compiler, &Interpreter) -> Result<(), CompileError>>,
+        prefix_fn: Option<fn(&mut Compiler, &mut Runtime) -> Result<(), CompileError>>,
+        infix_fn: Option<fn(&mut Compiler, &mut Runtime) -> Result<(), CompileError>>,
         precedence: Precedence,
     ) -> Self {
         Self {
@@ -474,7 +472,7 @@ impl Compiler {
         }
     }
 
-    pub fn compile(&mut self, i: &Interpreter) -> Result<SoxModule, CompileError> {
+    pub fn compile(&mut self, i: &mut Runtime) -> Result<SoxModule, CompileError> {
         self.parser.advance();
         while !self.parser.match_token(vec![TokenType::EOF]) && self.parser.current.is_some() {
             // Catch errors and synchronize to continue parsing
@@ -503,15 +501,16 @@ impl Compiler {
 
         let compiled_unit = SoxModule::new(
             self.name.clone(),
-            SoxRef::new_ref(
+            i.alloc(
                 std::mem::take(&mut context!(self).chunk),
                 i.types.co_type.to_owned(),
             ),
         );
+        i.compiler_roots.clear();
         Ok(compiled_unit)
     }
 
-    pub fn declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn declaration(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         if self.parser.match_token(vec![TokenType::Def]) {
             self.function_declaration(i)?;
         } else if self.parser.match_token(vec![TokenType::Let]) {
@@ -522,7 +521,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn function_declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn function_declaration(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let global = self.parse_variable(i, "Expect function name.")?;
         self.mark_initialized();
         if global.is_none() {
@@ -565,17 +564,20 @@ impl Compiler {
         let mut context = self.context_stack.pop().unwrap();
         context.chunk.name = func_name.to_string();
 
+        let chunk_ref = i.alloc(context.chunk, i.types.co_type.to_owned());
+        i.compiler_roots.push(SoxObjectRef::from(chunk_ref.clone()));
+
         let fo = SoxFunction::new(
             func_name.to_string(),
             arity as usize,
             context.upvalue_count,
-            SoxRef::new_ref(context.chunk, i.types.co_type.to_owned()),
+            chunk_ref,
         );
         let constant = self
-            .make_constant(SoxObjectRef::from(SoxRef::new_ref(
-                fo,
-                i.types.function_type.to_owned(),
-            )))
+            .make_constant(
+                SoxObjectRef::from(i.alloc(fo, i.types.function_type.to_owned())),
+                i,
+            )
             .unwrap();
         if context.upvalue_count > 0 {
             self.emit_instruction_bytes((OpCode::OpClosure, Some(constant as u8)));
@@ -596,7 +598,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn let_declaration(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn let_declaration(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let global = self.parse_variable(i, "Expect variable name.")?;
         if self.parser.match_token(vec![TokenType::Equal]) {
             self.expression(i)?;
@@ -609,7 +611,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn define_variable(&mut self, global: Option<usize>, _i: &Interpreter) {
+    pub fn define_variable(&mut self, global: Option<usize>, _i: &mut Runtime) {
         if context!(self).scope_depth > 0 {
             self.mark_initialized();
             return;
@@ -625,7 +627,7 @@ impl Compiler {
     }
     pub fn parse_variable(
         &mut self,
-        i: &Interpreter,
+        i: &mut Runtime,
         message: &str,
     ) -> Result<Option<usize>, CompileError> {
         self.parser.consume(TokenType::Identifier, message)?;
@@ -634,21 +636,16 @@ impl Compiler {
             self.declare_variable(i)?;
             return Ok(None);
         }
-        info!(
-            "Parsing variable: {}",
-            self.parser.previous.as_ref().unwrap().lexeme
-        );
         let global =
             self.identifier_constant(self.parser.previous.as_ref().unwrap().lexeme.to_string(), i);
         Ok(Some(global))
     }
 
-    pub fn declare_variable(&mut self, _i: &Interpreter) -> Result<(), CompileError> {
+    pub fn declare_variable(&mut self, _i: &mut Runtime) -> Result<(), CompileError> {
         if context!(self).scope_depth == 0 {
             return Ok(());
         }
         let name = self.parser.previous.as_ref().unwrap().lexeme.to_string();
-        info!("Declaring variable: {name}");
         let scope_depth = context!(self).scope_depth;
         let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
 
@@ -673,12 +670,12 @@ impl Compiler {
         context!(self).locals.push(local);
     }
 
-    pub fn identifier_constant(&mut self, name: String, i: &Interpreter) -> usize {
+    pub fn identifier_constant(&mut self, name: String, i: &mut Runtime) -> usize {
         let constant_value = SoxObjectRef::from(i.new_string(name.parse().unwrap()));
-        let constant = self.make_constant(constant_value).unwrap();
+        let constant = self.make_constant(constant_value, i).unwrap();
         constant
     }
-    pub fn statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         if let Some(_token) = self.parser.current.as_ref() {
             if self.parser.match_token(vec![TokenType::Print]) {
                 self.print_statement(i)?;
@@ -701,7 +698,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn return_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn return_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         if self.parser.match_token(vec![TokenType::Semi]) {
             self.emit_instruction_bytes((OpNone, None)); // Push None for bare return
             self.emit_instruction_bytes((OpCode::OpReturn, None));
@@ -713,13 +710,13 @@ impl Compiler {
         }
         Ok(())
     }
-    pub fn call(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn call(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let arg_count = self.argument_list(i)?;
         self.emit_instruction_bytes((OpCode::OpCall, Option::from(arg_count)));
         Ok(())
     }
 
-    pub fn argument_list(&mut self, i: &Interpreter) -> Result<u8, CompileError> {
+    pub fn argument_list(&mut self, i: &mut Runtime) -> Result<u8, CompileError> {
         let mut argcount: u16 = 0;
         if !self.parser.check(TokenType::RightParen) {
             loop {
@@ -744,7 +741,7 @@ impl Compiler {
         Ok(argcount as u8)
     }
 
-    pub fn and_(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn and_(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let end_jump = self.emit_jump(OpJumpIfFalse);
         self.emit_instruction_bytes((OpPop, None));
 
@@ -753,7 +750,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn or_(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn or_(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let else_jump = self.emit_jump(OpJumpIfFalse);
         let end_jump = self.emit_jump(OpJump);
 
@@ -765,7 +762,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn for_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn for_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.begin_scope(i);
 
         self.parser
@@ -810,7 +807,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn while_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn while_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let loop_start = context!(self).chunk.code.len();
         self.parser
             .consume(TokenType::LeftParen, "Expect '(' after 'while'.")?;
@@ -829,7 +826,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn if_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn if_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.parser
             .consume(TokenType::LeftParen, "Expect '(' after 'if'.")?;
         self.expression(i)?;
@@ -884,11 +881,11 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn begin_scope(&mut self, _i: &Interpreter) {
+    pub fn begin_scope(&mut self, _i: &mut Runtime) {
         context!(self).scope_depth += 1;
     }
 
-    pub fn end_scope(&mut self, _interpreter: &Interpreter) {
+    pub fn end_scope(&mut self, _interpreter: &Runtime) {
         context!(self).scope_depth -= 1;
         let mut local_count = context!(self).locals.len();
         while local_count > 0
@@ -904,7 +901,7 @@ impl Compiler {
         }
     }
 
-    pub fn block(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn block(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         while !self.parser.check(TokenType::RightBrace) && !self.parser.check(TokenType::EOF) {
             self.declaration(i)?;
         }
@@ -913,7 +910,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn print_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn print_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.expression(i)?;
         self.parser
             .consume(TokenType::Semi, "Expect ';' after value.")?;
@@ -921,7 +918,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn expression_statement(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn expression_statement(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.expression(i)?;
         self.parser
             .consume(TokenType::Semi, "Expect ';' after expression.")?;
@@ -932,14 +929,13 @@ impl Compiler {
         self.emit_return()
     }
 
-    pub fn emit_constant(&mut self, value: SoxObjectRef) {
-        let const_idx = self
-            .make_constant(value.clone())
-            .expect("Too many constants in one chunk");
-        self.emit_instruction_bytes((OpConstant, Some(const_idx as u8)))
+    pub fn emit_constant(&mut self, value: SoxObjectRef, i: &mut Runtime) {
+        let constant_idx = self.make_constant(value, i).unwrap();
+        self.emit_instruction_bytes((OpCode::OpConstant, Some(constant_idx as u8)));
     }
 
-    pub fn make_constant(&mut self, value: SoxObjectRef) -> Result<usize, ()> {
+    pub fn make_constant(&mut self, value: SoxObjectRef, i: &mut Runtime) -> Result<usize, ()> {
+        i.compiler_roots.push(value.clone());
         let idx = context!(self).chunk.add_constant(value);
         if idx > i8::MAX as usize {
             Err(())
@@ -969,18 +965,18 @@ impl Compiler {
             .write_chunk(data, self.parser.previous.as_ref().unwrap().line);
     }
 
-    pub fn expression(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn expression(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.parse_with_precedence(Precedence::Assignment, i)
     }
 
-    pub fn grouping(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn grouping(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.expression(i)?;
         self.parser
             .consume(TokenType::RightParen, "Expect ')' after expression.")?;
         Ok(())
     }
 
-    pub fn unary(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn unary(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let operator_type = self.parser.previous.as_ref().unwrap().token_type;
         self.parse_with_precedence(Precedence::Unary, i)?;
 
@@ -996,7 +992,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn binary(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn binary(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         if let Some(token) = self.parser.previous.as_ref() {
             let operator_type = token.token_type;
             let rule = self.get_rule(operator_type);
@@ -1042,7 +1038,7 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn literal(&mut self, _i: &Interpreter) -> Result<(), CompileError> {
+    pub fn literal(&mut self, _i: &mut Runtime) -> Result<(), CompileError> {
         let value = self.parser.previous.as_ref().unwrap();
         match value.token_type {
             TokenType::False => {
@@ -1062,7 +1058,7 @@ impl Compiler {
     pub fn parse_with_precedence(
         &mut self,
         precedence: Precedence,
-        i: &Interpreter,
+        i: &mut Runtime,
     ) -> Result<(), CompileError> {
         self.parser.advance();
         let previous_token_type = self.parser.previous.as_ref().map(|token| token.token_type);
@@ -1109,29 +1105,26 @@ impl Compiler {
         Ok(())
     }
 
-    pub fn number(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn number(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         let val = i64::from_str(self.parser.previous.as_ref().unwrap().lexeme).unwrap();
-        let obj_payload = SoxInt { value: val };
-        let obj = SoxRef::new_ref(obj_payload, i.types.int_type.to_owned());
-        self.emit_constant(SoxObjectRef::from(obj));
+        let obj = i.new_int(val);
+        self.emit_constant(SoxObjectRef::from(obj), i);
         Ok(())
     }
 
-    pub fn string(&mut self, i: &Interpreter) -> Result<(), CompileError> {
-        let obj_payload = SoxString {
-            value: self.parser.previous.as_ref().unwrap().lexeme.to_string(),
-        };
-        let obj = SoxRef::new_ref(obj_payload, i.types.str_type.to_owned());
-        self.emit_constant(SoxObjectRef::from(obj));
+    pub fn string(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
+        let str_value = self.parser.previous.as_ref().unwrap().lexeme.to_string();
+        let obj = i.new_string(str_value);
+        self.emit_constant(SoxObjectRef::from(obj), i);
         Ok(())
     }
 
-    pub fn variable(&mut self, i: &Interpreter) -> Result<(), CompileError> {
+    pub fn variable(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
         self.named_variable(self.parser.previous.as_ref().unwrap().lexeme, i);
         Ok(())
     }
 
-    pub fn named_variable(&mut self, name: &str, i: &Interpreter) {
+    pub fn named_variable(&mut self, name: &str, i: &mut Runtime) {
         let get_op;
         let set_op;
         let mut arg = self.resolve_local(name, i, self.context_stack.len() - 1);
@@ -1161,7 +1154,7 @@ impl Compiler {
         &mut self,
         name: &str,
         compiler_idx: usize,
-        i: &Interpreter,
+        i: &mut Runtime,
     ) -> Option<u8> {
         if compiler_idx == 0 {
             return None;
@@ -1202,7 +1195,7 @@ impl Compiler {
         Some((context.upvalue_count - 1) as u8)
     }
 
-    pub fn resolve_local(&mut self, name: &str, _i: &Interpreter, ctx_index: usize) -> Option<u8> {
+    pub fn resolve_local(&mut self, name: &str, _i: &mut Runtime, ctx_index: usize) -> Option<u8> {
         let context = &self.context_stack[ctx_index];
         for (i, local) in context.locals.iter().enumerate().rev() {
             if local.name.as_str() == name {

@@ -5,9 +5,10 @@ use crate::builtins::core::{
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
+
 use macros::soxtype;
 use once_cell::sync::OnceCell;
 use std::any::Any;
@@ -167,7 +168,7 @@ impl Chunk {
         }
     }
 
-    pub fn disassemble(&self, name: &str, i: &Interpreter) {
+    pub fn disassemble(&self, name: &str, i: &Runtime) {
         println!("== {} ==", name);
         let mut offset = 0;
         while offset < self.code.len() {
@@ -176,7 +177,7 @@ impl Chunk {
         }
     }
 
-    pub fn disassemble_instruction(&self, mut offset: usize, i: &Interpreter) -> usize {
+    pub fn disassemble_instruction(&self, mut offset: usize, i: &Runtime) -> usize {
         print!("{:04} ", offset);
         if offset > 0 && self.lines[offset] == self.lines[offset - 1] {
             print!("   | ");
@@ -276,6 +277,8 @@ impl StaticType for Chunk {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: Some(Self::slot_trace),
+            drop: Some(Self::slot_drop),
             number: None,
             comparable: None,
             methods: Self::METHOD_DEFS,
@@ -283,29 +286,56 @@ impl StaticType for Chunk {
     }
 }
 
+impl Chunk {
+    fn slot_drop(obj: &SoxObjectRef) {
+        if obj.payload::<Chunk>().is_some() {
+            unsafe {
+                let inner = obj.ptr.as_ptr() as *mut crate::object::core::SoxObjectInner<Chunk>;
+                std::ptr::drop_in_place(&mut (*inner).payload);
+            }
+        }
+    }
+}
+
+impl Chunk {
+    fn slot_trace(obj: &SoxObjectRef, trace_fn: &mut dyn FnMut(SoxObjectRef)) {
+        if let Some(chunk) = obj.payload::<Chunk>() {
+            for constant in &chunk.constants {
+                trace_fn(constant.clone());
+            }
+            for upvalue in &chunk.upvalues {
+                trace_fn(upvalue.clone());
+            }
+        }
+    }
+}
+
 impl TryFromSoxObject for Chunk {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<Chunk>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get float from provided object"),
             };
-            let ob = SoxRef::new_ref(err_msg, _i.types.co_type.to_owned());
+            let ob = i.alloc(
+                err_msg,
+                crate::builtins::string::SoxString::init_builtin_type().to_owned(),
+            );
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for Chunk {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, _i.types.co_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.co_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
 impl Representable for Chunk {
-    fn repr(_zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(_zelf: &Sox<Self>, _i: &Runtime) -> String {
         "".to_string()
     }
 }

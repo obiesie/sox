@@ -5,10 +5,10 @@ use crate::builtins::core::{
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
 use std::any::Any;
@@ -42,6 +42,8 @@ impl StaticType for SoxNone {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: None,
+            drop: None,
             number: None,
             comparable: None,
             methods: Self::METHOD_DEFS,
@@ -50,23 +52,23 @@ impl StaticType for SoxNone {
 }
 
 impl TryFromSoxObject for SoxNone {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<SoxNone>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get boolean from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, i.types.none_type.to_owned());
+            let ob = i.alloc(err_msg, i.types.none_type.to_owned());
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxNone {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, i.types.none_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.none_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
@@ -84,13 +86,13 @@ impl Comparable for SoxNone {
 }
 
 impl Representable for SoxNone {
-    fn repr(_zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(_zelf: &Sox<Self>, _i: &Runtime) -> String {
         "None".to_string()
     }
 }
 
 impl SoxNone {
-    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &Interpreter, cmp_fn: F) -> SoxResult
+    fn compare<F>(a: SoxObjectRef, other: SoxObjectRef, i: &mut Runtime, cmp_fn: F) -> SoxResult
     where
         F: FnOnce(&SoxNone, &SoxNone) -> bool,
     {

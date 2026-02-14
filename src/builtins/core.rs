@@ -5,8 +5,8 @@ pub use once_cell::sync::{Lazy, OnceCell};
 
 use crate::builtins::method::SoxMethod;
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
+use crate::runtime::Runtime;
 
 pub type SoxResult<T = SoxObjectRef> = Result<T, SoxObjectRef>;
 
@@ -74,21 +74,21 @@ unsafe impl Send for SoxType {}
 unsafe impl Sync for SoxType {}
 
 impl ToSoxResult for SoxObjectRef {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &mut Runtime) -> SoxResult {
         Ok(self)
     }
 }
 
 pub trait TryFromSoxObject: Sized {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self>;
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self>;
 }
 
 pub trait ToSoxResult: Sized {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult;
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult;
 }
 
 impl ToSoxResult for SoxResult {
-    fn to_sox_result(self, _i: &Interpreter) -> SoxResult {
+    fn to_sox_result(self, _i: &mut Runtime) -> SoxResult {
         self
     }
 }

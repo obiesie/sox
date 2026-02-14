@@ -2,7 +2,7 @@ use crate::builtins::bool::SoxBool;
 use crate::builtins::core::{SoxObjectPayload, SoxResult};
 use crate::builtins::method::FuncArgs;
 use crate::builtins::r#type::SoxType;
-use crate::interpreter::Interpreter;
+use crate::runtime::Runtime;
 use std::any::TypeId;
 use std::borrow::Borrow;
 use std::mem::MaybeUninit;
@@ -13,7 +13,7 @@ use std::ptr::NonNull;
 #[repr(transparent)]
 pub struct SoxObject(SoxObjectInner<()>);
 
-#[derive(Debug, Copy)]
+#[derive(Debug, Copy, Hash, PartialEq, Eq, PartialOrd, Ord)]
 #[repr(transparent)]
 pub struct SoxObjectRef {
     pub ptr: NonNull<SoxObject>,
@@ -29,7 +29,7 @@ impl<T: SoxObjectPayload> Deref for Sox<T> {
 }
 
 impl SoxObjectRef {
-    fn call_method(&self, method_name: &str, interpreter: &Interpreter) -> Option<SoxObjectRef> {
+    fn call_method(&self, method_name: &str, interpreter: &mut Runtime) -> Option<SoxObjectRef> {
         self.typ().methods.get(method_name).and_then(|method| {
             let call_args = FuncArgs {
                 args: vec![self.clone()],
@@ -76,13 +76,13 @@ impl SoxObjectRef {
     }
 
     // TODO migrate this to a protocol?
-    pub fn try_into_rust_bool(&self, i: &Interpreter) -> bool {
+    pub fn try_into_rust_bool(&self, i: &mut Runtime) -> bool {
         self.call_method("bool", i)
             .and_then(|tv| tv.payload::<SoxBool>().map(|v| v.value))
             .unwrap_or(true)
     }
 
-    pub fn repr(&self, i: &Interpreter) -> SoxResult<String> {
+    pub fn repr(&self, i: &Runtime) -> SoxResult<String> {
         let typ = self.typ();
         match typ.slots.repr {
             None => Ok("No repr implementation found.".to_string()),
@@ -109,21 +109,26 @@ impl Clone for SoxObjectRef {
 pub struct SoxObjectInner<T> {
     pub type_id: TypeId,
     pub typ: SoxRef<SoxType>,
+    pub marked: std::cell::Cell<bool>,
+    pub gc_size: usize,
     pub payload: T,
 }
 
 impl<T: SoxObjectPayload> SoxObjectInner<T> {
-    pub fn new(d: T, typ: SoxRef<SoxType>) -> Box<Self> {
-        Box::new(SoxObjectInner {
+    pub fn new(p: T, typ: SoxRef<SoxType>) -> Box<Self> {
+        let inner = Box::new(SoxObjectInner {
             type_id: TypeId::of::<T>(),
             typ,
-            payload: d,
-        })
+            marked: std::cell::Cell::new(false),
+            gc_size: 0, // Will be set after we know the size
+            payload: p,
+        });
+        inner
     }
 }
 
 #[repr(transparent)]
-pub struct Sox<T: SoxObjectPayload>(SoxObjectInner<T>);
+pub struct Sox<T: SoxObjectPayload>(pub SoxObjectInner<T>);
 
 impl<T: SoxObjectPayload> Sox<T> {}
 
@@ -214,8 +219,8 @@ pub fn init_type_type() -> SoxRef<SoxType> {
 #[cfg(test)]
 mod tests {
     use crate::builtins::string::SoxString;
-    use crate::interpreter::Interpreter;
     use crate::object::core::{SoxObjectRef, SoxRef};
+    use crate::runtime::Runtime;
     use std::any::TypeId;
 
     #[test]
@@ -223,7 +228,7 @@ mod tests {
         let payload = SoxString {
             value: "hello".to_owned(),
         };
-        let i = Interpreter::new();
+        let i = Runtime::new();
         let typ = i.types.str_type.to_owned();
 
         let typ_ref = SoxRef::new_ref(payload, typ);

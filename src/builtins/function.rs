@@ -12,16 +12,15 @@ use crate::builtins::core::{
     SoxClassImpl, SoxObjectPayload, SoxResult, StaticType, ToSoxResult, TryFromSoxObject,
 };
 
+use crate::builtins::chunk::Chunk;
 use crate::builtins::string;
 use crate::environment::EnvRef;
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::call::Callable;
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 use crate::stmt::Stmt;
-use crate::builtins::chunk::Chunk;
-
 
 #[derive(Clone, Debug)]
 pub struct SoxFunction {
@@ -35,7 +34,13 @@ pub struct SoxFunction {
 #[soxtype]
 impl SoxFunction {
     pub fn new(name: String, arity: usize, upvalue_count: usize, chunk: SoxRef<Chunk>) -> Self {
-        Self { name, arity, upvalue_count, upvalues:vec![], chunk }
+        Self {
+            name,
+            arity,
+            upvalue_count,
+            upvalues: vec![],
+            chunk,
+        }
     }
 
     pub fn with_upvalues(&self, upvalues: Vec<SoxObjectRef>) -> Self {
@@ -50,7 +55,7 @@ impl SoxFunction {
 }
 
 impl Representable for SoxFunction {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         let func_name = zelf.name.to_string();
         format!("<Function {func_name}>")
     }
@@ -62,23 +67,23 @@ impl SoxObjectPayload for SoxFunction {
 }
 
 impl TryFromSoxObject for SoxFunction {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(val) = obj.payload::<SoxFunction>() {
             Ok(val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get a function from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, string::SoxString::init_builtin_type().to_owned());
+            let ob = i.alloc(err_msg, string::SoxString::init_builtin_type().to_owned());
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxFunction {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, i.types.function_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.function_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
@@ -94,9 +99,39 @@ impl StaticType for SoxFunction {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: Some(Self::slot_trace),
+            drop: Some(Self::slot_drop),
             number: None,
             comparable: None,
             methods: Self::METHOD_DEFS,
+        }
+    }
+}
+
+impl SoxFunction {
+    fn slot_drop(obj: &SoxObjectRef) {
+        if obj.payload::<SoxFunction>().is_some() {
+            unsafe {
+                let inner =
+                    obj.ptr.as_ptr() as *mut crate::object::core::SoxObjectInner<SoxFunction>;
+                std::ptr::drop_in_place(&mut (*inner).payload);
+            }
+        }
+    }
+}
+
+impl SoxFunction {
+    /// GC trace function - reports child references to the collector.
+    fn slot_trace(obj: &SoxObjectRef, trace_fn: &mut dyn FnMut(SoxObjectRef)) {
+        // Get the SoxFunction payload from the object
+        if let Some(func) = obj.payload::<SoxFunction>() {
+            // Report the chunk as a child
+            trace_fn(SoxObjectRef::from(func.chunk.clone()));
+
+            // Report all upvalues as children
+            for upvalue in &func.upvalues {
+                trace_fn(upvalue.clone());
+            }
         }
     }
 }
@@ -128,7 +163,7 @@ impl SoxFn {
         }
     }
 
-    pub fn bind(&self, instance: SoxObjectRef, interp: &mut Interpreter) -> SoxResult {
+    pub fn bind(&self, instance: SoxObjectRef, interp: &mut Runtime) -> SoxResult {
         if let Some(_) = instance.payload::<SoxInstance>() {
             let env_ref = interp
                 .environment
@@ -144,33 +179,22 @@ impl SoxFn {
                 is_initializer: self.is_initializer,
                 arity: self.arity,
             };
-            Ok(SoxObjectRef::from(SoxRef::new_ref(
-                new_func,
-                interp.types.func_type.to_owned(),
-            )))
+            Ok(SoxObjectRef::from(
+                interp.alloc(new_func, interp.types.func_type.to_owned()),
+            ))
         } else {
-            Err(Interpreter::runtime_error(
+            Err(Runtime::runtime_error(
                 interp,
                 "Could not bind method to instance".to_string(),
             ))
         }
     }
 
-    pub fn equals(zelf: SoxObjectRef, other: SoxObjectRef, i: &Interpreter) -> SoxResult {
-        if let (Some(zelf), Some(other_func)) = (
-            zelf.payload::<SoxFn>(),
-            other.payload::<SoxFn>(),
-        ) {
-            SoxBool::from(
-                zelf.name == other_func.name
-                    && zelf.declaration == other_func.declaration
-                    && zelf.environment_ref == other_func.environment_ref
-                    && zelf.is_initializer == other_func.is_initializer
-                    && zelf.arity == other_func.arity,
-            )
-            .to_sox_result(i)
+    fn equals(lhs: SoxObjectRef, rhs: SoxObjectRef, _i: &mut Runtime) -> SoxResult {
+        if let (Some(lhs), Some(rhs)) = (lhs.payload::<SoxFn>(), rhs.payload::<SoxFn>()) {
+            SoxBool::new(lhs == rhs).to_sox_result(_i)
         } else {
-            SoxBool::from(false).to_sox_result(i)
+            SoxBool::new(false).to_sox_result(_i)
         }
     }
 }
@@ -193,6 +217,8 @@ impl StaticType for SoxFn {
         SoxTypeSlot {
             call: Some(Self::slot_call),
             repr: Some(Self::slot_repr),
+            trace: Some(Self::slot_trace),
+            drop: Some(Self::slot_drop),
             number: None,
             comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
@@ -200,47 +226,55 @@ impl StaticType for SoxFn {
     }
 }
 
+impl SoxFn {
+    fn slot_drop(obj: &SoxObjectRef) {
+        if obj.payload::<SoxFn>().is_some() {
+            unsafe {
+                let inner = obj.ptr.as_ptr() as *mut crate::object::core::SoxObjectInner<SoxFn>;
+                std::ptr::drop_in_place(&mut (*inner).payload);
+            }
+        }
+    }
+}
+
+impl SoxFn {
+    fn slot_trace(_obj: &SoxObjectRef, _trace_fn: &mut dyn FnMut(SoxObjectRef)) {}
+}
+
 impl TryFromSoxObject for SoxFn {
-    fn try_from_sox_object(i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(func) = obj.payload::<SoxFn>() {
             Ok(func.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get function from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, i.types.str_type.to_owned());
-            Err(SoxObjectRef::from(ob))
+            let ob = i.alloc(err_msg, i.types.str_type.to_owned());
+            Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxFn {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        let obj = SoxObjectRef::from(SoxRef::new_ref(self, i.types.func_type.to_owned()));
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = SoxObjectRef::from(i.alloc(self, i.types.func_type.to_owned()));
         Ok(obj)
     }
 }
 
 impl Representable for SoxFn {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         let func_name = zelf.name.to_string();
         format!("<Function {func_name}>")
     }
 }
 
 impl Callable for SoxFn {
-    fn call(zelf: &Sox<Self>, args: FuncArgs, i: &mut Interpreter) -> SoxResult {
+    fn call(zelf: &Sox<Self>, args: FuncArgs, i: &mut Runtime) -> SoxResult {
         if args.args.len() != zelf.arity as usize {
-            let error = Exception::Err(RuntimeError {
-                msg: format!(
-                    "Expected {} arguments but got {}.",
-                    zelf.arity,
-                    args.args.len()
-                ),
-            });
-
-            return Err(SoxObjectRef::from(SoxRef::new_ref(
-                error,
+            let err = format!("'{}' not callable", zelf.name);
+            return Err(SoxObjectRef::from(i.alloc(
+                Exception::Err(RuntimeError { msg: err }),
                 i.types.exception_type.to_owned(),
             )));
         }
@@ -272,10 +306,9 @@ impl Callable for SoxFn {
                         }
                         Exception::Err(v) => {
                             let rv = Exception::Err(v.clone());
-                            return_value = Err(SoxObjectRef::from(SoxRef::new_ref(
-                                rv,
-                                i.types.exception_type.to_owned(),
-                            )));
+                            return_value = Err(SoxObjectRef::from(
+                                i.alloc(rv, i.types.exception_type.to_owned()),
+                            ));
                         }
                     }
                 }

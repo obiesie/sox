@@ -1,11 +1,11 @@
 use crate::builtins::core::{SoxResult, ToSoxResult, TryFromSoxObject};
 use crate::builtins::exceptions::{Exception, RuntimeError};
-use crate::interpreter::Interpreter;
-use crate::object::core::{SoxObjectRef, SoxRef};
+use crate::object::core::SoxObjectRef;
+use crate::runtime::Runtime;
 use std::fmt::{Debug, Formatter};
 use std::marker::PhantomData;
 
-pub type SoxNativeFunction = dyn Fn(&Interpreter, FuncArgs) -> SoxResult;
+pub type SoxNativeFunction = dyn Fn(&mut Runtime, FuncArgs) -> SoxResult;
 
 #[derive(Clone)]
 pub struct SoxMethod {
@@ -27,7 +27,7 @@ impl SoxMethod {
 }
 
 pub trait NativeFn<K, R>: Sized + 'static {
-    fn call(&self, i: &Interpreter, arg: FuncArgs) -> SoxResult;
+    fn call(&self, i: &mut Runtime, arg: FuncArgs) -> SoxResult;
 
     const STATIC_FUNC: &'static SoxNativeFunction = {
         if std::mem::size_of::<Self>() == 0 {
@@ -57,7 +57,7 @@ impl FuncArgs {
         Self { args }
     }
 
-    pub(crate) fn bind<T: FromArgs>(&mut self, i: &Interpreter) -> SoxResult<T> {
+    pub(crate) fn bind<T: FromArgs>(&mut self, i: &mut Runtime) -> SoxResult<T> {
         let bound = T::from_args(i, self);
         bound
     }
@@ -72,46 +72,46 @@ impl FuncArgs {
 }
 
 pub trait FromArgs: Sized {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self>;
+    fn from_args(i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self>;
 }
 
 #[derive(Clone, Debug)]
 pub struct ArgumentError;
 
 impl<T: TryFromSoxObject> FromArgs for T {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self> {
         let val = if let Some(v) = args.take_positional() {
             T::try_from_sox_object(i, v.clone())
         } else {
             let exc = Exception::Err(RuntimeError {
                 msg: "Too few argument supplied to function".into(),
             });
-            Err(SoxRef::new_ref(exc, i.types.exception_type.to_owned()).into())
+            Err(i.alloc(exc, i.types.exception_type.to_owned()).into())
         };
         val
     }
 }
 
 impl TryFromSoxObject for SoxObjectRef {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(_i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         return Ok(obj);
     }
 }
 
 impl<A: FromArgs> FromArgs for (A,) {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self> {
         Ok((A::from_args(i, args)?,))
     }
 }
 
 impl<A: FromArgs, B: FromArgs> FromArgs for (A, B) {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self> {
         Ok((A::from_args(i, args)?, B::from_args(i, args)?))
     }
 }
 
 impl<A: FromArgs, B: FromArgs, C: FromArgs> FromArgs for (A, B, C) {
-    fn from_args(i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self> {
         Ok((
             A::from_args(i, args)?,
             B::from_args(i, args)?,
@@ -128,7 +128,7 @@ where
     F: Fn() -> R + 'static,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, _args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &mut Runtime, _args: FuncArgs) -> SoxResult {
         (self)().to_sox_result(i)
     }
 }
@@ -139,7 +139,7 @@ where
     T1: FromArgs,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &mut Runtime, mut args: FuncArgs) -> SoxResult {
         let (zelf,) = (args.bind::<(T1,)>(i)).expect("Failed to bind function arguments.");
         (self)(zelf).to_sox_result(i)
     }
@@ -151,7 +151,7 @@ where
     S: FromArgs,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &mut Runtime, mut args: FuncArgs) -> SoxResult {
         let (zelf,) = (args.bind::<(S,)>(i)).expect("Failed to bind function arguments.");
         (self)(&zelf).to_sox_result(i)
     }
@@ -164,7 +164,7 @@ where
     S1: FromArgs,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &mut Runtime, mut args: FuncArgs) -> SoxResult {
         let (zelf, s1) = (args.bind::<(S, S1)>(i)).expect("Failed to bind function arguments.");
         (self)(&zelf, s1).to_sox_result(i)
     }
@@ -178,7 +178,7 @@ where
     T3: FromArgs,
     R: ToSoxResult,
 {
-    fn call(&self, i: &Interpreter, mut args: FuncArgs) -> SoxResult {
+    fn call(&self, i: &mut Runtime, mut args: FuncArgs) -> SoxResult {
         let (zelf, v1, v2) = args
             .bind::<(T1, T2, T3)>(i)
             .expect("Failed to bind function arguments.");
@@ -187,7 +187,7 @@ where
 }
 
 impl FromArgs for FuncArgs {
-    fn from_args(_i: &Interpreter, args: &mut FuncArgs) -> SoxResult<Self> {
+    fn from_args(_i: &mut Runtime, args: &mut FuncArgs) -> SoxResult<Self> {
         Ok(args.clone())
     }
 }

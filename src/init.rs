@@ -1,5 +1,4 @@
-use crate::interpreter::Interpreter;
-use crate::vm::vm::VirtualMachine;
+use crate::runtime::Runtime;
 use std::io::Write;
 use std::{fs, io};
 
@@ -11,8 +10,7 @@ pub fn run_file(file_path: String) {
 
 pub fn run_prompt() {
     let stdin = io::stdin();
-    let mut vm = VirtualMachine::new();
-    let interpreter = Interpreter::new();
+    let mut runtime = Runtime::new();
 
     println!("Welcome to sox");
 
@@ -25,17 +23,12 @@ pub fn run_prompt() {
             break;
         }
         let static_buffer = buffer.trim().to_string().leak();
-        vm.interpret(&interpreter, static_buffer);
+        runtime.interpret(static_buffer);
     }
 }
 
 pub fn run(source: String) {
-    let mut interpreter = Interpreter::new();
+    let mut runtime = Runtime::new();
     let static_source = source.leak();
-    interpret_with_vm(static_source, &mut interpreter);
-}
-
-fn interpret_with_vm(source: &'static str, interpreter: &mut Interpreter) {
-    let mut vm = VirtualMachine::new();
-    vm.interpret(interpreter, source);
+    runtime.interpret(static_source);
 }

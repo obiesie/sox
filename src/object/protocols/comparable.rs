@@ -1,6 +1,6 @@
 use crate::builtins::core::SoxResult;
-use crate::interpreter::Interpreter;
 use crate::object::core::SoxObjectRef;
+use crate::runtime::Runtime;
 
 pub trait Comparable {
     fn as_comparable() -> ComparableMethods;
@@ -8,10 +8,10 @@ pub trait Comparable {
 
 #[derive(Clone, Debug, Default)]
 pub struct ComparableMethods {
-    pub lt: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub gt: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub eq: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub ne: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub ge: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
-    pub le: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &Interpreter) -> SoxResult>,
+    pub lt: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub gt: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub eq: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub ne: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub ge: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
+    pub le: Option<fn(a: SoxObjectRef, b: SoxObjectRef, i: &mut Runtime) -> SoxResult>,
 }

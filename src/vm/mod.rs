@@ -1,3 +1,2 @@
-mod callframe;
+pub mod callframe;
 pub mod compiler;
-pub mod vm;

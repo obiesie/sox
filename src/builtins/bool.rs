@@ -6,10 +6,10 @@ use crate::builtins::core::{
 use crate::builtins::method::{static_func, SoxMethod};
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::builtins::string::SoxString;
-use crate::interpreter::Interpreter;
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
 use crate::object::protocols::comparable::{Comparable, ComparableMethods};
 use crate::object::protocols::repr::Representable;
+use crate::runtime::Runtime;
 use macros::{soxmethod, soxtype};
 use once_cell::sync::OnceCell;
 
@@ -45,29 +45,32 @@ impl SoxBool {
 }
 
 impl Representable for SoxBool {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         zelf.value.to_string()
     }
 }
 
 impl TryFromSoxObject for SoxBool {
-    fn try_from_sox_object(_i: &Interpreter, obj: SoxObjectRef) -> SoxResult<Self> {
+    fn try_from_sox_object(i: &mut Runtime, obj: SoxObjectRef) -> SoxResult<Self> {
         if let Some(bool_val) = obj.payload::<SoxBool>() {
             Ok(bool_val.clone())
         } else {
             let err_msg = SoxString {
                 value: String::from("failed to get boolean from supplied object"),
             };
-            let ob = SoxRef::new_ref(err_msg, _i.types.bool_type.to_owned());
+            let ob = i.alloc(
+                err_msg,
+                crate::builtins::string::SoxString::init_builtin_type().to_owned(),
+            );
             Err(ob.into())
         }
     }
 }
 
 impl ToSoxResult for SoxBool {
-    fn to_sox_result(self, i: &Interpreter) -> SoxResult {
-        let obj = SoxRef::new_ref(self, i.types.bool_type.to_owned());
-        Ok(obj.into())
+    fn to_sox_result(self, i: &mut Runtime) -> SoxResult {
+        let obj = i.alloc(self, i.types.bool_type.to_owned());
+        Ok(SoxObjectRef::from(obj))
     }
 }
 
@@ -89,6 +92,8 @@ impl StaticType for SoxBool {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: None,
+            drop: None,
             number: None,
             comparable: Some(Self::as_comparable()),
             methods: Self::METHOD_DEFS,
@@ -116,7 +121,7 @@ impl Comparable for SoxBool {
 }
 
 impl SoxBool {
-    fn eq(a: SoxObjectRef, other: SoxObjectRef, _i: &Interpreter) -> bool {
+    fn eq(a: SoxObjectRef, other: SoxObjectRef, _i: &Runtime) -> bool {
         if let (Some(a), Some(other)) = (a.payload::<SoxBool>(), other.payload::<SoxBool>()) {
             let result = a.value == other.value;
             result

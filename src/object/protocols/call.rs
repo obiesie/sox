@@ -1,10 +1,10 @@
 use crate::builtins::core::{SoxObjectPayload, SoxResult};
 use crate::builtins::method::FuncArgs;
-use crate::interpreter::Interpreter;
+use crate::runtime::Runtime;
 use crate::object::core::{Sox, SoxObjectRef};
 
 pub trait Callable {
-    fn slot_call(zelf: SoxObjectRef, mut args: FuncArgs, i: &mut Interpreter) -> SoxResult
+    fn slot_call(zelf: SoxObjectRef, mut args: FuncArgs, i: &mut Runtime) -> SoxResult
     where
         Self: SoxObjectPayload,
     {
@@ -21,7 +21,7 @@ pub trait Callable {
         Self::call(zelf, args, i)
     }
 
-    fn call(zelf: &Sox<Self>, args: FuncArgs, i: &mut Interpreter) -> SoxResult
+    fn call(zelf: &Sox<Self>, args: FuncArgs, i: &mut Runtime) -> SoxResult
     where
         Self: SoxObjectPayload;
 }

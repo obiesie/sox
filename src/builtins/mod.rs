@@ -11,5 +11,4 @@ pub mod core;
 pub mod module;
 pub mod r#type;
 pub mod closure;
-mod co;
 pub mod chunk;

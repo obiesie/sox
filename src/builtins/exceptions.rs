@@ -1,6 +1,6 @@
 use crate::builtins::core::{SoxClassImpl, SoxObjectPayload, StaticType};
 use crate::builtins::method::SoxMethod;
-use crate::interpreter::Interpreter;
+use crate::runtime::Runtime;
 
 use crate::builtins::r#type::{SoxType, SoxTypeSlot};
 use crate::object::core::{Sox, SoxObjectRef, SoxRef};
@@ -17,7 +17,7 @@ pub enum Exception {
 }
 
 impl Representable for Exception {
-    fn repr(zelf: &Sox<Self>, _i: &Interpreter) -> String {
+    fn repr(zelf: &Sox<Self>, _i: &Runtime) -> String {
         match zelf.deref() {
             Exception::Err(v) => v.msg.to_string(),
             Exception::Return(_) => "Return".to_string(),
@@ -63,6 +63,8 @@ impl StaticType for Exception {
         SoxTypeSlot {
             call: None,
             repr: Some(Self::slot_repr),
+            trace: None,
+            drop: None,
             number: None,
             comparable: None,
             methods: Self::METHOD_DEFS,
