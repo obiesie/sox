@@ -15,7 +15,7 @@ lazy_static::lazy_static! {
     static ref STACK_TRACE_PATTERN: Regex = Regex::new(r"\[line (\d+)\]").unwrap();
     static ref NON_TEST_PATTERN: Regex = Regex::new(r"// nontest").unwrap();
 }
-static ALL_TEST_SUITES: [&str; 17] = [
+static ALL_TEST_SUITES: [&str; 19] = [
     "assignment",
     "block",
     "bool",
@@ -33,8 +33,10 @@ static ALL_TEST_SUITES: [&str; 17] = [
     "comments",
     "constructors",
     "logical_operator",
+    "logical_operator",
+    "grammar",
 ];
-static TEST_SUITES: [&str; 4] = ["for", "assignment", "function", "closure"];
+static TEST_SUITES: [&str; 5] = ["for", "assignment", "function", "closure", "grammar"];
 
 const SOX_EXECUTABLE: &str = "target/debug/sox";
 const RESULT_CSV_PATH: &str = "result.csv";

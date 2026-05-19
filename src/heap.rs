@@ -23,8 +23,6 @@ pub struct GcStats {
 }
 
 pub struct Heap {
-    /// All allocated objects
-    objects: Vec<SoxObjectRef>,
 
     /// Current bytes allocated
     bytes_allocated: usize,
@@ -44,7 +42,7 @@ pub struct Page {
 }
 
 impl Page {
-    pub fn all_dead(&self) -> bool {
+    pub fn all_garbage(&self) -> bool {
         let base = self.mem.as_ptr();
         let mut offset = 0usize;
         while offset < self.top {
@@ -63,6 +61,24 @@ impl Page {
         while offset < self.top {
             let header = unsafe { &*(base.add(offset) as *const SoxObjectInner<()>) };
             header.marked.set(false);
+            offset += header.gc_size;
+        }
+    }
+
+    /// Safely run the Drop implementation for every object currently residing on this page.
+    pub fn drop_all_objects(&self) {
+        let base = self.mem.as_ptr();
+        let mut offset = 0usize;
+        while offset < self.top {
+            let header = unsafe { &*(base.add(offset) as *const SoxObjectInner<()>) };
+            let obj_ref = unsafe {
+                SoxObjectRef {
+                    ptr: NonNull::new_unchecked(base.add(offset) as *mut SoxObject),
+                }
+            };
+            if let Some(drop_fn) = header.typ.slots.drop {
+                drop_fn(&obj_ref);
+            }
             offset += header.gc_size;
         }
     }
@@ -125,7 +141,6 @@ impl Heap {
     /// Create a new empty heap.
     pub fn new() -> Self {
         Heap {
-            objects: Vec::new(),
             bytes_allocated: 0,
             next_gc_threshold: INITIAL_GC_THRESHOLD,
             stats: GcStats::default(),
@@ -185,40 +200,21 @@ impl Heap {
     }
 
     pub fn should_collect(&self) -> bool {
-        self.bytes_allocated >= 0
+        self.bytes_allocated > self.next_gc_threshold
     }
 
-    /// Run a GC collection cycle.
 
     pub fn collect(&mut self, mark_roots: impl FnOnce(&mut dyn FnMut(SoxObjectRef))) {
         let before_bytes = self.bytes_allocated;
-        let before_pages = self.pages.len();
-
-        eprintln!(
-            "🗑️  GC: === Collection #{} starting ===",
-            self.stats.collections + 1
-        );
-        eprintln!(
-            "🗑️  GC: Before: {} bytes allocated, {} pages, {} live objects",
-            before_bytes, before_pages, self.stats.live_objects
-        );
+        let _before_pages = self.pages.len();
 
         // Mark phase - mark all reachable objects
-        let marked_count = self.mark(mark_roots);
-        eprintln!(
-            "🗑️  GC: Mark phase complete. {} objects marked as reachable",
-            marked_count
-        );
+        let _marked_count = self.mark(mark_roots);
 
         // Sweep phase-free unmarked objects
         let pages_count = self.pages.len();
         self.sweep();
-        let freed_pages_count = pages_count - self.pages.len();
-        eprintln!(
-            "🗑️  GC: Sweep phase complete. {:?} pages freed, {} pages retained",
-            freed_pages_count,
-            self.pages.len()
-        );
+        let _freed_pages_count = pages_count - self.pages.len();
 
         // Update threshold for next GC
         self.next_gc_threshold = self.bytes_allocated * GC_HEAP_GROW_FACTOR;
@@ -229,10 +225,7 @@ impl Heap {
         self.stats.collections += 1;
 
         let freed_bytes = before_bytes.saturating_sub(self.bytes_allocated);
-        eprintln!(
-            "🗑️  GC: === Collection complete. Freed {} bytes ({} -> {} bytes) ===\n",
-            freed_bytes, before_bytes, self.bytes_allocated
-        );
+        let _ = freed_bytes; 
     }
 
     fn mark(&mut self, mark_roots: impl FnOnce(&mut dyn FnMut(SoxObjectRef))) -> usize {
@@ -271,18 +264,18 @@ impl Heap {
             if !marked_cell.get() {
                 marked_cell.set(true);
                 root_count += 1;
-                eprintln!(
-                    "🗑️  GC:   root #{}: type={}, ptr={:p}",
-                    root_count,
-                    get_type_name(&obj),
-                    obj.ptr.as_ptr()
-                );
+                // eprintln!(
+                //     "🗑️  GC:   root #{}: type={}, ptr={:p}",
+                //     root_count,
+                //     get_type_name(&obj),
+                //     obj.ptr.as_ptr()
+                // );
                 worklist.push(obj);
             }
         };
         mark_roots(&mut mark_obj);
         marked_count += root_count;
-        eprintln!("🗑️  GC: Marked {} root objects", root_count);
+        // eprintln!("🗑️  GC: Marked {} root objects", root_count);
 
         // Process grey objects until worklist is empty
         let mut trace_count: usize = 0;
@@ -290,25 +283,20 @@ impl Heap {
             // Look up trace function from obj.typ.slots.trace
             if let Some(trace_fn) = get_trace(&obj) {
                 let type_name = get_type_name(&obj);
+                let _ = type_name; // Suppress unused warning
                 trace_fn(&obj, &mut |child: SoxObjectRef| {
                     let child_marked = get_marked(&child);
                     if !child_marked.get() {
                         child_marked.set(true);
                         trace_count += 1;
                         marked_count += 1;
-                        eprintln!(
-                            "🗑️  GC:   traced child: type={}, ptr={:p} (from parent type={})",
-                            get_type_name(&child),
-                            child.ptr.as_ptr(),
-                            type_name
-                        );
                         worklist.push(child);
                     }
                 });
             }
         }
         if trace_count > 0 {
-            eprintln!("🗑️  GC: Traced {} additional child objects", trace_count);
+            // eprintln!("🗑️  GC: Traced {} additional child objects", trace_count);
         }
 
         marked_count
@@ -318,24 +306,9 @@ impl Heap {
     fn sweep(&mut self) {
         // drop individual objects' heap fields (String, Vec, etc.) first
         self.pages.retain_mut(|page| {
-            if page.all_dead() {
+            if page.all_garbage() {
                 // Call drop_fn for all objects on the page before freeing it
-                let base = page.mem.as_ptr();
-                let mut offset = 0usize;
-                while offset < page.top {
-                    let header = unsafe { &*(base.add(offset) as *const SoxObjectInner<()>) };
-                    let obj_ref = unsafe {
-                        SoxObjectRef {
-                            ptr: NonNull::new_unchecked(base.add(offset) as *mut SoxObject),
-                        }
-                    };
-
-                    if let Some(drop_fn) = header.typ.slots.drop {
-                        drop_fn(&obj_ref);
-                    }
-
-                    offset += header.gc_size;
-                }
+                page.drop_all_objects();
 
                 self.bytes_allocated -= page.top;
                 page.reset();
@@ -375,14 +348,16 @@ impl Default for Heap {
 
 impl Drop for Heap {
     fn drop(&mut self) {
-        // Free all remaining objects
-        for obj_ref in self.objects.drain(..) {
-            unsafe {
-                let _ = Box::from_raw(obj_ref.ptr.as_ptr() as *mut SoxObjectInner<()>);
-            }
+        // We must manually drop the inner payloads of our objects
+        // to prevent leaking any Rust heap allocations (like String, Vec wrapper)
+        for page in &mut self.pages {
+            page.drop_all_objects();
         }
+        // At this point, the inner fields are cleanly dropped,
+        // and Rust will now naturally drop the `page.mem` Box<[u8]> array!
     }
 }
+
 
 #[cfg(test)]
 mod tests {

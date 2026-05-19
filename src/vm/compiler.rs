@@ -9,12 +9,11 @@ use crate::lexer::Lexer;
 use crate::object::core::SoxObjectRef;
 use crate::parser::{SyntaxError, TO_IGNORE};
 use crate::runtime::Runtime;
-use crate::token::Token;
+use crate::token::{Literal, Token};
 use crate::token_type::TokenType;
 
 use std::borrow::Borrow;
 use std::iter::Peekable;
-use std::str::FromStr;
 
 #[repr(u8)]
 #[derive(Clone, Copy, PartialOrd, PartialEq, Debug, Hash, Eq)]
@@ -960,9 +959,8 @@ impl Compiler {
     }
 
     fn emit_bytes(&mut self, data: u8) {
-        context!(self)
-            .chunk
-            .write_chunk(data, self.parser.previous.as_ref().unwrap().line);
+        let line = self.parser.previous.as_ref().map_or(0, |t| t.line);
+        context!(self).chunk.write_chunk(data, line);
     }
 
     pub fn expression(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
@@ -1106,9 +1104,18 @@ impl Compiler {
     }
 
     pub fn number(&mut self, i: &mut Runtime) -> Result<(), CompileError> {
-        let val = i64::from_str(self.parser.previous.as_ref().unwrap().lexeme).unwrap();
-        let obj = i.new_int(val);
-        self.emit_constant(SoxObjectRef::from(obj), i);
+        let token = self.parser.previous.as_ref().unwrap();
+        match &token.literal {
+            Literal::Integer(val) => {
+                let obj = i.new_int(*val);
+                self.emit_constant(SoxObjectRef::from(obj), i);
+            }
+            Literal::Float(val) => {
+                let obj = i.new_float(val.0);
+                self.emit_constant(SoxObjectRef::from(obj), i);
+            }
+            _ => unreachable!("Expected number literal"),
+        }
         Ok(())
     }
 

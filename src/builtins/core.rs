@@ -22,8 +22,7 @@ pub trait StaticType {
     const NAME: &'static str;
     fn init_manually(typ: SoxRef<SoxType>) -> &'static Sox<SoxType> {
         let cell = Self::static_cell();
-        cell.set(typ)
-            .unwrap_or_else(|_| panic!("double initialization from init_manually"));
+        let _ = cell.set(typ);
         cell.get().unwrap()
     }
     fn static_cell() -> &'static OnceCell<SoxRef<SoxType>>;
@@ -31,10 +30,11 @@ pub trait StaticType {
     where
         Self: SoxClassImpl,
     {
-        let typ = Self::create_static_type();
         let cell = Self::static_cell();
-        cell.set(typ)
-            .unwrap_or_else(|_| panic!("Double initialization"));
+        if cell.get().is_none() {
+            let typ = Self::create_static_type();
+            let _ = cell.set(typ);
+        }
         let v = cell.get().unwrap();
         v
     }
