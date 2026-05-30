@@ -88,9 +88,8 @@ impl Page {
     }
 
     pub fn alloc_layout(&mut self, layout: Layout) -> Option<NonNull<u8>> {
+        assert!(layout.align() <= 8, "VM only supports up to 8-byte alignment");
         let align_mask = layout.align() - 1;
-
-        // round `top` up to alignment
         let start = (self.top + align_mask) & !align_mask;
         let end = start.checked_add(layout.size())?;
 
@@ -110,7 +109,7 @@ impl Page {
         payload: T,
         typ: SoxRef<SoxType>,
         _size: usize,
-    ) -> Result<SoxRef<T>, (T, SoxRef<SoxType>)> {
+    ) -> Result<(SoxRef<T>, usize), (T, SoxRef<SoxType>)> {
         let layout = Layout::new::<Sox<T>>();
         let previous_top = self.top;
 
@@ -130,9 +129,9 @@ impl Page {
         let obj_ptr = mem.as_ptr() as *mut Sox<T>;
         unsafe {
             ptr::write(obj_ptr, obj);
-            Ok(SoxRef {
+            Ok((SoxRef {
                 ptr: NonNull::new_unchecked(obj_ptr),
-            })
+            }, actual_size))
         }
     }
 }
@@ -165,8 +164,8 @@ impl Heap {
             .unwrap()
             .alloc_object(payload, typ, size)
         {
-            Ok(sox_ref) => {
-                self.bytes_allocated += size;
+            Ok((sox_ref, actual_size)) => {
+                self.bytes_allocated += actual_size;
                 self.stats.total_allocations += 1;
                 self.stats.live_objects += 1;
                 self.stats.bytes_allocated = self.bytes_allocated;
@@ -187,11 +186,13 @@ impl Heap {
             .unwrap()
             .alloc_object(payload, typ, size)
         {
-            Ok(r) => r,
+            Ok((r, actual_size)) => {
+                self.bytes_allocated += actual_size;
+                r
+            },
             Err(_) => panic!("Failed to allocate on a fresh page"),
         };
 
-        self.bytes_allocated += size;
         self.stats.total_allocations += 1;
         self.stats.live_objects += 1;
         self.stats.bytes_allocated = self.bytes_allocated;
